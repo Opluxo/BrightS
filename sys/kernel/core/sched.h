@@ -1,0 +1,10 @@
+#ifndef BRIGHTS_SCHED_H
+#define BRIGHTS_SCHED_H
+
+#include <stdint.h>
+
+void brights_sched_init(void);
+void brights_sched_tick(void);
+uint64_t brights_sched_ticks(void);
+
+#endif

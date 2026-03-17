@@ -1,0 +1,7 @@
+/home/s12mc/CodeSpace/brights/build-brights/CMakeFiles/edit_cache.dir
+/home/s12mc/CodeSpace/brights/build-brights/CMakeFiles/rebuild_cache.dir
+/home/s12mc/CodeSpace/brights/build-brights/sys/CMakeFiles/edit_cache.dir
+/home/s12mc/CodeSpace/brights/build-brights/sys/CMakeFiles/rebuild_cache.dir
+/home/s12mc/CodeSpace/brights/build-brights/sys/kernel/CMakeFiles/kernel_efi.dir
+/home/s12mc/CodeSpace/brights/build-brights/sys/kernel/CMakeFiles/edit_cache.dir
+/home/s12mc/CodeSpace/brights/build-brights/sys/kernel/CMakeFiles/rebuild_cache.dir

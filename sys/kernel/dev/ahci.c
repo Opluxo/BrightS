@@ -25,6 +25,9 @@
 #define AHCI_PORT_SACT 0x34
 #define AHCI_PORT_CI   0x38
 
+#define AHCI_PORT_DET_PRESENT 0x3
+#define AHCI_PORT_IPM_ACTIVE  0x1
+
 #define AHCI_PORT_CMD_ST  (1u << 0)
 #define AHCI_PORT_CMD_FRE (1u << 4)
 #define AHCI_PORT_CMD_FR  (1u << 14)
@@ -102,6 +105,24 @@ static uint8_t ahci_port;
 static ahci_cmd_header_t cmd_hdr[32] __attribute__((aligned(1024)));
 static ahci_cmd_tbl_t cmd_tbl[32] __attribute__((aligned(256)));
 static uint8_t fis_buf[256] __attribute__((aligned(256)));
+
+static void ahci_debug(const char *msg)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, msg);
+}
+
+static void ahci_debug_hex32(uint32_t v)
+{
+  static const char hex[] = "0123456789ABCDEF";
+  char buf[11];
+  buf[0] = '0';
+  buf[1] = 'x';
+  for (int i = 0; i < 8; ++i) {
+    buf[2 + i] = hex[(v >> ((7 - i) * 4)) & 0xF];
+  }
+  buf[10] = 0;
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, buf);
+}
 
 static inline uint32_t mmio_read32(uint32_t off)
 {
@@ -209,6 +230,9 @@ int brights_ahci_init(const brights_pci_device_t *dev)
   uint64_t bar = dev->bar[5];
   uint64_t mmio_base = bar & ~0xFULL;
   ahci_mmio = (volatile uint8_t *)(uintptr_t)mmio_base;
+  ahci_debug("ahci: abar=");
+  ahci_debug_hex32((uint32_t)mmio_base);
+  ahci_debug("\r\n");
 
   mmio_write32(AHCI_HBA_GHC, AHCI_GHC_HR);
   while (mmio_read32(AHCI_HBA_GHC) & AHCI_GHC_HR) {
@@ -216,19 +240,37 @@ int brights_ahci_init(const brights_pci_device_t *dev)
   mmio_write32(AHCI_HBA_GHC, AHCI_GHC_AE);
 
   uint32_t pi = mmio_read32(AHCI_HBA_PI);
+  ahci_debug("ahci: pi=");
+  ahci_debug_hex32(pi);
+  ahci_debug("\r\n");
   uint8_t found = 0;
   for (uint8_t p = 0; p < 32; ++p) {
     if ((pi & (1u << p)) == 0) {
       continue;
     }
     uint32_t sig = mmio_read32(port_off(p, AHCI_PORT_SIG));
+    uint32_t ssts = mmio_read32(port_off(p, AHCI_PORT_SSTS));
+    uint32_t det = ssts & 0xF;
+    uint32_t ipm = (ssts >> 8) & 0xF;
+    ahci_debug("ahci: port sig=");
+    ahci_debug_hex32(sig);
+    ahci_debug(" ssts=");
+    ahci_debug_hex32(ssts);
+    ahci_debug("\r\n");
     if (sig == SATA_SIG_ATA) {
+      ahci_port = p;
+      found = 1;
+      break;
+    }
+    if (det == AHCI_PORT_DET_PRESENT && ipm == AHCI_PORT_IPM_ACTIVE) {
+      ahci_debug("ahci: using active port despite nonstandard signature\r\n");
       ahci_port = p;
       found = 1;
       break;
     }
   }
   if (!found) {
+    ahci_debug("ahci: no sata ata port found\r\n");
     return -1;
   }
 

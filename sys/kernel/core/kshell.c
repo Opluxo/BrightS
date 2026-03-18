@@ -22,6 +22,9 @@
 static char current_user[KSHELL_MAX_USER] = "guest";
 static int is_root = 0;
 
+static void cmd_date(void);
+static void cmd_kbdtest(void);
+
 static int streq(const char *a, const char *b)
 {
   while (*a && *b) {
@@ -409,7 +412,9 @@ static void print_prompt(void)
 static void cmd_help(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "commands: help echo uname pwd whoami login logout passwd useradd profile setpf ls stat cat touch write append rm hexdump mem ps ticks signal raise clearsig date kbdtest mount runuser clear reboot halt\n");
+    "commands: help echo pwd whoami login logout passwd useradd profile setpf ls stat cat touch write append rm hexdump bst <tool>\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "bst tools: help version memory processes clock signals raise-signal clear-signals time keyboard-test mount clear enter-user reboot shutdown\n");
 }
 
 static const char *proc_state_name(brights_proc_state_t state)
@@ -742,6 +747,86 @@ static void cmd_clearsig(const char *arg)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "signal cleared\n");
 }
 
+static void cmd_bst_help(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "usage: bst <tool>\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "tools: help version memory processes clock signals raise-signal clear-signals time keyboard-test mount clear enter-user reboot shutdown\n");
+}
+
+static int handle_bst(const char *arg)
+{
+  arg = skip_spaces(arg);
+  if (*arg == 0 || streq(arg, "help")) {
+    cmd_bst_help();
+    return 1;
+  }
+  if (streq(arg, "version")) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS x86_64\n");
+    return 1;
+  }
+  if (streq(arg, "memory")) {
+    cmd_mem();
+    return 1;
+  }
+  if (streq(arg, "processes")) {
+    cmd_ps();
+    return 1;
+  }
+  if (streq(arg, "clock")) {
+    cmd_ticks();
+    return 1;
+  }
+  if (streq(arg, "signals")) {
+    cmd_signal();
+    return 1;
+  }
+  if (streq(arg, "time")) {
+    cmd_date();
+    return 1;
+  }
+  if (streq(arg, "keyboard-test")) {
+    cmd_kbdtest();
+    return 1;
+  }
+  if (streq(arg, "mount")) {
+    if (brights_vfs_mount_external("manual") == 0) {
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mounted at /dev/mnt/\n");
+    } else {
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mount failed\n");
+    }
+    return 1;
+  }
+  if (streq(arg, "clear")) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\x1b[2J\x1b[H");
+    return 1;
+  }
+  if (streq(arg, "enter-user")) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "entering user mode\n");
+    brights_userinit();
+    return 0;
+  }
+  if (streq(arg, "reboot")) {
+    outb(0x64, 0xFE);
+    return 0;
+  }
+  if (streq(arg, "shutdown")) {
+    return 0;
+  }
+  if (starts_with(arg, "raise-signal ")) {
+    cmd_raise(arg + 13);
+    return 1;
+  }
+  if (streq(arg, "clear-signals") || starts_with(arg, "clear-signals ")) {
+    cmd_clearsig(arg + 13);
+    return 1;
+  }
+
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "unknown bst tool\n");
+  return 1;
+}
+
 static void cmd_echo(const char *arg)
 {
   arg = skip_spaces(arg);
@@ -945,10 +1030,6 @@ static int handle_line(char *line)
     cmd_ls();
     return 1;
   }
-  if (streq(cmd, "uname")) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS x86_64\n");
-    return 1;
-  }
   if (streq(cmd, "pwd")) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "/\n");
     return 1;
@@ -965,53 +1046,8 @@ static int handle_line(char *line)
     cmd_logout();
     return 1;
   }
-  if (streq(cmd, "mem")) {
-    cmd_mem();
-    return 1;
-  }
-  if (streq(cmd, "ps")) {
-    cmd_ps();
-    return 1;
-  }
-  if (streq(cmd, "ticks")) {
-    cmd_ticks();
-    return 1;
-  }
-  if (streq(cmd, "signal")) {
-    cmd_signal();
-    return 1;
-  }
-  if (streq(cmd, "date")) {
-    cmd_date();
-    return 1;
-  }
-  if (streq(cmd, "kbdtest")) {
-    cmd_kbdtest();
-    return 1;
-  }
-  if (streq(cmd, "mount")) {
-    if (brights_vfs_mount_external("manual") == 0) {
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mounted at /dev/mnt/\n");
-    } else {
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mount failed\n");
-    }
-    return 1;
-  }
-  if (streq(cmd, "clear")) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\x1b[2J\x1b[H");
-    return 1;
-  }
-  if (streq(cmd, "runuser")) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "entering user mode\n");
-    brights_userinit();
-    return 0;
-  }
-  if (streq(cmd, "reboot")) {
-    outb(0x64, 0xFE);
-    return 0;
-  }
-  if (streq(cmd, "halt")) {
-    return 0;
+  if (streq(cmd, "bst")) {
+    return handle_bst("");
   }
   if (starts_with(cmd, "cat ")) {
     cmd_cat(cmd + 4);
@@ -1061,12 +1097,18 @@ static int handle_line(char *line)
     cmd_echo(cmd + 5);
     return 1;
   }
-  if (starts_with(cmd, "raise ")) {
-    cmd_raise(cmd + 6);
+  if (starts_with(cmd, "bst ")) {
+    return handle_bst(cmd + 4);
+  }
+  if (streq(cmd, "uname")) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "use: bst version\n");
     return 1;
   }
-  if (starts_with(cmd, "clearsig")) {
-    cmd_clearsig(cmd + 8);
+  if (streq(cmd, "mem") || streq(cmd, "ps") || streq(cmd, "ticks") ||
+      streq(cmd, "signal") || streq(cmd, "date") || streq(cmd, "kbdtest") ||
+      streq(cmd, "mount") || streq(cmd, "runuser") || streq(cmd, "reboot") ||
+      streq(cmd, "halt") || streq(cmd, "clear")) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "use: bst help\n");
     return 1;
   }
 

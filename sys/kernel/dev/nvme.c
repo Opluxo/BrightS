@@ -1,6 +1,7 @@
 #include "nvme.h"
 #include "../core/printf.h"
 #include "serial.h"
+#include "../platform/x86_64/pci.h"
 
 #define NVME_REG_CAP   0x0000
 #define NVME_REG_VS    0x0008
@@ -254,6 +255,7 @@ static int nvme_write(uint64_t lba, const void *buf, uint64_t count)
 
 int brights_nvme_init(const brights_pci_device_t *dev)
 {
+  brights_pci_enable_mmio_busmaster(dev);
   uint64_t bar = dev->bar[0];
   if ((bar & 0x6) == 0x4) { // 64-bit BAR
     bar |= ((uint64_t)dev->bar[1]) << 32;

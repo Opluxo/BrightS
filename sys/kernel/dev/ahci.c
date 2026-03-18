@@ -1,6 +1,7 @@
 #include "ahci.h"
 #include "../core/printf.h"
 #include "serial.h"
+#include "../platform/x86_64/pci.h"
 
 #define AHCI_HBA_CAP  0x00
 #define AHCI_HBA_GHC  0x04
@@ -204,6 +205,7 @@ static int ahci_write(uint64_t lba, const void *buf, uint64_t count)
 
 int brights_ahci_init(const brights_pci_device_t *dev)
 {
+  brights_pci_enable_mmio_busmaster(dev);
   uint64_t bar = dev->bar[5];
   uint64_t mmio_base = bar & ~0xFULL;
   ahci_mmio = (volatile uint8_t *)(uintptr_t)mmio_base;

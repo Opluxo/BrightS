@@ -17,5 +17,8 @@ typedef struct {
 } brights_pci_device_t;
 
 int brights_pci_scan(brights_pci_device_t *out, uint32_t max);
+uint32_t brights_pci_read32(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg);
+void brights_pci_write32(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg, uint32_t value);
+void brights_pci_enable_mmio_busmaster(const brights_pci_device_t *dev);
 
 #endif

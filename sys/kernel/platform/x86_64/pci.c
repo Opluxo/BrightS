@@ -15,6 +15,29 @@ static uint32_t pci_read32(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg)
   return inl(PCI_CONFIG_DATA);
 }
 
+static void pci_write32(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg, uint32_t value)
+{
+  outl(PCI_CONFIG_ADDRESS, pci_cfg_addr(bus, dev, func, reg));
+  outl(PCI_CONFIG_DATA, value);
+}
+
+uint32_t brights_pci_read32(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg)
+{
+  return pci_read32(bus, dev, func, reg);
+}
+
+void brights_pci_write32(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg, uint32_t value)
+{
+  pci_write32(bus, dev, func, reg, value);
+}
+
+void brights_pci_enable_mmio_busmaster(const brights_pci_device_t *dev)
+{
+  uint32_t cmd = pci_read32(dev->bus, dev->dev, dev->func, 0x04);
+  cmd |= (1u << 1) | (1u << 2);
+  pci_write32(dev->bus, dev->dev, dev->func, 0x04, cmd);
+}
+
 int brights_pci_scan(brights_pci_device_t *out, uint32_t max)
 {
   uint32_t count = 0;

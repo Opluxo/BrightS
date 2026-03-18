@@ -11,6 +11,7 @@ ESP_DIR="${BUILD_DIR}/esp"
 KERNEL_EFI="${BUILD_DIR}/sys/kernel/kernel.efi"
 OVMF_CODE=""
 OVMF_VARS=""
+HOST_SDA1="${HOST_SDA1:-/dev/sda1}"
 
 find_ovmf() {
   local code_candidates=(
@@ -50,6 +51,11 @@ if [[ -z "${OVMF_CODE}" || -z "${OVMF_VARS}" ]]; then
   exit 1
 fi
 
+if [[ ! -b "${HOST_SDA1}" ]]; then
+  echo "error: host block device ${HOST_SDA1} not found" >&2
+  exit 1
+fi
+
 mkdir -p "${ESP_DIR}/EFI/BOOT"
 cp "${KERNEL_EFI}" "${ESP_DIR}/EFI/BOOT/BOOTX64.EFI"
 
@@ -58,6 +64,9 @@ qemu-system-x86_64 \
   -m 512M \
   -drive if=pflash,format=raw,readonly=on,file="${OVMF_CODE}" \
   -drive if=pflash,format=raw,file="${OVMF_VARS}" \
-  -drive format=raw,file=fat:rw:"${ESP_DIR}" \
+  -drive if=ide,format=raw,file=fat:rw:"${ESP_DIR}" \
+  -device ich9-ahci,id=ahci \
+  -drive file="${HOST_SDA1}",format=raw,if=none,id=hostsda1 \
+  -device ide-hd,drive=hostsda1,bus=ahci.0 \
   -monitor none \
   -serial stdio

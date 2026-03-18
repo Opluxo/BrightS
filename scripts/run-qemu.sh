@@ -15,11 +15,13 @@ OVMF_VARS=""
 find_ovmf() {
   local code_candidates=(
     "/usr/share/OVMF/OVMF_CODE.fd"
+    "/usr/share/OVMF/x64/OVMF_CODE.4m.fd"
     "/usr/share/edk2/x64/OVMF_CODE.4m.fd"
     "/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd"
   )
   local vars_candidates=(
     "/usr/share/OVMF/OVMF_VARS.fd"
+    "/usr/share/OVMF/x64/OVMF_VARS.4m.fd"
     "/usr/share/edk2/x64/OVMF_VARS.4m.fd"
     "/usr/share/edk2-ovmf/x64/OVMF_VARS.4m.fd"
   )

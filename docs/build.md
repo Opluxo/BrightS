@@ -9,6 +9,12 @@ This project builds a UEFI x86_64 kernel image and runs it in QEMU.
 - OVMF UEFI firmware files:
   - `/usr/share/OVMF/OVMF_CODE.fd`
   - `/usr/share/OVMF/OVMF_VARS.fd`
+  - `/usr/share/OVMF/x64/OVMF_CODE.4m.fd`
+  - `/usr/share/OVMF/x64/OVMF_VARS.4m.fd`
+  - `/usr/share/edk2/x64/OVMF_CODE.4m.fd`
+  - `/usr/share/edk2/x64/OVMF_VARS.4m.fd`
+  - `/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd`
+  - `/usr/share/edk2-ovmf/x64/OVMF_VARS.4m.fd`
 - `xorriso` (only needed for ISO build)
 
 ## Build
@@ -41,5 +47,5 @@ btrfs: mount failed
 
 ## Troubleshooting
 - `kernel.efi not found`: run `cmake --build build` first.
-- OVMF file missing: install your distro `ovmf` package or adjust script paths.
+- OVMF file missing: install your distro `ovmf` or `edk2-ovmf` package, or adjust script paths.
 - `xorriso: command not found`: install `xorriso`.

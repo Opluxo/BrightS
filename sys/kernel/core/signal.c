@@ -26,3 +26,20 @@ uint32_t brights_signal_pending(void)
 {
   return signal_state.pending_mask;
 }
+
+int brights_signal_consume(uint32_t signo)
+{
+  if (signo == 0 || signo >= BRIGHTS_SIGNAL_MAX) {
+    return -1;
+  }
+  if ((signal_state.pending_mask & (1u << signo)) == 0) {
+    return -1;
+  }
+  signal_state.pending_mask &= ~(1u << signo);
+  return 0;
+}
+
+void brights_signal_clear_all(void)
+{
+  signal_state.pending_mask = 0;
+}

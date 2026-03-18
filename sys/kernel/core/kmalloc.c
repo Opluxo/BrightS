@@ -38,3 +38,13 @@ void brights_kfree(void *ptr)
   (void)ptr;
   // Early bump allocator: free is a no-op for now.
 }
+
+size_t brights_kmalloc_used(void)
+{
+  return kmalloc_next;
+}
+
+size_t brights_kmalloc_capacity(void)
+{
+  return BRIGHTS_KMALLOC_HEAP_SIZE;
+}

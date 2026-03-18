@@ -6,6 +6,11 @@
 #include "../fs/vfs.h"
 #include "../dev/rtc.h"
 #include "../dev/ps2kbd.h"
+#include "clock.h"
+#include "kmalloc.h"
+#include "proc.h"
+#include "sched.h"
+#include "signal.h"
 #include "userinit.h"
 #include <stdint.h>
 
@@ -404,7 +409,22 @@ static void print_prompt(void)
 static void cmd_help(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "commands: help echo uname pwd whoami login logout passwd useradd profile setpf ls stat cat touch write append rm hexdump mem date kbdtest mount runuser clear reboot halt\n");
+    "commands: help echo uname pwd whoami login logout passwd useradd profile setpf ls stat cat touch write append rm hexdump mem ps ticks signal raise clearsig date kbdtest mount runuser clear reboot halt\n");
+}
+
+static const char *proc_state_name(brights_proc_state_t state)
+{
+  switch (state) {
+    case BRIGHTS_PROC_RUNNABLE:
+      return "runnable";
+    case BRIGHTS_PROC_RUNNING:
+      return "running";
+    case BRIGHTS_PROC_SLEEPING:
+      return "sleeping";
+    case BRIGHTS_PROC_UNUSED:
+    default:
+      return "unused";
+  }
 }
 
 static void cmd_ls(void)
@@ -615,7 +635,111 @@ static void cmd_mem(void)
   print_u64(used);
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes total=");
   print_u64(cap);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes kmalloc=");
+  print_u64((uint64_t)brights_kmalloc_used());
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "/");
+  print_u64((uint64_t)brights_kmalloc_capacity());
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes\n");
+}
+
+static void cmd_ps(void)
+{
+  uint32_t total = brights_proc_total();
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "procs total=");
+  print_u64(total);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " runnable=");
+  print_u64(brights_proc_count(BRIGHTS_PROC_RUNNABLE));
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " running=");
+  print_u64(brights_proc_count(BRIGHTS_PROC_RUNNING));
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sleeping=");
+  print_u64(brights_proc_count(BRIGHTS_PROC_SLEEPING));
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+
+  for (uint32_t i = 0; i < 64u; ++i) {
+    brights_proc_info_t info;
+    if (brights_proc_info_at(i, &info) < 0) {
+      continue;
+    }
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "pid=");
+    print_u64(info.pid);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " state=");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, proc_state_name(info.state));
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  }
+}
+
+static void cmd_ticks(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "clock=");
+  print_u64(brights_clock_now_ticks());
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sched=");
+  print_u64(brights_sched_ticks());
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " dispatch=");
+  print_u64(brights_sched_dispatches());
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+}
+
+static void cmd_signal(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "pending=0x");
+  uint32_t pending = brights_signal_pending();
+  print_hex8((uint8_t)((pending >> 24) & 0xFFu));
+  print_hex8((uint8_t)((pending >> 16) & 0xFFu));
+  print_hex8((uint8_t)((pending >> 8) & 0xFFu));
+  print_hex8((uint8_t)(pending & 0xFFu));
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+}
+
+static int parse_u32(const char *s, uint32_t *out)
+{
+  uint32_t v = 0;
+  int found = 0;
+  while (*s >= '0' && *s <= '9') {
+    found = 1;
+    v = (v * 10u) + (uint32_t)(*s - '0');
+    ++s;
+  }
+  if (!found || *s != 0 || !out) {
+    return -1;
+  }
+  *out = v;
+  return 0;
+}
+
+static void cmd_raise(const char *arg)
+{
+  arg = skip_spaces(arg);
+  uint32_t signo = 0;
+  if (parse_u32(arg, &signo) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: raise <signo>\n");
+    return;
+  }
+  if (brights_signal_raise(signo) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "raise failed\n");
+    return;
+  }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "raise ok\n");
+}
+
+static void cmd_clearsig(const char *arg)
+{
+  arg = skip_spaces(arg);
+  if (*arg == 0) {
+    brights_signal_clear_all();
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "signals cleared\n");
+    return;
+  }
+
+  uint32_t signo = 0;
+  if (parse_u32(arg, &signo) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: clearsig [signo]\n");
+    return;
+  }
+  if (brights_signal_consume(signo) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "signal not pending\n");
+    return;
+  }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "signal cleared\n");
 }
 
 static void cmd_echo(const char *arg)
@@ -845,6 +969,18 @@ static int handle_line(char *line)
     cmd_mem();
     return 1;
   }
+  if (streq(cmd, "ps")) {
+    cmd_ps();
+    return 1;
+  }
+  if (streq(cmd, "ticks")) {
+    cmd_ticks();
+    return 1;
+  }
+  if (streq(cmd, "signal")) {
+    cmd_signal();
+    return 1;
+  }
   if (streq(cmd, "date")) {
     cmd_date();
     return 1;
@@ -923,6 +1059,14 @@ static int handle_line(char *line)
   }
   if (starts_with(cmd, "echo ")) {
     cmd_echo(cmd + 5);
+    return 1;
+  }
+  if (starts_with(cmd, "raise ")) {
+    cmd_raise(cmd + 6);
+    return 1;
+  }
+  if (starts_with(cmd, "clearsig")) {
+    cmd_clearsig(cmd + 8);
     return 1;
   }
 

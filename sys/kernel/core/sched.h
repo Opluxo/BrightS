@@ -6,5 +6,7 @@
 void brights_sched_init(void);
 void brights_sched_tick(void);
 uint64_t brights_sched_ticks(void);
+uint64_t brights_sched_dispatches(void);
+int brights_sched_mark_dispatch(void);
 
 #endif

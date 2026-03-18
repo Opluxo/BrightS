@@ -63,6 +63,8 @@ void brights_kernel_main(void)
 
   int kpid = brights_proc_spawn_kernel();
   if (kpid > 0) {
+    brights_proc_set_state((uint32_t)kpid, BRIGHTS_PROC_RUNNING);
+    brights_sched_mark_dispatch();
     brights_print(&con, u"proc: init ok\r\n");
   } else {
     brights_print(&con, u"proc: init failed\r\n");
@@ -77,6 +79,8 @@ void brights_kernel_main(void)
 
   // Short calibrated pause to exercise early sleep path.
   brights_sleep_cycles(1024);
+  brights_clock_advance(1024);
+  brights_sched_tick();
 
   brights_storage_bootstrap();
   if (brights_storage_backend()[0] == 'n') {

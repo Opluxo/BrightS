@@ -51,6 +51,7 @@ if(UEFI_CLANG)
       ${CMAKE_CURRENT_SOURCE_DIR}/core/sched.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/signal.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/sleep.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/core/storage.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/syscall.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/sysent.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/kernel_main.c
@@ -102,6 +103,7 @@ if(UEFI_CLANG)
       ${CMAKE_CURRENT_SOURCE_DIR}/core/sched.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/signal.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/sleep.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/core/storage.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/syscall.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/sysent.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/kernel_main.c

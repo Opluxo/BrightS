@@ -16,3 +16,8 @@ uint64_t brights_clock_now_ticks(void)
 {
   return clock_ticks;
 }
+
+void brights_clock_advance(uint64_t ticks)
+{
+  clock_ticks += ticks;
+}

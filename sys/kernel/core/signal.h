@@ -6,5 +6,7 @@
 void brights_signal_init(void);
 int brights_signal_raise(uint32_t signo);
 uint32_t brights_signal_pending(void);
+int brights_signal_consume(uint32_t signo);
+void brights_signal_clear_all(void);
 
 #endif

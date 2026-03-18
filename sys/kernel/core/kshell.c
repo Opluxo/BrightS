@@ -24,6 +24,12 @@ static int is_root = 0;
 
 static void cmd_date(void);
 static void cmd_kbdtest(void);
+static void cmd_uname(void);
+static void cmd_mount(void);
+static void cmd_clear(void);
+static int cmd_runuser(void);
+static int cmd_reboot(void);
+static int cmd_halt(void);
 
 static int streq(const char *a, const char *b)
 {
@@ -412,7 +418,7 @@ static void print_prompt(void)
 static void cmd_help(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "commands: help echo pwd whoami login logout passwd useradd profile setpf ls stat cat touch write append rm hexdump bst <tool>\n");
+    "commands: help echo uname pwd whoami login logout passwd useradd profile setpf ls stat cat touch write append rm hexdump mem ps ticks signal raise clearsig date kbdtest mount clear runuser reboot halt shutdown version bst <tool>\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "bst tools: help version memory processes clock signals raise-signal clear-signals time keyboard-test mount clear enter-user reboot shutdown\n");
 }
@@ -755,6 +761,49 @@ static void cmd_bst_help(void)
     "tools: help version memory processes clock signals raise-signal clear-signals time keyboard-test mount clear enter-user reboot shutdown\n");
 }
 
+static void cmd_uname(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS x86_64\n");
+}
+
+static void cmd_mount(void)
+{
+  if (brights_vfs_mount_external("manual") == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mounted at /dev/mnt/\n");
+  } else {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mount failed\n");
+  }
+}
+
+static void cmd_clear(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\x1b[2J\x1b[H");
+}
+
+static int cmd_runuser(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "entering user mode\n");
+  brights_userinit();
+  return 1;
+}
+
+static int cmd_reboot(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "rebooting\n");
+  outb(0x64, 0xFE);
+  for (;;) {
+    __asm__ __volatile__("hlt");
+  }
+}
+
+static int cmd_halt(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "system halted\n");
+  for (;;) {
+    __asm__ __volatile__("hlt");
+  }
+}
+
 static int handle_bst(const char *arg)
 {
   arg = skip_spaces(arg);
@@ -763,7 +812,7 @@ static int handle_bst(const char *arg)
     return 1;
   }
   if (streq(arg, "version")) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS x86_64\n");
+    cmd_uname();
     return 1;
   }
   if (streq(arg, "memory")) {
@@ -791,28 +840,21 @@ static int handle_bst(const char *arg)
     return 1;
   }
   if (streq(arg, "mount")) {
-    if (brights_vfs_mount_external("manual") == 0) {
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mounted at /dev/mnt/\n");
-    } else {
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mount failed\n");
-    }
+    cmd_mount();
     return 1;
   }
   if (streq(arg, "clear")) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\x1b[2J\x1b[H");
+    cmd_clear();
     return 1;
   }
   if (streq(arg, "enter-user")) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "entering user mode\n");
-    brights_userinit();
-    return 0;
+    return cmd_runuser();
   }
   if (streq(arg, "reboot")) {
-    outb(0x64, 0xFE);
-    return 0;
+    return cmd_reboot();
   }
   if (streq(arg, "shutdown")) {
-    return 0;
+    return cmd_halt();
   }
   if (starts_with(arg, "raise-signal ")) {
     cmd_raise(arg + 13);
@@ -1101,15 +1143,64 @@ static int handle_line(char *line)
     return handle_bst(cmd + 4);
   }
   if (streq(cmd, "uname")) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "use: bst version\n");
+    cmd_uname();
     return 1;
   }
-  if (streq(cmd, "mem") || streq(cmd, "ps") || streq(cmd, "ticks") ||
-      streq(cmd, "signal") || streq(cmd, "date") || streq(cmd, "kbdtest") ||
-      streq(cmd, "mount") || streq(cmd, "runuser") || streq(cmd, "reboot") ||
-      streq(cmd, "halt") || streq(cmd, "clear")) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "use: bst help\n");
+  if (streq(cmd, "version")) {
+    cmd_uname();
     return 1;
+  }
+  if (streq(cmd, "mem")) {
+    cmd_mem();
+    return 1;
+  }
+  if (streq(cmd, "ps")) {
+    cmd_ps();
+    return 1;
+  }
+  if (streq(cmd, "ticks")) {
+    cmd_ticks();
+    return 1;
+  }
+  if (streq(cmd, "signal")) {
+    cmd_signal();
+    return 1;
+  }
+  if (starts_with(cmd, "raise ")) {
+    cmd_raise(cmd + 6);
+    return 1;
+  }
+  if (streq(cmd, "clearsig") || starts_with(cmd, "clearsig ")) {
+    cmd_clearsig(cmd + 8);
+    return 1;
+  }
+  if (streq(cmd, "date")) {
+    cmd_date();
+    return 1;
+  }
+  if (streq(cmd, "kbdtest")) {
+    cmd_kbdtest();
+    return 1;
+  }
+  if (streq(cmd, "mount")) {
+    cmd_mount();
+    return 1;
+  }
+  if (streq(cmd, "clear")) {
+    cmd_clear();
+    return 1;
+  }
+  if (streq(cmd, "runuser")) {
+    return cmd_runuser();
+  }
+  if (streq(cmd, "reboot")) {
+    return cmd_reboot();
+  }
+  if (streq(cmd, "halt")) {
+    return cmd_halt();
+  }
+  if (streq(cmd, "shutdown")) {
+    return cmd_halt();
   }
 
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "unknown command\n");

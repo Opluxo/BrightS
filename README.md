@@ -29,6 +29,12 @@ See `docs/build.md`.
 ## Interactive Shell
 After boot, BrightS enters a serial shell prompt (`guest$` or `root#`).
 
+Current shell behavior:
+- Working directory is tracked (`pwd`, `cd`)
+- Paths support `/`, relative paths, `.` and `..`
+- RAMFS now models directories and regular files
+- System and maintenance commands are grouped under `bst procom`
+
 User/system layout:
 - System userspace config: `/config/userspace/*`
 - Per-user profile: `/config/<username>/example.pf`
@@ -46,8 +52,27 @@ System disk policy:
 Common commands:
 - Auth: `login`, `logout`, `whoami`, `passwd`, `useradd`
 - Profile: `profile`, `setpf`
-- Files: `ls`, `stat`, `cat`, `touch`, `write`, `append`, `rm`, `hexdump`
-- System: `uname`, `pwd`, `mem`, `mount`, `runuser`, `reboot`, `halt`
+- Navigation: `pwd`, `cd`, `mkdir`
+- Files: `ls`, `stat`, `cat`, `touch`, `write`, `append`, `rm`, `hexdump`, `echo`
+- System/maintenance entry: `bst`
+
+`bst` command layout:
+- `bst help`
+- `bst procom help`
+- `bst procom version`
+- `bst procom memory`
+- `bst procom processes`
+- `bst procom clock`
+- `bst procom signals`
+- `bst procom raise-signal <signo>`
+- `bst procom clear-signals [signo]`
+- `bst procom time`
+- `bst procom keyboard-test`
+- `bst procom mount`
+- `bst procom clear`
+- `bst procom enter-user`
+- `bst procom reboot`
+- `bst procom shutdown`
 
 ## License
 This project is licensed under `GNU GPL v2` (`GPL-2.0-only`). See `LICENSE`.

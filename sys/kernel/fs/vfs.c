@@ -23,9 +23,28 @@ static void seed_file(const char *path, const char *content)
   brights_ramfs_write(fd, 0, content, len);
 }
 
+static void seed_dir(const char *path)
+{
+  brights_ramfs_stat_t st;
+  if (brights_ramfs_stat(path, &st) == 0) {
+    return;
+  }
+  brights_ramfs_mkdir(path);
+}
+
 void brights_vfs_init(void)
 {
   brights_ramfs_init();
+  seed_dir("/config");
+  seed_dir("/config/userspace");
+  seed_dir("/config/root");
+  seed_dir("/config/guest");
+  seed_dir("/usr");
+  seed_dir("/usr/home");
+  seed_dir("/usr/home/root");
+  seed_dir("/usr/home/guest");
+  seed_dir("/dev");
+  seed_dir("/dev/mnt");
   seed_file("/config/userspace/init.rc", "echo BrightS userspace init\n");
   seed_file("/config/userspace/profile", "USER=guest\nHOME=/usr/home\n");
   seed_file("/config/root/example.pf",

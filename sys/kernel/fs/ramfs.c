@@ -4,7 +4,7 @@
 static brights_ramfs_file_t ramfs_files[BRIGHTS_RAMFS_MAX_FILES];
 static uint8_t ramfs_storage[BRIGHTS_RAMFS_MAX_FILES][4096];
 
-static int name_len_limited(const char *s, int max)
+static int path_len_limited(const char *s, int max)
 {
   int n = 0;
   while (s[n]) {
@@ -16,7 +16,7 @@ static int name_len_limited(const char *s, int max)
   return n;
 }
 
-static int name_eq(const char *a, const char *b)
+static int path_eq(const char *a, const char *b)
 {
   while (*a && *b && *a == *b) {
     ++a;
@@ -25,15 +25,130 @@ static int name_eq(const char *a, const char *b)
   return *a == 0 && *b == 0;
 }
 
-static const char *ramfs_strip_root(const char *path)
+static int normalize_path(const char *path, char *out, int cap)
 {
-  if (!path) {
-    return "";
+  if (!path || !out || cap < 2) {
+    return -1;
   }
-  if (path[0] == '/' && path[1] != '\0') {
-    return path + 1;
+
+  char segs[16][BRIGHTS_RAMFS_MAX_NAME];
+  int seg_count = 0;
+  int i = 0;
+
+  while (path[i]) {
+    while (path[i] == '/') {
+      ++i;
+    }
+    if (!path[i]) {
+      break;
+    }
+
+    char seg[BRIGHTS_RAMFS_MAX_NAME];
+    int slen = 0;
+    while (path[i] && path[i] != '/') {
+      if (slen >= BRIGHTS_RAMFS_MAX_NAME - 1) {
+        return -1;
+      }
+      seg[slen++] = path[i++];
+    }
+    seg[slen] = 0;
+
+    if (slen == 1 && seg[0] == '.') {
+      continue;
+    }
+    if (slen == 2 && seg[0] == '.' && seg[1] == '.') {
+      if (seg_count > 0) {
+        --seg_count;
+      }
+      continue;
+    }
+    if (seg_count >= 16) {
+      return -1;
+    }
+    for (int j = 0; j <= slen; ++j) {
+      segs[seg_count][j] = seg[j];
+    }
+    ++seg_count;
   }
-  return path;
+
+  if (seg_count == 0) {
+    out[0] = '/';
+    out[1] = 0;
+    return 0;
+  }
+
+  int p = 0;
+  out[p++] = '/';
+  for (int s = 0; s < seg_count; ++s) {
+    for (int j = 0; segs[s][j]; ++j) {
+      if (p >= cap - 1) {
+        return -1;
+      }
+      out[p++] = segs[s][j];
+    }
+    if (s + 1 < seg_count) {
+      if (p >= cap - 1) {
+        return -1;
+      }
+      out[p++] = '/';
+    }
+  }
+  out[p] = 0;
+  return 0;
+}
+
+static int path_parent(const char *path, char *out, int cap)
+{
+  if (!path || !out || cap < 2) {
+    return -1;
+  }
+  if (path[0] != '/' || path[1] == 0) {
+    out[0] = '/';
+    out[1] = 0;
+    return 0;
+  }
+
+  int last = -1;
+  for (int i = 0; path[i]; ++i) {
+    if (path[i] == '/') {
+      last = i;
+    }
+  }
+  if (last <= 0) {
+    out[0] = '/';
+    out[1] = 0;
+    return 0;
+  }
+  if (last >= cap) {
+    return -1;
+  }
+  for (int i = 0; i < last; ++i) {
+    out[i] = path[i];
+  }
+  out[last] = 0;
+  return 0;
+}
+
+static int path_base(const char *path, char *out, int cap)
+{
+  if (!path || !out || cap <= 0) {
+    return -1;
+  }
+  int start = 0;
+  for (int i = 0; path[i]; ++i) {
+    if (path[i] == '/') {
+      start = i + 1;
+    }
+  }
+  int p = 0;
+  for (int i = start; path[i]; ++i) {
+    if (p >= cap - 1) {
+      return -1;
+    }
+    out[p++] = path[i];
+  }
+  out[p] = 0;
+  return (p > 0) ? 0 : -1;
 }
 
 static int ramfs_find_free(void)
@@ -52,63 +167,186 @@ static int ramfs_find_name(const char *name)
     if (!ramfs_files[i].in_use) {
       continue;
     }
-    if (name_eq(ramfs_files[i].name, name)) {
+    if (path_eq(ramfs_files[i].name, name)) {
       return i;
     }
   }
   return -1;
 }
 
+static int ramfs_parent_exists(const char *path)
+{
+  char parent[BRIGHTS_RAMFS_MAX_NAME];
+  if (path_parent(path, parent, sizeof(parent)) < 0) {
+    return 0;
+  }
+  if (path_eq(parent, "/")) {
+    return 1;
+  }
+  int idx = ramfs_find_name(parent);
+  return (idx >= 0 && ramfs_files[idx].is_dir);
+}
+
+static int ramfs_dir_has_children(const char *path)
+{
+  int plen = path_len_limited(path, BRIGHTS_RAMFS_MAX_NAME - 1);
+  if (plen < 0) {
+    return 0;
+  }
+  for (int i = 0; i < BRIGHTS_RAMFS_MAX_FILES; ++i) {
+    if (!ramfs_files[i].in_use) {
+      continue;
+    }
+    if (path_eq(ramfs_files[i].name, path)) {
+      continue;
+    }
+    if (path_eq(path, "/")) {
+      if (ramfs_files[i].name[0] == '/' && ramfs_files[i].name[1] != 0) {
+        return 1;
+      }
+      continue;
+    }
+    int match = 1;
+    for (int j = 0; j < plen; ++j) {
+      if (ramfs_files[i].name[j] != path[j]) {
+        match = 0;
+        break;
+      }
+    }
+    if (!match) {
+      continue;
+    }
+    if (ramfs_files[i].name[plen] == '/') {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 void brights_ramfs_init(void)
 {
   for (int i = 0; i < BRIGHTS_RAMFS_MAX_FILES; ++i) {
     ramfs_files[i].in_use = 0;
+    ramfs_files[i].is_dir = 0;
     ramfs_files[i].data = ramfs_storage[i];
     ramfs_files[i].size = 0;
     ramfs_files[i].capacity = sizeof(ramfs_storage[i]);
+    ramfs_files[i].name[0] = 0;
   }
 }
 
-int brights_ramfs_create(const char *name)
+int brights_ramfs_mkdir(const char *name)
 {
-  name = ramfs_strip_root(name);
-  int nlen = name_len_limited(name, BRIGHTS_RAMFS_MAX_NAME - 1);
-  if (nlen <= 0) {
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (normalize_path(name, path, sizeof(path)) < 0 || path_eq(path, "/")) {
     return -1;
   }
-  if (ramfs_find_name(name) >= 0) {
+  if (!ramfs_parent_exists(path) || ramfs_find_name(path) >= 0) {
     return -1;
   }
+
   int idx = ramfs_find_free();
   if (idx < 0) {
     return -1;
   }
   brights_ramfs_file_t *f = &ramfs_files[idx];
+  int nlen = path_len_limited(path, BRIGHTS_RAMFS_MAX_NAME - 1);
+  if (nlen <= 0) {
+    return -1;
+  }
   for (int n = 0; n < nlen; ++n) {
-    f->name[n] = name[n];
+    f->name[n] = path[n];
   }
   f->name[nlen] = 0;
   f->size = 0;
+  f->is_dir = 1;
+  f->in_use = 1;
+  return idx;
+}
+
+int brights_ramfs_create(const char *name)
+{
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (normalize_path(name, path, sizeof(path)) < 0 || path_eq(path, "/")) {
+    return -1;
+  }
+  if (!ramfs_parent_exists(path) || ramfs_find_name(path) >= 0) {
+    return -1;
+  }
+
+  int idx = ramfs_find_free();
+  if (idx < 0) {
+    return -1;
+  }
+  brights_ramfs_file_t *f = &ramfs_files[idx];
+  int nlen = path_len_limited(path, BRIGHTS_RAMFS_MAX_NAME - 1);
+  if (nlen <= 0) {
+    return -1;
+  }
+  for (int n = 0; n < nlen; ++n) {
+    f->name[n] = path[n];
+  }
+  f->name[nlen] = 0;
+  f->size = 0;
+  f->is_dir = 0;
   f->in_use = 1;
   return idx;
 }
 
 int brights_ramfs_open(const char *name)
 {
-  name = ramfs_strip_root(name);
-  return ramfs_find_name(name);
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (normalize_path(name, path, sizeof(path)) < 0 || path_eq(path, "/")) {
+    return -1;
+  }
+  return ramfs_find_name(path);
 }
 
 int brights_ramfs_unlink(const char *name)
 {
-  name = ramfs_strip_root(name);
-  int idx = ramfs_find_name(name);
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (normalize_path(name, path, sizeof(path)) < 0 || path_eq(path, "/")) {
+    return -1;
+  }
+  int idx = ramfs_find_name(path);
   if (idx < 0) {
     return -1;
   }
+  if (ramfs_files[idx].is_dir && ramfs_dir_has_children(path)) {
+    return -1;
+  }
   ramfs_files[idx].in_use = 0;
+  ramfs_files[idx].is_dir = 0;
   ramfs_files[idx].name[0] = 0;
   ramfs_files[idx].size = 0;
+  return 0;
+}
+
+int brights_ramfs_stat(const char *path_in, brights_ramfs_stat_t *out)
+{
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (!out || normalize_path(path_in, path, sizeof(path)) < 0) {
+    return -1;
+  }
+  if (path_eq(path, "/")) {
+    out->path[0] = '/';
+    out->path[1] = 0;
+    out->size = 0;
+    out->is_dir = 1;
+    return 0;
+  }
+  int idx = ramfs_find_name(path);
+  if (idx < 0) {
+    return -1;
+  }
+  for (int i = 0; ; ++i) {
+    out->path[i] = ramfs_files[idx].name[i];
+    if (ramfs_files[idx].name[i] == 0) {
+      break;
+    }
+  }
+  out->size = ramfs_files[idx].size;
+  out->is_dir = ramfs_files[idx].is_dir;
   return 0;
 }
 
@@ -118,7 +356,7 @@ int64_t brights_ramfs_read(int fd, uint64_t off, void *buf, uint64_t len)
     return -1;
   }
   brights_ramfs_file_t *f = &ramfs_files[fd];
-  if (!f->in_use) {
+  if (!f->in_use || f->is_dir) {
     return -1;
   }
   if (off >= f->size) {
@@ -142,7 +380,7 @@ int64_t brights_ramfs_write(int fd, uint64_t off, const void *buf, uint64_t len)
     return -1;
   }
   brights_ramfs_file_t *f = &ramfs_files[fd];
-  if (!f->in_use) {
+  if (!f->in_use || f->is_dir) {
     return -1;
   }
   if (off >= f->capacity) {
@@ -172,6 +410,17 @@ uint64_t brights_ramfs_file_size(int fd)
     return 0;
   }
   return ramfs_files[fd].size;
+}
+
+int brights_ramfs_is_dir_fd(int fd)
+{
+  if (fd < 0 || fd >= BRIGHTS_RAMFS_MAX_FILES) {
+    return 0;
+  }
+  if (!ramfs_files[fd].in_use) {
+    return 0;
+  }
+  return ramfs_files[fd].is_dir;
 }
 
 uint64_t brights_ramfs_total_capacity(void)

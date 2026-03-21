@@ -6,7 +6,6 @@ BrightS is an experimental x86_64 kernel inspired by UNIX V6 semantics.
 - Modern x86_64 kernel with simple, inspectable core design
 - UEFI boot on physical hardware and QEMU
 - Clear tree split: `/sys` (kernel), `/usr` (userspace), `/opt` (packages), `/config` (configuration)
-- Historical UNIX V6 sources preserved under `legacy/`
 
 ## Current Status
 - UEFI entry and basic platform bring-up are working.
@@ -73,6 +72,39 @@ Common commands:
 - `bst procom enter-user`
 - `bst procom reboot`
 - `bst procom shutdown`
+
+Quick session example:
+```text
+guest$ pwd
+/
+guest$ ls
+config/
+usr/
+dev/
+guest$ cd /usr/home/guest
+guest$ touch note.txt
+guest$ write note.txt hello
+guest$ cat note.txt
+hello
+guest$ mkdir work
+guest$ cd work
+guest$ pwd
+/usr/home/guest/work
+```
+
+Command migration notes:
+- Top-level system/debug commands were removed to keep the normal shell small.
+- Use `bst procom version` instead of `uname` or `version`.
+- Use `bst procom memory` instead of `mem`.
+- Use `bst procom processes` instead of `ps`.
+- Use `bst procom clock` instead of `ticks`.
+- Use `bst procom signals`, `bst procom raise-signal`, and `bst procom clear-signals` instead of `signal`, `raise`, and `clearsig`.
+- Use `bst procom time` instead of `date`.
+- Use `bst procom keyboard-test` instead of `kbdtest`.
+- Use `bst procom mount` instead of `mount`.
+- Use `bst procom clear` instead of `clear`.
+- Use `bst procom enter-user` instead of `runuser`.
+- Use `bst procom reboot` and `bst procom shutdown` instead of the removed top-level power commands.
 
 ## License
 This project is licensed under `GNU GPL v2` (`GPL-2.0-only`). See `LICENSE`.

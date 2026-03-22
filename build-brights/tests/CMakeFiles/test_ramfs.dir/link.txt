@@ -1,0 +1,1 @@
+/usr/bin/cc -Wl,--dependency-file=CMakeFiles/test_ramfs.dir/link.d CMakeFiles/test_ramfs.dir/test_ramfs.c.o CMakeFiles/test_ramfs.dir/__/sys/kernel/fs/ramfs.c.o -o test_ramfs

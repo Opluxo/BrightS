@@ -6,6 +6,7 @@
 #include "../fs/vfs.h"
 #include "../dev/rtc.h"
 #include "../dev/ps2kbd.h"
+#include "../dev/tty.h"
 #include "clock.h"
 #include "kmalloc.h"
 #include "proc.h"
@@ -1238,7 +1239,7 @@ static void cmd_kbdtest(void)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "kbdtest: type keys (ESC to exit)\n");
   for (;;) {
     char ch = 0;
-    int r = brights_ps2kbd_read_char(&ch);
+    int r = brights_tty_read_char(&ch);
     if (r <= 0) {
       continue;
     }
@@ -1574,7 +1575,7 @@ void brights_kshell_run(void)
   print_prompt();
 
   for (;;) {
-    uint8_t ch = brights_serial_read_byte_blocking(BRIGHTS_COM1_PORT);
+    uint8_t ch = (uint8_t)brights_tty_read_char_blocking();
 
     if (ch == '\r' || ch == '\n') {
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");

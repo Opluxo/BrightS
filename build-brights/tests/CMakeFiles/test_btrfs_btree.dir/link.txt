@@ -1,1 +1,0 @@
-/usr/bin/cc -Wl,--dependency-file=CMakeFiles/test_btrfs_btree.dir/link.d CMakeFiles/test_btrfs_btree.dir/test_btrfs_btree.c.o CMakeFiles/test_btrfs_btree.dir/__/sys/kernel/fs/btrfs_btree.c.o -o test_btrfs_btree

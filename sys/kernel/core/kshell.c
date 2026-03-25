@@ -24,6 +24,7 @@
 static char current_user[KSHELL_MAX_USER] = "guest";
 static char current_dir[KSHELL_MAX_PATH] = "/";
 static int is_root = 0;
+static char version[20] = "0.0.4 Beta";
 
 static void cmd_date(void);
 static void cmd_kbdtest(void);

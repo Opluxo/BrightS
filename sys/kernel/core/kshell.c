@@ -1036,7 +1036,7 @@ static void cmd_bst_procom_help(void)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "usage: bst procom <tool>\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "tools: version memory processes clock signals raise-signal clear-signals time keyboard-test mount clear enter-user reboot shutdown\n");
+    "tools: version\n memory\n processes\n clock\n signals\n raise-signal\n clear-signals\n time\n keyboard-test\n mount\n clear\n enter-user\n reboot\n shutdown\n");
 }
 
 static int handle_bst_procom(const char *arg)
@@ -1048,6 +1048,7 @@ static int handle_bst_procom(const char *arg)
   }
   if (streq(arg, "version")) {
     cmd_uname();
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, version);
     return 1;
   }
   if (streq(arg, "memory")) {

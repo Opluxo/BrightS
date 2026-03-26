@@ -24,7 +24,7 @@
 static char current_user[KSHELL_MAX_USER] = "guest";
 static char current_dir[KSHELL_MAX_PATH] = "/";
 static int is_root = 0;
-static char version[20] = "0.0.4 Beta";
+static char version[20] = "0.0.5 Beta";
 
 static void cmd_date(void);
 static void cmd_kbdtest(void);
@@ -1104,13 +1104,17 @@ static void cmd_mem(void)
     used += brights_ramfs_size_at(i);
   }
   uint64_t cap = brights_ramfs_total_capacity();
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "ramfs used=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS Memory Information\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  RAMFS Used    : ");
   print_u64(used);
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes total=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  RAMFS Total   : ");
   print_u64(cap);
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes kmalloc=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  KMalloc Used  : ");
   print_u64((uint64_t)brights_kmalloc_used());
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "/");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  KMalloc Total : ");
   print_u64((uint64_t)brights_kmalloc_capacity());
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes\n");
 }
@@ -1118,13 +1122,17 @@ static void cmd_mem(void)
 static void cmd_ps(void)
 {
   uint32_t total = brights_proc_total();
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "procs total=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS Process Information\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Total    : ");
   print_u64(total);
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " runnable=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Runnable : ");
   print_u64(brights_proc_count(BRIGHTS_PROC_RUNNABLE));
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " running=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Running  : ");
   print_u64(brights_proc_count(BRIGHTS_PROC_RUNNING));
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sleeping=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Sleeping : ");
   print_u64(brights_proc_count(BRIGHTS_PROC_SLEEPING));
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
 
@@ -1133,9 +1141,9 @@ static void cmd_ps(void)
     if (brights_proc_info_at(i, &info) < 0) {
       continue;
     }
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "pid=");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  PID ");
     print_u64(info.pid);
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " state=");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " : ");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, proc_state_name(info.state));
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
   }
@@ -1143,18 +1151,22 @@ static void cmd_ps(void)
 
 static void cmd_ticks(void)
 {
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "clock=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS Clock Information\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Clock Ticks    : ");
   print_u64(brights_clock_now_ticks());
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sched=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Sched Ticks    : ");
   print_u64(brights_sched_ticks());
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " dispatch=");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Dispatch Count : ");
   print_u64(brights_sched_dispatches());
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
 }
 
 static void cmd_signal(void)
 {
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "pending=0x");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS Signal Information\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Pending Mask : 0x");
   uint32_t pending = brights_signal_pending();
   print_hex8((uint8_t)((pending >> 24) & 0xFFu));
   print_hex8((uint8_t)((pending >> 16) & 0xFFu));
@@ -1218,17 +1230,25 @@ static void cmd_clearsig(const char *arg)
 static void cmd_bst_help(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "usage: bst <tool>\n");
+    "BrightS BST Help\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "tools: help procom\n");
+    "  Usage : bst <tool>\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "  Tools : help, procom\n");
 }
 
 static void cmd_bst_procom_help(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "usage: bst procom <tool>\n");
+    "BrightS Procom Help\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "tools: version\n memory\n processes\n clock\n signals\n raise-signal\n clear-signals\n time\n keyboard-test\n mount\n clear\n enter-user\n reboot\n shutdown\n");
+    "  Usage : bst procom <tool>\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "  Tools : version, memory, processes, clock, signals\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "          raise-signal, clear-signals, time, keyboard-test\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "          mount, clear, enter-user, reboot, shutdown\n");
 }
 
 static int handle_bst_procom(const char *arg)
@@ -1239,8 +1259,12 @@ static int handle_bst_procom(const char *arg)
     return 1;
   }
   if (streq(arg, "version")) {
-    cmd_uname();
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS System Information\n");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Kernel : BrightS x86_64\n");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Version: ");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, version);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Shell  : BrightS Kshell\n");
     return 1;
   }
   if (streq(arg, "memory")) {
@@ -1414,6 +1438,8 @@ static void cmd_date(void)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "date read failed\n");
     return;
   }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS Time Information\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  RTC Time : ");
   print_u4(t.year);
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "-");
   print_u2(t.month);
@@ -1852,4 +1878,5 @@ void brights_kshell_run(void)
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
     }
   }
+  cmd_clear();
 }

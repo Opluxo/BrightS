@@ -51,8 +51,8 @@ System disk policy:
 Common commands:
 - Auth: `login`, `logout`, `whoami`, `passwd`, `useradd`
 - Profile: `profile`, `setpf`
-- Navigation: `pwd`, `cd`, `mkdir`
-- Files: `ls`, `stat`, `cat`, `touch`, `write`, `append`, `rm`, `hexdump`, `echo`
+- Navigation: `pwd`, `cd`, `mkdir`, `rmdir`
+- Files: `ls`, `stat`, `cat`, `touch`, `write`, `append`, `cp`, `mv`, `rm`, `hexdump`, `echo`
 - System/maintenance entry: `bst`
 
 `bst` command layout:
@@ -108,3 +108,27 @@ Command migration notes:
 
 ## License
 This project is licensed under `GNU GPL v2` (`GPL-2.0-only`). See `LICENSE`.
+
+## 中文说明
+
+BrightS 是一个受 UNIX V6 启发的实验性 x86_64 内核，当前重点是把内核核心、文件系统和可交互调试能力逐步补完整。
+
+当前已经具备的能力：
+- 支持 UEFI 启动，能够在物理机和 QEMU 中运行
+- 串口控制台可用，适合调试和早期 bring-up
+- 已接入 PCI 扫描，以及 NVMe、AHCI、RAM Disk 的启动存储选择流程
+- 已有 RAMFS、基础 VFS 初始化、Btrfs 挂载路径和 shell 交互入口
+
+当前 shell 特性：
+- 支持用户切换与基础认证：`login`、`logout`、`passwd`、`useradd`
+- 支持目录和路径操作：`pwd`、`cd`、`mkdir`、`rmdir`
+- 支持常见文件操作：`ls`、`stat`、`cat`、`touch`、`write`、`append`、`cp`、`mv`、`rm`、`hexdump`
+- 系统调试命令统一收敛在 `bst procom` 下，例如时钟、进程、信号、挂载、清屏等
+
+目录布局约定：
+- `/sys`：内核
+- `/usr`：用户空间
+- `/opt`：扩展包
+- `/config`：系统和用户配置
+
+构建和运行方式见 [docs/build.md](/home/s12mc/CodeSpace/brights/docs/build.md)。

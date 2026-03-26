@@ -34,6 +34,9 @@ static void cmd_clear(void);
 static int cmd_runuser(void);
 static int cmd_reboot(void);
 static int cmd_halt(void);
+static void cmd_rmdir(const char *arg);
+static void cmd_cp(const char *arg);
+static void cmd_mv(const char *arg);
 
 static int streq(const char *a, const char *b)
 {
@@ -151,6 +154,37 @@ static const char *skip_spaces(const char *s)
     ++s;
   }
   return s;
+}
+
+static int parse_two_args(const char *arg,
+                          char *first,
+                          int first_cap,
+                          char *second,
+                          int second_cap)
+{
+  if (!arg || !first || !second || first_cap <= 1 || second_cap <= 1) {
+    return -1;
+  }
+
+  arg = skip_spaces(arg);
+  int i = 0;
+  while (*arg && *arg != ' ' && i < first_cap - 1) {
+    first[i++] = *arg++;
+  }
+  first[i] = 0;
+  arg = skip_spaces(arg);
+
+  int j = 0;
+  while (*arg && *arg != ' ' && j < second_cap - 1) {
+    second[j++] = *arg++;
+  }
+  second[j] = 0;
+  arg = skip_spaces(arg);
+
+  if (first[0] == 0 || second[0] == 0 || *arg != 0) {
+    return -1;
+  }
+  return 0;
 }
 
 static int path_normalize(const char *path, char *out, int cap)
@@ -590,6 +624,25 @@ static int seed_user_home(const char *user)
   return (brights_ramfs_write(fd, 0, msg, (uint64_t)strlen_s(msg)) >= 0) ? 0 : -1;
 }
 
+static int seed_user_config_dir(const char *user)
+{
+  char dir[128];
+  const char *prefix = "/config/";
+  int p = 0;
+  for (int i = 0; prefix[i] && p < (int)sizeof(dir) - 1; ++i) dir[p++] = prefix[i];
+  for (int i = 0; user[i] && p < (int)sizeof(dir) - 1; ++i) dir[p++] = user[i];
+  if (p >= (int)sizeof(dir) - 1) return -1;
+  dir[p] = 0;
+
+  if (brights_ramfs_mkdir(dir) < 0) {
+    brights_ramfs_stat_t st;
+    if (brights_ramfs_stat(dir, &st) < 0 || !st.is_dir) {
+      return -1;
+    }
+  }
+  return 0;
+}
+
 static void print_prompt(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, current_user);
@@ -599,7 +652,7 @@ static void print_prompt(void)
 static void cmd_help(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "commands: help echo pwd cd mkdir whoami login logout passwd useradd profile setpf ls stat cat touch write append rm hexdump bst\n");
+    "commands: help echo pwd cd mkdir rmdir whoami login logout passwd useradd profile setpf ls stat cat touch write append cp mv rm hexdump bst\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "bst: help procom\n");
 }
@@ -861,6 +914,145 @@ static void cmd_rm(const char *arg)
   } else {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "remove failed\n");
   }
+}
+
+static void cmd_rmdir(const char *arg)
+{
+  arg = skip_spaces(arg);
+  if (*arg == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: rmdir <path>\n");
+    return;
+  }
+  char path[KSHELL_MAX_PATH];
+  brights_ramfs_stat_t st;
+  if (resolve_path(arg, path, sizeof(path)) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (brights_ramfs_stat(path, &st) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "not found\n");
+    return;
+  }
+  if (!st.is_dir) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "not a directory\n");
+    return;
+  }
+  if (brights_ramfs_unlink(path) == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "ok\n");
+  } else {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "rmdir failed\n");
+  }
+}
+
+static int copy_file_path(const char *src_path, const char *dst_path)
+{
+  int src_fd = brights_ramfs_open(src_path);
+  if (src_fd < 0 || brights_ramfs_is_dir_fd(src_fd)) {
+    return -1;
+  }
+
+  int dst_fd = brights_ramfs_open(dst_path);
+  if (dst_fd >= 0 && brights_ramfs_is_dir_fd(dst_fd)) {
+    return -1;
+  }
+  if (dst_fd < 0) {
+    dst_fd = brights_ramfs_create(dst_path);
+  }
+  if (dst_fd < 0) {
+    return -1;
+  }
+
+  uint8_t buf[256];
+  uint64_t off = 0;
+  uint64_t total = brights_ramfs_file_size(src_fd);
+  while (off < total) {
+    int64_t n = brights_ramfs_read(src_fd, off, buf, sizeof(buf));
+    if (n <= 0) {
+      return -1;
+    }
+    int64_t w = brights_ramfs_write(dst_fd, off, buf, (uint64_t)n);
+    if (w != n) {
+      return -1;
+    }
+    off += (uint64_t)n;
+  }
+  return 0;
+}
+
+static void cmd_cp(const char *arg)
+{
+  char src_arg[KSHELL_MAX_PATH];
+  char dst_arg[KSHELL_MAX_PATH];
+  char src_path[KSHELL_MAX_PATH];
+  char dst_path[KSHELL_MAX_PATH];
+  brights_ramfs_stat_t src_st;
+
+  if (parse_two_args(arg, src_arg, sizeof(src_arg), dst_arg, sizeof(dst_arg)) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: cp <src> <dst>\n");
+    return;
+  }
+  if (resolve_path(src_arg, src_path, sizeof(src_path)) < 0 ||
+      resolve_path(dst_arg, dst_path, sizeof(dst_path)) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (streq(src_path, dst_path)) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "copy failed\n");
+    return;
+  }
+  if (brights_ramfs_stat(src_path, &src_st) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "not found\n");
+    return;
+  }
+  if (src_st.is_dir) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "is a directory\n");
+    return;
+  }
+  if (copy_file_path(src_path, dst_path) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "copy failed\n");
+    return;
+  }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "ok\n");
+}
+
+static void cmd_mv(const char *arg)
+{
+  char src_arg[KSHELL_MAX_PATH];
+  char dst_arg[KSHELL_MAX_PATH];
+  char src_path[KSHELL_MAX_PATH];
+  char dst_path[KSHELL_MAX_PATH];
+  brights_ramfs_stat_t src_st;
+
+  if (parse_two_args(arg, src_arg, sizeof(src_arg), dst_arg, sizeof(dst_arg)) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: mv <src> <dst>\n");
+    return;
+  }
+  if (resolve_path(src_arg, src_path, sizeof(src_path)) < 0 ||
+      resolve_path(dst_arg, dst_path, sizeof(dst_path)) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (streq(src_path, dst_path)) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "move failed\n");
+    return;
+  }
+  if (brights_ramfs_stat(src_path, &src_st) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "not found\n");
+    return;
+  }
+  if (src_st.is_dir) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "is a directory\n");
+    return;
+  }
+  if (copy_file_path(src_path, dst_path) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "move failed\n");
+    return;
+  }
+  if (brights_ramfs_unlink(src_path) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "move failed\n");
+    return;
+  }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "ok\n");
 }
 
 static void cmd_hexdump(const char *arg)
@@ -1401,6 +1593,10 @@ static void cmd_useradd(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "user exists\n");
     return;
   }
+  if (seed_user_config_dir(user) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "useradd failed\n");
+    return;
+  }
   if (pf_write_default(user, pass) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "useradd failed\n");
     return;
@@ -1434,6 +1630,10 @@ static int handle_line(char *line)
   }
   if (streq(cmd, "mkdir")) {
     cmd_mkdir("");
+    return 1;
+  }
+  if (streq(cmd, "rmdir")) {
+    cmd_rmdir("");
     return 1;
   }
   if (streq(cmd, "whoami")) {
@@ -1491,6 +1691,14 @@ static int handle_line(char *line)
     cmd_rm("");
     return 1;
   }
+  if (streq(cmd, "cp")) {
+    cmd_cp("");
+    return 1;
+  }
+  if (streq(cmd, "mv")) {
+    cmd_mv("");
+    return 1;
+  }
   if (streq(cmd, "hexdump")) {
     cmd_hexdump("");
     return 1;
@@ -1509,6 +1717,10 @@ static int handle_line(char *line)
   }
   if (starts_with(cmd, "mkdir ")) {
     cmd_mkdir(cmd + 6);
+    return 1;
+  }
+  if (starts_with(cmd, "rmdir ")) {
+    cmd_rmdir(cmd + 6);
     return 1;
   }
   if (starts_with(cmd, "cat ")) {
@@ -1551,6 +1763,14 @@ static int handle_line(char *line)
     cmd_rm(cmd + 3);
     return 1;
   }
+  if (starts_with(cmd, "cp ")) {
+    cmd_cp(cmd + 3);
+    return 1;
+  }
+  if (starts_with(cmd, "mv ")) {
+    cmd_mv(cmd + 3);
+    return 1;
+  }
   if (starts_with(cmd, "hexdump ")) {
     cmd_hexdump(cmd + 8);
     return 1;
@@ -1566,6 +1786,35 @@ static int handle_line(char *line)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "unknown command\n");
   return 1;
 }
+
+#ifdef BRIGHTS_KSHELL_TESTING
+void brights_kshell_reset_for_test(void)
+{
+  str_copy(current_user, sizeof(current_user), "guest");
+  str_copy(current_dir, sizeof(current_dir), "/");
+  is_root = 0;
+}
+
+int brights_kshell_eval_for_test(char *line)
+{
+  return handle_line(line);
+}
+
+const char *brights_kshell_current_user_for_test(void)
+{
+  return current_user;
+}
+
+const char *brights_kshell_current_dir_for_test(void)
+{
+  return current_dir;
+}
+
+int brights_kshell_is_root_for_test(void)
+{
+  return is_root;
+}
+#endif
 
 void brights_kshell_run(void)
 {

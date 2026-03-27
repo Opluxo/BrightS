@@ -2,9 +2,7 @@
 
 ## 简介 | Overview
 
-BrightS 是一个受 UNIX V6 语义启发的实验性 x86_64 内核。
-
-BrightS is an experimental x86_64 kernel inspired by UNIX V6 semantics.
+BrightS 是一个跨平台系统内核。
 
 ## 目标 | Goals
 

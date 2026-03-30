@@ -62,6 +62,11 @@ typedef struct {
   uint64_t Attribute;
 } EFI_MEMORY_DESCRIPTOR;
 
+typedef struct {
+  EFI_GUID VendorGuid;
+  void *VendorTable;
+} EFI_CONFIGURATION_TABLE;
+
 struct _EFI_BOOT_SERVICES {
   EFI_TABLE_HEADER Hdr;
   void *RaiseTPL;

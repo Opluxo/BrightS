@@ -25,6 +25,7 @@
 
 #include "../dev/serial.h"
 #include "../core/printf.h"
+#include "acpi.h"
 #include "../dev/ramdisk.h"
 #include "../fs/vfs.h"
 #include "../fs/devfs.h"
@@ -32,7 +33,9 @@
 #include "../dev/rtc.h"
 #include "../dev/ps2kbd.h"
 #include "clock.h"
+#include "hwinfo.h"
 #include "kmalloc.h"
+#include "pmem.h"
 #include "proc.h"
 #include "sched.h"
 #include "signal.h"
@@ -49,6 +52,12 @@ void brights_kernel_main(void)
 
   brights_clock_init();
   brights_ps2kbd_init();
+  brights_hwinfo_init();
+  if (brights_acpi_init() == 0) {
+    brights_print(&con, u"acpi: init ok\r\n");
+  } else {
+    brights_print(&con, u"acpi: init failed\r\n");
+  }
   brights_kmalloc_init();
   brights_proc_init();
   brights_sched_init();
@@ -76,6 +85,11 @@ void brights_kernel_main(void)
   } else {
     brights_print(&con, u"kmalloc: init failed\r\n");
   }
+  if (brights_pmem_total_bytes() >= (uint64_t)(1024 * 1024)) {
+    brights_print(&con, u"pmem: detected\r\n");
+  } else {
+    brights_print(&con, u"pmem: fallback\r\n");
+  }
 
   // Short calibrated pause to exercise early sleep path.
   brights_sleep_cycles(1024);
@@ -92,7 +106,7 @@ void brights_kernel_main(void)
   }
 
   if (brights_storage_mount_system() == 0) {
-    brights_print(&con, u"storage: mounted at /dev/mnt/\r\n");
+    brights_print(&con, u"storage: mounted at /mnt/drive/\r\n");
   } else {
     brights_print(&con, u"storage: mount failed (system disk must be btrfs)\r\n");
     for (;;) {

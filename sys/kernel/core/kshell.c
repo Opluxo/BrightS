@@ -8,7 +8,10 @@
 #include "../dev/ps2kbd.h"
 #include "../dev/tty.h"
 #include "clock.h"
+#include "acpi.h"
+#include "hwinfo.h"
 #include "kmalloc.h"
+#include "pmem.h"
 #include "proc.h"
 #include "sched.h"
 #include "signal.h"
@@ -20,11 +23,26 @@
 #define KSHELL_MAX_PASS 64
 #define KSHELL_MAX_CFG  1024
 #define KSHELL_MAX_PATH 128
+#define KSHELL_HISTORY_SIZE 32
 
 static char current_user[KSHELL_MAX_USER] = "guest";
 static char current_dir[KSHELL_MAX_PATH] = "/";
 static int is_root = 0;
 static char version[20] = "0.0.5 Beta";
+
+// Command history
+static char history[KSHELL_HISTORY_SIZE][KSHELL_MAX_LINE];
+static int history_count = 0;
+static int history_index = -1;
+static int history_nav_index = -1;
+
+// Command list for tab completion
+static const char *commands[] = {
+  "help", "ls", "pwd", "cd", "mkdir", "rmdir", "whoami", "profile",
+  "logout", "bst", "cat", "stat", "login", "passwd", "useradd", "setpf",
+  "touch", "write", "append", "rm", "cp", "mv", "hexdump", "echo",
+  0
+};
 
 static void cmd_date(void);
 static void cmd_kbdtest(void);
@@ -344,7 +362,7 @@ static int is_direct_child(const char *parent, const char *path)
 
 static int userpf_path(const char *user, char *out, int cap)
 {
-  const char *prefix = "/config/";
+  const char *prefix = "/bin/config/";
   const char *suffix = "/example.pf";
   int p = 0;
   int ulen = strlen_s(user);
@@ -569,16 +587,26 @@ static int pf_set_field(const char *user, const char *key, const char *value)
 
   char out[KSHELL_MAX_CFG];
   int p = 0;
-  const char *k1 = "username:"; for (int i = 0; k1[i]; ++i) out[p++] = k1[i];
-  for (int i = 0; uname[i]; ++i) out[p++] = uname[i]; out[p++] = '\n';
-  const char *k2 = "hostname:"; for (int i = 0; k2[i]; ++i) out[p++] = k2[i];
-  for (int i = 0; host[i]; ++i) out[p++] = host[i]; out[p++] = '\n';
-  const char *k3 = "avatar:"; for (int i = 0; k3[i]; ++i) out[p++] = k3[i];
-  for (int i = 0; avatar[i]; ++i) out[p++] = avatar[i]; out[p++] = '\n';
-  const char *k4 = "email:"; for (int i = 0; k4[i]; ++i) out[p++] = k4[i];
-  for (int i = 0; email[i]; ++i) out[p++] = email[i]; out[p++] = '\n';
-  const char *k5 = "password:"; for (int i = 0; k5[i]; ++i) out[p++] = k5[i];
-  for (int i = 0; pass[i]; ++i) out[p++] = pass[i]; out[p++] = '\n';
+  const char *k1 = "username:";
+  for (int i = 0; k1[i]; ++i) out[p++] = k1[i];
+  for (int i = 0; uname[i]; ++i) out[p++] = uname[i];
+  out[p++] = '\n';
+  const char *k2 = "hostname:";
+  for (int i = 0; k2[i]; ++i) out[p++] = k2[i];
+  for (int i = 0; host[i]; ++i) out[p++] = host[i];
+  out[p++] = '\n';
+  const char *k3 = "avatar:";
+  for (int i = 0; k3[i]; ++i) out[p++] = k3[i];
+  for (int i = 0; avatar[i]; ++i) out[p++] = avatar[i];
+  out[p++] = '\n';
+  const char *k4 = "email:";
+  for (int i = 0; k4[i]; ++i) out[p++] = k4[i];
+  for (int i = 0; email[i]; ++i) out[p++] = email[i];
+  out[p++] = '\n';
+  const char *k5 = "password:";
+  for (int i = 0; k5[i]; ++i) out[p++] = k5[i];
+  for (int i = 0; pass[i]; ++i) out[p++] = pass[i];
+  out[p++] = '\n';
   out[p] = 0;
   return pf_write(user, out, p);
 }
@@ -627,7 +655,7 @@ static int seed_user_home(const char *user)
 static int seed_user_config_dir(const char *user)
 {
   char dir[128];
-  const char *prefix = "/config/";
+  const char *prefix = "/bin/config/";
   int p = 0;
   for (int i = 0; prefix[i] && p < (int)sizeof(dir) - 1; ++i) dir[p++] = prefix[i];
   for (int i = 0; user[i] && p < (int)sizeof(dir) - 1; ++i) dir[p++] = user[i];
@@ -1105,6 +1133,12 @@ static void cmd_mem(void)
   }
   uint64_t cap = brights_ramfs_total_capacity();
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS Memory Information\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Physical Total: ");
+  print_u64(brights_pmem_total_bytes());
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Physical Free : ");
+  print_u64(brights_pmem_free_bytes());
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  RAMFS Used    : ");
   print_u64(used);
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes\n");
@@ -1244,11 +1278,82 @@ static void cmd_bst_procom_help(void)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "  Usage : bst procom <tool>\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "  Tools : version, memory, processes, clock, signals\n");
+    "  Tools : version, cpu, acpi, memory, processes, clock, signals\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "          raise-signal, clear-signals, time, keyboard-test\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "          mount, clear, enter-user, reboot, shutdown\n");
+}
+
+static void cmd_cpuinfo(void)
+{
+  const brights_cpu_info_t *cpu = brights_hwinfo_cpu();
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS CPU Information\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Vendor : ");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, cpu->vendor);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Family : ");
+  print_u64(cpu->family);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Model  : ");
+  print_u64(cpu->model);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Step   : ");
+  print_u64(cpu->stepping);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Flags  :");
+  if (cpu->has_tsc) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " tsc");
+  if (cpu->has_msr) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " msr");
+  if (cpu->has_apic) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " apic");
+  if (cpu->has_x2apic) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " x2apic");
+  if (cpu->has_sse) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sse");
+  if (cpu->has_sse2) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sse2");
+  if (cpu->has_sse3) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sse3");
+  if (cpu->has_ssse3) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ssse3");
+  if (cpu->has_sse41) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sse4.1");
+  if (cpu->has_sse42) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " sse4.2");
+  if (cpu->has_aes) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " aes");
+  if (cpu->has_xsave) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " xsave");
+  if (cpu->has_avx) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " avx");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+}
+
+static void cmd_acpiinfo(void)
+{
+  const brights_acpi_info_t *acpi = brights_acpi_info();
+  if (!acpi->ready) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "acpi not ready\n");
+    return;
+  }
+
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS ACPI Information\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  OEM ID     : ");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, acpi->oem_id);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  OEM Table  : ");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, acpi->oem_table_id);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Revision   : ");
+  print_u64(acpi->revision);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  PM Profile : ");
+  print_u64(acpi->pm_profile);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  SCI IRQ    : ");
+  print_u64(acpi->sci_int);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  PM Timer   : ");
+  print_u64(acpi->pm_tmr_blk);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Reset Reg  : ");
+  if (acpi->has_reset_reg) {
+    print_u64(acpi->reset_reg_addr);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " value=");
+    print_u64(acpi->reset_value);
+  } else {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "none");
+  }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
 }
 
 static int handle_bst_procom(const char *arg)
@@ -1259,12 +1364,28 @@ static int handle_bst_procom(const char *arg)
     return 1;
   }
   if (streq(arg, "version")) {
+    const brights_cpu_info_t *cpu = brights_hwinfo_cpu();
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS System Information\n");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Kernel : BrightS x86_64\n");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Version: ");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, version);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Shell  : BrightS Kshell\n");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  CPU    : ");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, cpu->vendor);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " fam ");
+    print_u64(cpu->family);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " model ");
+    print_u64(cpu->model);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+    return 1;
+  }
+  if (streq(arg, "cpu")) {
+    cmd_cpuinfo();
+    return 1;
+  }
+  if (streq(arg, "acpi")) {
+    cmd_acpiinfo();
     return 1;
   }
   if (streq(arg, "memory")) {
@@ -1328,7 +1449,7 @@ static void cmd_uname(void)
 static void cmd_mount(void)
 {
   if (brights_vfs_mount_external("manual") == 0) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mounted at /dev/mnt/\n");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mounted at /mnt/drive/\n");
   } else {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "mount failed\n");
   }
@@ -1353,6 +1474,7 @@ static int cmd_reboot(void)
   for (;;) {
     __asm__ __volatile__("hlt");
   }
+  return 0;
 }
 
 static int cmd_halt(void)
@@ -1361,6 +1483,7 @@ static int cmd_halt(void)
   for (;;) {
     __asm__ __volatile__("hlt");
   }
+  return 0;
 }
 
 static int handle_bst(const char *arg)
@@ -1842,10 +1965,129 @@ int brights_kshell_is_root_for_test(void)
 }
 #endif
 
+static void history_add(const char *line)
+{
+  if (!line || line[0] == 0) {
+    return;
+  }
+  
+  // Don't add duplicate of last command
+  if (history_count > 0 && streq(history[history_count - 1], line)) {
+    return;
+  }
+  
+  if (history_count < KSHELL_HISTORY_SIZE) {
+    str_copy(history[history_count], KSHELL_MAX_LINE, line);
+    ++history_count;
+  } else {
+    // Shift history up
+    for (int i = 0; i < KSHELL_HISTORY_SIZE - 1; ++i) {
+      str_copy(history[i], KSHELL_MAX_LINE, history[i + 1]);
+    }
+    str_copy(history[KSHELL_HISTORY_SIZE - 1], KSHELL_MAX_LINE, line);
+  }
+  history_index = history_count;
+  history_nav_index = history_count;
+}
+
+static void clear_line(int len)
+{
+  for (int i = 0; i < len; ++i) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b");
+  }
+}
+
+static void redraw_line(char *line, int *len)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, line);
+  *len = strlen_s(line);
+}
+
+static int tab_complete(char *line, int *len)
+{
+  if (*len == 0) {
+    return 0;
+  }
+  
+  // Find matches
+  int match_count = 0;
+  const char *match = 0;
+  int match_len = 0;
+  
+  for (int i = 0; commands[i]; ++i) {
+    if (starts_with(commands[i], line)) {
+      if (match_count == 0) {
+        match = commands[i];
+        match_len = strlen_s(commands[i]);
+      }
+      ++match_count;
+    }
+  }
+  
+  if (match_count == 0) {
+    return 0;
+  }
+  
+  if (match_count == 1) {
+    // Single match - complete it
+    clear_line(*len);
+    str_copy(line, KSHELL_MAX_LINE, match);
+    line[match_len] = ' ';
+    line[match_len + 1] = 0;
+    *len = match_len + 1;
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, line);
+    return 1;
+  }
+  
+  // Multiple matches - find common prefix
+  int common_len = 0;
+  char first[KSHELL_MAX_LINE];
+  str_copy(first, KSHELL_MAX_LINE, match);
+  
+  for (int i = 0; commands[i]; ++i) {
+    if (starts_with(commands[i], line)) {
+      if (common_len == 0) {
+        common_len = strlen_s(commands[i]);
+      } else {
+        int j = 0;
+        while (first[j] && commands[i][j] && first[j] == commands[i][j]) {
+          ++j;
+        }
+        common_len = j;
+      }
+    }
+  }
+  
+  if (common_len > *len) {
+    clear_line(*len);
+    for (int i = 0; i < common_len; ++i) {
+      line[i] = first[i];
+    }
+    line[common_len] = 0;
+    *len = common_len;
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, line);
+  } else {
+    // Show all matches
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+    for (int i = 0; commands[i]; ++i) {
+      if (starts_with(commands[i], line)) {
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, commands[i]);
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+      }
+    }
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+    print_prompt();
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, line);
+  }
+  
+  return 1;
+}
+
 void brights_kshell_run(void)
 {
   char line[KSHELL_MAX_LINE];
   int len = 0;
+  int escape_state = 0;
 
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "brights shell ready\n");
   cmd_help();
@@ -1854,14 +2096,59 @@ void brights_kshell_run(void)
   for (;;) {
     uint8_t ch = (uint8_t)brights_tty_read_char_blocking();
 
+    // Handle escape sequences for arrow keys
+    if (escape_state == 1) {
+      if (ch == '[') {
+        escape_state = 2;
+        continue;
+      }
+      escape_state = 0;
+    }
+    
+    if (escape_state == 2) {
+      escape_state = 0;
+      if (ch == 'A' && history_count > 0) {
+        // Up arrow - previous command
+        if (history_nav_index > 0) {
+          --history_nav_index;
+          clear_line(len);
+          str_copy(line, KSHELL_MAX_LINE, history[history_nav_index]);
+          redraw_line(line, &len);
+        }
+        continue;
+      } else if (ch == 'B' && history_count > 0) {
+        // Down arrow - next command
+        if (history_nav_index < history_count) {
+          ++history_nav_index;
+          clear_line(len);
+          if (history_nav_index < history_count) {
+            str_copy(line, KSHELL_MAX_LINE, history[history_nav_index]);
+          } else {
+            line[0] = 0;
+          }
+          redraw_line(line, &len);
+        }
+        continue;
+      }
+    }
+
+    if (ch == 0x1B) { // ESC
+      escape_state = 1;
+      continue;
+    }
+
     if (ch == '\r' || ch == '\n') {
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
       line[len] = 0;
+      if (len > 0) {
+        history_add(line);
+      }
       if (!handle_line(line)) {
         brights_serial_write_ascii(BRIGHTS_COM1_PORT, "bye\n");
         return;
       }
       len = 0;
+      escape_state = 0;
       print_prompt();
       continue;
     }
@@ -1869,6 +2156,12 @@ void brights_kshell_run(void)
     if ((ch == 0x08 || ch == 0x7F) && len > 0) {
       --len;
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b");
+      continue;
+    }
+
+    if (ch == 0x09) { // Tab
+      line[len] = 0;
+      tab_complete(line, &len);
       continue;
     }
 

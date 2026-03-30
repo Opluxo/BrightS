@@ -17,10 +17,10 @@ void brights_userinit(void)
   brights_console_t con;
   brights_serial_console_init(&con, BRIGHTS_COM1_PORT);
 
-  // Prepare userspace system file in /config/userspace.
-  int fd = brights_ramfs_open("/config/userspace/init.rc");
+  // Prepare userspace system file in /sys.
+  int fd = brights_ramfs_open("/sys/init.rc");
   if (fd < 0) {
-    brights_print(&con, u"userinit: /config/userspace/init.rc not found\r\n");
+    brights_print(&con, u"userinit: /sys/init.rc not found\r\n");
   }
 
   uint64_t kstack_top = (uint64_t)(uintptr_t)&kernel_stack[sizeof(kernel_stack)];

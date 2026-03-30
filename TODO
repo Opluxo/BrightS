@@ -1,0 +1,17 @@
+1.完善内核优化（优化对象：i5 1135G7 + 8GB RAM）
+  - [x] 优化kmalloc：增加heap大小到8MB，实现真正的free功能
+  - [x] 完善调度器：添加进程队列管理和轮转调度
+2.完善kshell
+  - [x] 添加命令历史功能（支持上下箭头键导航）
+  - [x] 添加tab补全功能
+3.根据File_Struct_Define修改目录结构
+  - [x] 更新vfs.c以创建新的目录结构：
+    - /sys: 核心文件
+    - /usr: 用户文件
+    - /bin: 软件包（/bin/pkg, /bin/config, /bin/firmware）
+    - /mnt: 挂载点（/mnt/drive, /mnt/input, /mnt/output）
+    - /tmp: 缓存文件
+    - /swp: 交换分区
+  - [x] 更新kshell.c中的路径引用（/bin/config/代替/config/）
+  - [x] 更新kernel_main.c中的挂载路径（/mnt/drive/代替/dev/mnt/）
+  - [x] 更新userinit.c中的系统配置路径（/sys/init.rc代替/config/userspace/init.rc）

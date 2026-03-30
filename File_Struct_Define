@@ -1,0 +1,21 @@
+/sys
+/usr
+/bin
+/mnt
+/tmp
+/swp
+
+/sys/:Core Files
+/usr --> /usr/home/xxx/:User Files(such as documents)   (instead "xxx" to real username on real machine)
+/bin --> /bin/pkg/:Save the software packages
+     --> /bin/config/:Save the software configurations define form users
+     --> /bin/firmware/:Save the firmware packages
+/mnt --> /mnt/drive/:mount the mobile disks
+     --> /mnt/input/ --> /mnt/input/keyboard:键盘
+                     --> /mnt/input/mouse:鼠标
+                     --> /mnt/input/touchpad:触控板
+                     --> /mnt/input/camera:摄像头
+                     --> /mnt/input/biometric:生物特征输入设备
+     --> /mnt/output/:输出设备乱七八糟的全放这
+/tmp/:缓存文件
+/swp/:交换分区

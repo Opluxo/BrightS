@@ -3,10 +3,12 @@
 
 #include <stdint.h>
 #include "uefi.h"
+#include "../../core/vm.h"
 
 typedef struct {
-  uint64_t base;
-  uint64_t size;
+  brights_mem_region_t regions[BRIGHTS_MAX_MEM_REGIONS];
+  uint32_t region_count;
+  uint64_t total_bytes;
   uint64_t map_key;
   uint64_t desc_size;
   uint32_t desc_ver;

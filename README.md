@@ -72,25 +72,37 @@ Current shell behavior:
 
 用户和系统目录布局：
 
-- 系统 userspace 配置：`/config/userspace/*`
-- 每个用户的 profile：`/config/<username>/example.pf`
+- 系统核心文件：`/sys/*`
 - 用户文件：`/usr/home/*` 和 `/usr/home/<username>/*`
-- 外部存储自动挂载元数据：`/dev/mnt/*`
-- `/dev/mnt/.mounted`
-- `/dev/mnt/fs`
-- `/dev/mnt/role`
-- `/dev/mnt/backend`
+- 软件包：`/bin/pkg/*`
+- 用户软件配置：`/bin/config/<username>/example.pf`
+- 固件包：`/bin/firmware/*`
+- 外部存储自动挂载元数据：`/mnt/drive/*`
+- `/mnt/drive/.mounted`
+- `/mnt/drive/fs`
+- `/mnt/drive/role`
+- `/mnt/drive/backend`
+- 输入设备：`/mnt/input/*`
+- 输出设备：`/mnt/output/*`
+- 缓存文件：`/tmp/*`
+- 交换分区：`/swp/*`
 
 User/system layout:
 
-- System userspace config: `/config/userspace/*`
-- Per-user profile: `/config/<username>/example.pf`
+- System core files: `/sys/*`
 - User files: `/usr/home/*` and `/usr/home/<username>/*`
-- External storage auto-mount metadata: `/dev/mnt/*`
-- `/dev/mnt/.mounted`
-- `/dev/mnt/fs`
-- `/dev/mnt/role`
-- `/dev/mnt/backend`
+- Software packages: `/bin/pkg/*`
+- User software configurations: `/bin/config/<username>/example.pf`
+- Firmware packages: `/bin/firmware/*`
+- External storage auto-mount metadata: `/mnt/drive/*`
+- `/mnt/drive/.mounted`
+- `/mnt/drive/fs`
+- `/mnt/drive/role`
+- `/mnt/drive/backend`
+- Input devices: `/mnt/input/*`
+- Output devices: `/mnt/output/*`
+- Cache files: `/tmp/*`
+- Swap partition: `/swp/*`
 
 系统盘策略：
 
@@ -123,6 +135,7 @@ Common commands:
 - `bst help`
 - `bst procom help`
 - `bst procom version`
+- `bst procom cpu`
 - `bst procom memory`
 - `bst procom processes`
 - `bst procom clock`
@@ -162,6 +175,7 @@ guest$ pwd
 - 顶层系统/调试命令被移除，以保持常规 shell 更小
 - 用 `bst procom version` 替代 `uname` 或 `version`
 - 用 `bst procom memory` 替代 `mem`
+- 用 `bst procom cpu` 查看 CPU 厂商/家族/型号与关键特性
 - 用 `bst procom processes` 替代 `ps`
 - 用 `bst procom clock` 替代 `ticks`
 - 用 `bst procom signals`、`bst procom raise-signal`、`bst procom clear-signals` 替代 `signal`、`raise`、`clearsig`

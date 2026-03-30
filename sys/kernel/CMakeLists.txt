@@ -44,6 +44,8 @@ if(UEFI_CLANG)
       ${CMAKE_CURRENT_SOURCE_DIR}/dev/nvme.c
       ${CMAKE_CURRENT_SOURCE_DIR}/ipc/pipe.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/clock.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/core/acpi.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/core/hwinfo.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/kmalloc.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/kshell.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/proc.c
@@ -96,6 +98,8 @@ if(UEFI_CLANG)
       ${CMAKE_CURRENT_SOURCE_DIR}/dev/nvme.c
       ${CMAKE_CURRENT_SOURCE_DIR}/ipc/pipe.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/clock.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/core/acpi.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/core/hwinfo.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/kmalloc.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/kshell.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/proc.c

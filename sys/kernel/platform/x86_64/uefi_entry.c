@@ -1,6 +1,7 @@
 #include "uefi.h"
 #include "uefi_memmap.h"
 #include "../../core/printf.h"
+#include "../../core/acpi.h"
 #include "../../core/vm.h"
 #include "../../dev/serial.h"
 #include "idt.h"
@@ -86,11 +87,43 @@ static void uefi_dump_memmap(brights_console_t *con, EFI_SYSTEM_TABLE *st)
 
 static void uefi_dump_meminfo(brights_console_t *con, const brights_uefi_memmap_info_t *info)
 {
-  uefi_print_str(con, u"memmap best base=");
-  uefi_print_hex(con, info->base);
-  uefi_print_str(con, u" size=");
-  uefi_print_hex(con, info->size);
+  uefi_print_str(con, u"memmap regions=");
+  uefi_print_hex(con, info->region_count);
+  uefi_print_str(con, u" total=");
+  uefi_print_hex(con, info->total_bytes);
   uefi_print_nl(con);
+}
+
+static int guid_eq(const EFI_GUID *a, const EFI_GUID *b)
+{
+  if (a->Data1 != b->Data1 || a->Data2 != b->Data2 || a->Data3 != b->Data3) {
+    return 0;
+  }
+  for (int i = 0; i < 8; ++i) {
+    if (a->Data4[i] != b->Data4[i]) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static uint64_t uefi_find_rsdp(EFI_SYSTEM_TABLE *st)
+{
+  static const EFI_GUID acpi20 = {0x8868e871u, 0xe4f1u, 0x11d3u, {0xbcu, 0x22u, 0x00u, 0x80u, 0xc7u, 0x3cu, 0x88u, 0x81u}};
+  static const EFI_GUID acpi10 = {0xeb9d2d30u, 0x2d88u, 0x11d3u, {0x9au, 0x16u, 0x00u, 0x90u, 0x27u, 0x3fu, 0xc1u, 0x4du}};
+  EFI_CONFIGURATION_TABLE *cfg = (EFI_CONFIGURATION_TABLE *)st->ConfigurationTable;
+
+  for (uint64_t i = 0; i < st->NumberOfTableEntries; ++i) {
+    if (guid_eq(&cfg[i].VendorGuid, &acpi20)) {
+      return (uint64_t)(uintptr_t)cfg[i].VendorTable;
+    }
+  }
+  for (uint64_t i = 0; i < st->NumberOfTableEntries; ++i) {
+    if (guid_eq(&cfg[i].VendorGuid, &acpi10)) {
+      return (uint64_t)(uintptr_t)cfg[i].VendorTable;
+    }
+  }
+  return 0;
 }
 
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
@@ -104,13 +137,21 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   uefi_print_str(&con, u"BrightS kernel: UEFI entry ok\r\n");
   uefi_print_str(&serial_con, u"BrightS kernel: serial ok\r\n");
 
+  uint64_t rsdp_addr = uefi_find_rsdp(SystemTable);
+  if (rsdp_addr != 0) {
+    brights_acpi_bootstrap(rsdp_addr);
+    uefi_print_str(&serial_con, u"acpi: rsdp found\r\n");
+  } else {
+    uefi_print_str(&serial_con, u"acpi: rsdp missing\r\n");
+  }
+
   uefi_dump_memmap(&serial_con, SystemTable);
 
   brights_uefi_memmap_info_t meminfo;
   int mem_ok = brights_uefi_parse_memmap(SystemTable, &meminfo);
   if (mem_ok == 0) {
     uefi_dump_meminfo(&serial_con, &meminfo);
-    brights_vm_bootstrap(meminfo.base, meminfo.size);
+    brights_vm_bootstrap(meminfo.regions, meminfo.region_count);
   } else {
     uefi_print_str(&serial_con, u"memmap parse failed\r\n");
   }

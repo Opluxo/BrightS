@@ -35,26 +35,77 @@ static void seed_dir(const char *path)
 void brights_vfs_init(void)
 {
   brights_ramfs_init();
-  seed_dir("/config");
-  seed_dir("/config/userspace");
-  seed_dir("/config/root");
-  seed_dir("/config/guest");
+  
+  // /sys - Core files (kernel)
+  seed_dir("/sys");
+  
+  // /usr - User files
   seed_dir("/usr");
   seed_dir("/usr/home");
   seed_dir("/usr/home/root");
   seed_dir("/usr/home/guest");
+  
+  // /bin - Software packages
+  seed_dir("/bin");
+  seed_dir("/bin/pkg");
+  seed_dir("/bin/config");
+  seed_dir("/bin/config/root");
+  seed_dir("/bin/config/guest");
+  seed_dir("/bin/firmware");
+  
+  // /mnt - Mount points
+  seed_dir("/mnt");
+  seed_dir("/mnt/drive");
+  seed_dir("/mnt/input");
+  seed_dir("/mnt/input/keyboard");
+  seed_dir("/mnt/input/mouse");
+  seed_dir("/mnt/input/touchpad");
+  seed_dir("/mnt/input/camera");
+  seed_dir("/mnt/input/biometric");
+  seed_dir("/mnt/output");
+  
+  // /tmp - Cache files
+  seed_dir("/tmp");
+  
+  // /swp - Swap partition
+  seed_dir("/swp");
+  
+  // /dev - Device files
   seed_dir("/dev");
-  seed_dir("/dev/mnt");
-  seed_file("/config/userspace/init.rc", "echo BrightS userspace init\n");
-  seed_file("/config/userspace/profile", "USER=guest\nHOME=/usr/home\n");
-  seed_file("/config/root/example.pf",
+  
+  // Seed system configuration files in /sys
+  seed_file("/sys/init.rc", "echo BrightS userspace init\n");
+  seed_file("/sys/profile", "USER=guest\nHOME=/usr/home\n");
+  
+  // Seed user configuration files in /bin/config
+  seed_file("/bin/config/root/example.pf",
             "username:root\nhostname:brights\navatar:\"default\"\nemail:root@local\npassword:root\n");
-  seed_file("/config/guest/example.pf",
+  seed_file("/bin/config/guest/example.pf",
             "username:guest\nhostname:brights\navatar:\"default\"\nemail:guest@local\npassword:guest\n");
+  
+  // Seed user home files
   seed_file("/usr/home/readme.txt", "Welcome to /usr/home\n");
   seed_file("/usr/home/notes.txt", "");
   seed_file("/usr/home/root/readme.txt", "Home of root\n");
   seed_file("/usr/home/guest/readme.txt", "Home of guest\n");
+  
+  // Seed system info files
+  seed_file("/sys/readme.txt", "BrightS kernel core files\n");
+  seed_file("/bin/readme.txt", "Software packages directory\n");
+  seed_file("/bin/pkg/readme.txt", "Installed packages\n");
+  seed_file("/bin/config/readme.txt", "User software configurations\n");
+  seed_file("/bin/firmware/readme.txt", "Firmware packages\n");
+  seed_file("/mnt/readme.txt", "Mount points directory\n");
+  seed_file("/mnt/drive/readme.txt", "Mobile disk mounts\n");
+  seed_file("/mnt/input/readme.txt", "Input devices\n");
+  seed_file("/mnt/input/keyboard/readme.txt", "Keyboard device\n");
+  seed_file("/mnt/input/mouse/readme.txt", "Mouse device\n");
+  seed_file("/mnt/input/touchpad/readme.txt", "Touchpad device\n");
+  seed_file("/mnt/input/camera/readme.txt", "Camera device\n");
+  seed_file("/mnt/input/biometric/readme.txt", "Biometric input device\n");
+  seed_file("/mnt/output/readme.txt", "Output devices\n");
+  seed_file("/tmp/readme.txt", "Temporary cache files\n");
+  seed_file("/swp/readme.txt", "Swap partition area\n");
 }
 
 int brights_vfs_mount_external(const char *backend)
@@ -65,18 +116,18 @@ int brights_vfs_mount_external(const char *backend)
 
   int rc = brights_btrfs_mount();
   if (rc == 0) {
-    seed_file("/dev/mnt/.mounted", "1\n");
-    seed_file("/dev/mnt/fs", "btrfs\n");
-    seed_file("/dev/mnt/role", "system\n");
-    seed_file("/dev/mnt/backend", backend);
-    seed_file("/dev/mnt/readme.txt",
+    seed_file("/mnt/drive/.mounted", "1\n");
+    seed_file("/mnt/drive/fs", "btrfs\n");
+    seed_file("/mnt/drive/role", "system\n");
+    seed_file("/mnt/drive/backend", backend);
+    seed_file("/mnt/drive/readme.txt",
               "System disk is mounted with Btrfs.\n");
   } else {
-    seed_file("/dev/mnt/.mounted", "0\n");
-    seed_file("/dev/mnt/fs", "none\n");
-    seed_file("/dev/mnt/role", "system\n");
-    seed_file("/dev/mnt/backend", backend);
-    seed_file("/dev/mnt/readme.txt",
+    seed_file("/mnt/drive/.mounted", "0\n");
+    seed_file("/mnt/drive/fs", "none\n");
+    seed_file("/mnt/drive/role", "system\n");
+    seed_file("/mnt/drive/backend", backend);
+    seed_file("/mnt/drive/readme.txt",
               "System disk mount failed (Btrfs required).\n");
   }
   return rc;

@@ -62,14 +62,9 @@ if(UEFI_CLANG)
       ${CMAKE_CURRENT_SOURCE_DIR}/core/vm.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/printf.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/vfs.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/vnode.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/namei.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/ramfs.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/btrfs.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/btrfs_btree.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/v6fs.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/inode.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/alloc.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/devfs.c
       -o ${KERNEL_EFI}
     DEPENDS
@@ -116,13 +111,9 @@ if(UEFI_CLANG)
       ${CMAKE_CURRENT_SOURCE_DIR}/core/vm.c
       ${CMAKE_CURRENT_SOURCE_DIR}/core/printf.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/vfs.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/vnode.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/namei.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/ramfs.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/btrfs.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/v6fs.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/inode.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/fs/alloc.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/fs/btrfs_btree.c
       ${CMAKE_CURRENT_SOURCE_DIR}/fs/devfs.c
     VERBATIM
   )

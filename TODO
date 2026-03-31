@@ -20,5 +20,8 @@
   - [x] 完善sleep.c：添加sleep_us/sleep_ms/halt函数
   - [x] 完善clock.c：添加纳秒级时间支持（TSC）
   - [x] 扩展sysent.c：添加16个系统调用（read/write/open/close/exit/getpid/sleep/clock/mkdir/unlink/create/signal/yield）
-  - [x] 完善v6fs.c：实现基本的UNIX V6文件系统
   - [x] 完善paging.c：实现页表管理（map/unmap/virt_to_phys/flush_tlb）
+  - [x] 完善proc.c：添加进程名、退出、父进程ID、僵尸进程状态
+5.精简项目目录
+  - [x] 删除v6fs相关文件（v6fs.c, v6fs.h, alloc.c, inode.c, vnode.c, vnode.h, namei.c）
+  - [x] 项目统一使用btrfs作为主文件系统

@@ -103,6 +103,179 @@ void brights_vfs_init(void)
   seed_file("/bin/runtime/rust/readme.txt", "Rust compiler and toolchain\n  - rustc: Rust compiler\n  - cargo: Rust package manager\n");
   seed_file("/bin/runtime/c/readme.txt", "C compiler and toolchain\n  - gcc: GNU Compiler Collection\n  - clang: LLVM C compiler\n  - make: Build automation tool\n");
   seed_file("/bin/runtime/python/readme.txt", "Python interpreter and packages\n  - python3: Python 3 interpreter\n  - pip: Python package manager\n");
+  
+  // Seed Rust compiler scripts
+  seed_file("/bin/runtime/rust/rustc",
+    "#!/bin/sh\n"
+    "# BrightS Rust Compiler Wrapper\n"
+    "if [ \"$1\" = \"--version\" ] || [ \"$1\" = \"-V\" ]; then\n"
+    "  echo \"rustc 1.75.0 (BrightS 2024.01)\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "if [ \"$1\" = \"--help\" ] || [ \"$1\" = \"-h\" ]; then\n"
+    "  echo \"Usage: rustc [OPTIONS] INPUT\"\n"
+    "  echo \"Options:\"\n"
+    "  echo \"  -h, --help       Print help\"\n"
+    "  echo \"  -V, --version    Print version\"\n"
+    "  echo \"  -o, --output     Output file\"\n"
+    "  echo \"  --edition        Rust edition (2015, 2018, 2021)\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "echo \"[BrightS] rustc: compiling...\"\n"
+    "echo \"Note: Full compilation requires host rustc\"\n");
+  
+  seed_file("/bin/runtime/rust/cargo",
+    "#!/bin/sh\n"
+    "# BrightS Cargo Package Manager Wrapper\n"
+    "if [ \"$1\" = \"--version\" ] || [ \"$1\" = \"-V\" ]; then\n"
+    "  echo \"cargo 1.75.0 (BrightS 2024.01)\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "if [ \"$1\" = \"--help\" ] || [ \"$1\" = \"-h\" ] || [ -z \"$1\" ]; then\n"
+    "  echo \"Rust's package manager\"\n"
+    "  echo \"Usage: cargo [OPTIONS] [COMMAND]\"\n"
+    "  echo \"Commands:\"\n"
+    "  echo \"  new      Create a new cargo package\"\n"
+    "  echo \"  build    Compile the current package\"\n"
+    "  echo \"  run      Run a binary or example\"\n"
+    "  echo \"  test     Run tests\"\n"
+    "  echo \"  update   Update dependencies\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "echo \"[BrightS] cargo: $1\"\n");
+  
+  seed_file("/bin/runtime/rust/rustup",
+    "#!/bin/sh\n"
+    "# BrightS Rustup Toolchain Manager\n"
+    "echo \"rustup 1.26.0 (BrightS 2024.01)\"\n"
+    "echo \"Note: Toolchain management via host system\"\n");
+  
+  // Seed C compiler scripts
+  seed_file("/bin/runtime/c/gcc",
+    "#!/bin/sh\n"
+    "# BrightS GCC Wrapper\n"
+    "if [ \"$1\" = \"--version\" ] || [ \"$1\" = \"-v\" ]; then\n"
+    "  echo \"gcc (BrightS) 13.2.0\"\n"
+    "  echo \"Copyright (C) 2023 Free Software Foundation, Inc.\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "if [ \"$1\" = \"--help\" ] || [ \"$1\" = \"-h\" ]; then\n"
+    "  echo \"Usage: gcc [OPTIONS] FILE...\"\n"
+    "  echo \"Options:\"\n"
+    "  echo \"  -h, --help       Print help\"\n"
+    "  echo \"  -v, --version    Print version\"\n"
+    "  echo \"  -o, --output     Output file\"\n"
+    "  echo \"  -c               Compile only\"\n"
+    "  echo \"  -Wall            Enable all warnings\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "echo \"[BrightS] gcc: compiling...\"\n"
+    "echo \"Note: Full compilation requires host gcc\"\n");
+  
+  seed_file("/bin/runtime/c/clang",
+    "#!/bin/sh\n"
+    "# BrightS Clang Wrapper\n"
+    "if [ \"$1\" = \"--version\" ] || [ \"$1\" = \"-v\" ]; then\n"
+    "  echo \"clang version 17.0.6 (BrightS 2024.01)\"\n"
+    "  echo \"Target: x86_64-brights-unknown\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "if [ \"$1\" = \"--help\" ] || [ \"$1\" = \"-h\" ]; then\n"
+    "  echo \"Usage: clang [OPTIONS] FILE...\"\n"
+    "  echo \"Options:\"\n"
+    "  echo \"  -h, --help       Print help\"\n"
+    "  echo \"  -v, --version    Print version\"\n"
+    "  echo \"  -o, --output     Output file\"\n"
+    "  echo \"  -c               Compile only\"\n"
+    "  echo \"  -Wall            Enable all warnings\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "echo \"[BrightS] clang: compiling...\"\n"
+    "echo \"Note: Full compilation requires host clang\"\n");
+  
+  seed_file("/bin/runtime/c/make",
+    "#!/bin/sh\n"
+    "# BrightS Make Wrapper\n"
+    "if [ \"$1\" = \"--version\" ]; then\n"
+    "  echo \"GNU Make 4.4.1 (BrightS 2024.01)\"\n"
+    "  echo \"Built for x86_64-brights-unknown\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "if [ \"$1\" = \"--help\" ] || [ -z \"$1\" ]; then\n"
+    "  echo \"Usage: make [OPTIONS] [TARGET]\"\n"
+    "  echo \"Options:\"\n"
+    "  echo \"  -h, --help       Print help\"\n"
+    "  echo \"  -v, --version    Print version\"\n"
+    "  echo \"  -f, --file       Specify makefile\"\n"
+    "  echo \"  -j, --jobs       Number of parallel jobs\"\n"
+    "  echo \"  -C, --directory  Change directory\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "echo \"[BrightS] make: building...\"\n"
+    "echo \"Note: Full build requires host make\"\n");
+  
+  seed_file("/bin/runtime/c/gdb",
+    "#!/bin/sh\n"
+    "# BrightS GDB Wrapper\n"
+    "echo \"GNU gdb (BrightS) 14.1\"\n"
+    "echo \"Note: Debugging via host gdb\"\n");
+  
+  // Seed Python interpreter scripts
+  seed_file("/bin/runtime/python/python3",
+    "#!/bin/sh\n"
+    "# BrightS Python 3 Interpreter Wrapper\n"
+    "if [ \"$1\" = \"--version\" ] || [ \"$1\" = \"-V\" ]; then\n"
+    "  echo \"Python 3.12.1 (BrightS 2024.01)\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "if [ \"$1\" = \"--help\" ] || [ \"$1\" = \"-h\" ]; then\n"
+    "  echo \"Usage: python3 [OPTIONS] [FILE] [ARG]...\"\n"
+    "  echo \"Options:\"\n"
+    "  echo \"  -h, --help       Print help\"\n"
+    "  echo \"  -V, --version    Print version\"\n"
+    "  echo \"  -c, --cmd        Execute command\"\n"
+    "  echo \"  -m, --module     Run module\"\n"
+    "  echo \"  -i, --interactive Interactive mode\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "if [ -z \"$1\" ]; then\n"
+    "  echo \"Python 3.12.1 (BrightS 2024.01)\"\n"
+    "  echo \"Type \\\"help\\\", \\\"copyright\\\", \\\"credits\\\" for more information.\"\n"
+    "  echo \"Note: Interactive mode via host python3\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "echo \"[BrightS] python3: running $1\"\n"
+    "echo \"Note: Full execution requires host python3\"\n");
+  
+  seed_file("/bin/runtime/python/pip",
+    "#!/bin/sh\n"
+    "# BrightS Pip Package Manager Wrapper\n"
+    "if [ \"$1\" = \"--version\" ] || [ \"$1\" = \"-V\" ]; then\n"
+    "  echo \"pip 23.3.2 from /bin/runtime/python (python 3.12)\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "if [ \"$1\" = \"--help\" ] || [ \"$1\" = \"-h\" ] || [ -z \"$1\" ]; then\n"
+    "  echo \"Usage: pip [OPTIONS] COMMAND\"\n"
+    "  echo \"Commands:\"\n"
+    "  echo \"  install    Install packages\"\n"
+    "  echo \"  uninstall  Uninstall packages\"\n"
+    "  echo \"  list       List installed packages\"\n"
+    "  echo \"  show       Show package info\"\n"
+    "  echo \"  search     Search PyPI\"\n"
+    "  exit 0\n"
+    "fi\n"
+    "echo \"[BrightS] pip: $1\"\n");
+  
+  seed_file("/bin/runtime/python/pip3",
+    "#!/bin/sh\n"
+    "# BrightS Pip3 Package Manager Wrapper\n"
+    "/bin/runtime/python/pip \"$@\"\n");
+  
+  seed_file("/bin/runtime/python/venv",
+    "#!/bin/sh\n"
+    "# BrightS Python Virtual Environment\n"
+    "echo \"Python venv module (BrightS 2024.01)\"\n"
+    "echo \"Note: Virtual environments via host python3\"\n");
   seed_file("/mnt/readme.txt", "Mount points directory\n");
   seed_file("/mnt/drive/readme.txt", "Mobile disk mounts\n");
   seed_file("/mnt/input/readme.txt", "Input devices\n");

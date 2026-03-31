@@ -52,6 +52,10 @@ void brights_vfs_init(void)
   seed_dir("/bin/config/root");
   seed_dir("/bin/config/guest");
   seed_dir("/bin/firmware");
+  seed_dir("/bin/runtime");
+  seed_dir("/bin/runtime/rust");
+  seed_dir("/bin/runtime/c");
+  seed_dir("/bin/runtime/python");
   
   // /mnt - Mount points
   seed_dir("/mnt");
@@ -95,6 +99,10 @@ void brights_vfs_init(void)
   seed_file("/bin/pkg/readme.txt", "Installed packages\n");
   seed_file("/bin/config/readme.txt", "User software configurations\n");
   seed_file("/bin/firmware/readme.txt", "Firmware packages\n");
+  seed_file("/bin/runtime/readme.txt", "Runtime environments and compilers\n");
+  seed_file("/bin/runtime/rust/readme.txt", "Rust compiler and toolchain\n  - rustc: Rust compiler\n  - cargo: Rust package manager\n");
+  seed_file("/bin/runtime/c/readme.txt", "C compiler and toolchain\n  - gcc: GNU Compiler Collection\n  - clang: LLVM C compiler\n  - make: Build automation tool\n");
+  seed_file("/bin/runtime/python/readme.txt", "Python interpreter and packages\n  - python3: Python 3 interpreter\n  - pip: Python package manager\n");
   seed_file("/mnt/readme.txt", "Mount points directory\n");
   seed_file("/mnt/drive/readme.txt", "Mobile disk mounts\n");
   seed_file("/mnt/input/readme.txt", "Input devices\n");

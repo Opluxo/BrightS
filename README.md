@@ -77,6 +77,10 @@ Current shell behavior:
 - 软件包：`/bin/pkg/*`
 - 用户软件配置：`/bin/config/<username>/example.pf`
 - 固件包：`/bin/firmware/*`
+- 运行时环境：`/bin/runtime/*`
+  - Rust：`/bin/runtime/rust/*`（rustc, cargo）
+  - C：`/bin/runtime/c/*`（gcc, clang, make）
+  - Python：`/bin/runtime/python/*`（python3, pip）
 - 外部存储自动挂载元数据：`/mnt/drive/*`
 - `/mnt/drive/.mounted`
 - `/mnt/drive/fs`
@@ -94,6 +98,10 @@ User/system layout:
 - Software packages: `/bin/pkg/*`
 - User software configurations: `/bin/config/<username>/example.pf`
 - Firmware packages: `/bin/firmware/*`
+- Runtime environments: `/bin/runtime/*`
+  - Rust: `/bin/runtime/rust/*` (rustc, cargo)
+  - C: `/bin/runtime/c/*` (gcc, clang, make)
+  - Python: `/bin/runtime/python/*` (python3, pip)
 - External storage auto-mount metadata: `/mnt/drive/*`
 - `/mnt/drive/.mounted`
 - `/mnt/drive/fs`

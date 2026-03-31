@@ -10,6 +10,10 @@
 /bin --> /bin/pkg/:Save the software packages
      --> /bin/config/:Save the software configurations define form users
      --> /bin/firmware/:Save the firmware packages
+     --> /bin/runtime/:Runtime environments and compilers
+          --> /bin/runtime/rust/:Rust compiler and toolchain (rustc, cargo)
+          --> /bin/runtime/c/:C compiler and toolchain (gcc, clang, make)
+          --> /bin/runtime/python/:Python interpreter and packages (python3, pip)
 /mnt --> /mnt/drive/:mount the mobile disks
      --> /mnt/input/ --> /mnt/input/keyboard:键盘
                      --> /mnt/input/mouse:鼠标

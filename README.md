@@ -75,6 +75,8 @@ Current shell behavior:
 - 系统核心文件：`/sys/*`
 - 用户文件：`/usr/home/*` 和 `/usr/home/<username>/*`
 - 软件包：`/bin/pkg/*`
+  - BSPM包管理器：`/bin/pkg/bspm`
+  - 包数据库：`/bin/pkg/.db/*`
 - 用户软件配置：`/bin/config/<username>/example.pf`
 - 固件包：`/bin/firmware/*`
 - 运行时环境：`/bin/runtime/*`
@@ -96,6 +98,8 @@ User/system layout:
 - System core files: `/sys/*`
 - User files: `/usr/home/*` and `/usr/home/<username>/*`
 - Software packages: `/bin/pkg/*`
+  - BSPM Package Manager: `/bin/pkg/bspm`
+  - Package database: `/bin/pkg/.db/*`
 - User software configurations: `/bin/config/<username>/example.pf`
 - Firmware packages: `/bin/firmware/*`
 - Runtime environments: `/bin/runtime/*`
@@ -128,6 +132,7 @@ System disk policy:
 - 配置：`profile`、`setpf`
 - 导航：`pwd`、`cd`、`mkdir`、`rmdir`
 - 文件：`ls`、`stat`、`cat`、`touch`、`write`、`append`、`cp`、`mv`、`rm`、`hexdump`、`echo`
+- 包管理：`bspm install`、`bspm remove`、`bspm list`、`bspm search`
 - 系统维护入口：`bst`
 
 Common commands:
@@ -136,6 +141,7 @@ Common commands:
 - Profile: `profile`, `setpf`
 - Navigation: `pwd`, `cd`, `mkdir`, `rmdir`
 - Files: `ls`, `stat`, `cat`, `touch`, `write`, `append`, `cp`, `mv`, `rm`, `hexdump`, `echo`
+- Package management: `bspm install`, `bspm remove`, `bspm list`, `bspm search`
 - System/maintenance entry: `bst`
 
 `bst` 命令结构 / `bst` command layout:

@@ -1,8 +1,9 @@
                     GNU GENERAL PUBLIC LICENSE
                        Version 2, June 1991
 
- Copyright (C) 1989, 1991 Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ Copyright (C) 1989, 1991 Free Software Foundation, Inc.
+ 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
@@ -15,7 +16,7 @@ software--to make sure the software is free for all its users.  This
 General Public License applies to most of the Free Software
 Foundation's software and to any other program whose authors commit to
 using it.  (Some other Free Software Foundation software is covered by
-the GNU Lesser General Public License instead.)  You can apply it to
+the GNU Library General Public License instead.)  You can apply it to
 your programs, too.
 
   When we speak of free software, we are referring to freedom, not
@@ -279,6 +280,7 @@ POSSIBILITY OF SUCH DAMAGES.
 
                      END OF TERMS AND CONDITIONS
 
+
             How to Apply These Terms to Your New Programs
 
   If you develop a new program, and you want it to be of the greatest
@@ -295,8 +297,7 @@ the "copyright" line and a pointer to where the full notice is found.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    the Free Software Foundation; version 2 of the License.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -322,7 +323,7 @@ parts of the General Public License.  Of course, the commands you use may
 be called something other than `show w' and `show c'; they could even be
 mouse-clicks or menu items--whatever suits your program.
 
-You should also get your employer (if you work as a programmer) or your
+You should also get your employer (if you work for a company) or your
 school, if any, to sign a "copyright disclaimer" for the program, if
 necessary.  Here is a sample; alter the names:
 
@@ -335,5 +336,36 @@ necessary.  Here is a sample; alter the names:
 This General Public License does not permit incorporating your program into
 proprietary programs.  If your program is a subroutine library, you may
 consider it more useful to permit linking proprietary applications with the
-library.  If this is what you want to do, use the GNU Lesser General
+library.  If this is what you want to do, use the GNU Library General
 Public License instead of this License.
+
+
+                EXCEPTION TO THE GPL VERSION 2
+
+As a special exception, permission is granted to dynamically link userspace
+programs with this kernel and to distribute the resulting executable,
+provided that all of the following conditions are met:
+
+  (a) The userspace program communicates with the kernel solely through
+      normal system calls, standard ABI interfaces, or standard pseudo-filesystems
+      (e.g., /proc, /sys, /dev);
+
+  (b) No part of the kernel source code (including header files that expose
+      internal kernel data structures or implementation details) is included
+      in the userspace program;
+
+  (c) The userspace program does not contain derivative works of the kernel.
+
+This exception does not override any other obligations under the GNU General
+Public License version 2. It applies only to the act of linking and distributing
+userspace programs that meet the above criteria.
+
+Without this exception, userspace programs interacting with the kernel might
+be considered derivative works under copyright law. This exception clarifies
+that such programs are not subject to the copyleft requirements of the GPL,
+as long as they use only the intended public interfaces of the kernel.
+
+This exception is modeled after the Linux kernel's syscall exception and is
+intended to enable the development of proprietary and open-source userspace
+applications on top of this kernel, while preserving the copyleft protections
+for the kernel itself and its derivatives.

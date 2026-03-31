@@ -8,7 +8,7 @@
 /sys/:Core Files
 /usr --> /usr/home/xxx/:User Files(such as documents)   (instead "xxx" to real username on real machine)
 /bin --> /bin/pkg/:Save the software packages
-     --> /bin/pkg/bspm:BrightS Package Manager (包管理器)
+     --> /bin/pkg/bspm:BrightS Package Manager Installer
      --> /bin/pkg/.db/:Package database
      --> /bin/config/:Save the software configurations define form users
      --> /bin/firmware/:Save the firmware packages
@@ -25,3 +25,5 @@
      --> /mnt/output/:输出设备乱七八糟的全放这
 /tmp/:缓存文件
 /swp/:交换分区
+
+BSPM Repository: https://github.com/s12mcOvO/BrightS_Package_Manager

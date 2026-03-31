@@ -75,8 +75,9 @@ Current shell behavior:
 - 系统核心文件：`/sys/*`
 - 用户文件：`/usr/home/*` 和 `/usr/home/<username>/*`
 - 软件包：`/bin/pkg/*`
-  - BSPM包管理器：`/bin/pkg/bspm`
+  - BSPM包管理器安装器：`/bin/pkg/bspm`
   - 包数据库：`/bin/pkg/.db/*`
+  - BSPM独立仓库：https://github.com/s12mcOvO/BrightS_Package_Manager
 - 用户软件配置：`/bin/config/<username>/example.pf`
 - 固件包：`/bin/firmware/*`
 - 运行时环境：`/bin/runtime/*`
@@ -98,8 +99,9 @@ User/system layout:
 - System core files: `/sys/*`
 - User files: `/usr/home/*` and `/usr/home/<username>/*`
 - Software packages: `/bin/pkg/*`
-  - BSPM Package Manager: `/bin/pkg/bspm`
+  - BSPM Package Manager installer: `/bin/pkg/bspm`
   - Package database: `/bin/pkg/.db/*`
+  - BSPM repository: https://github.com/s12mcOvO/BrightS_Package_Manager
 - User software configurations: `/bin/config/<username>/example.pf`
 - Firmware packages: `/bin/firmware/*`
 - Runtime environments: `/bin/runtime/*`

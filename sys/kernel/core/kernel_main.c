@@ -70,9 +70,11 @@ void brights_kernel_main(void)
     brights_print(&con, u"devfs: init failed\r\n");
   }
 
-  int kpid = brights_proc_spawn_kernel();
+  int kpid = brights_proc_spawn_kernel("init");
   if (kpid > 0) {
     brights_proc_set_state((uint32_t)kpid, BRIGHTS_PROC_RUNNING);
+    brights_proc_set_current((uint32_t)kpid);
+    brights_sched_add_process((uint32_t)kpid);
     brights_sched_mark_dispatch();
     brights_print(&con, u"proc: init ok\r\n");
   } else {

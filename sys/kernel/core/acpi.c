@@ -1,9 +1,21 @@
 #include "acpi.h"
 #include "../platform/x86_64/io.h"
+#include "../dev/serial.h"
 #include <stdint.h>
 
 #define ACPI_SIG_FADT 0x50434146u
+#define ACPI_SIG_MADT 0x43495041u  /* "APIC" */
+#define ACPI_SIG_HPET 0x54455048u
 #define ACPI_RESET_REG_SUPPORTED (1u << 10)
+
+/* MADT entry types */
+#define MADT_TYPE_LAPIC      0
+#define MADT_TYPE_IOAPIC     1
+#define MADT_TYPE_OVERRIDE   2
+#define MADT_TYPE_NMI        4
+
+/* MADT flags */
+#define MADT_FLAG_PCAT_COMPAT (1u << 0)
 
 typedef struct {
   char signature[8];
@@ -166,30 +178,91 @@ int brights_acpi_init(void)
   uint64_t *table_addrs = (uint64_t *)((uint8_t *)xsdt + sizeof(acpi_sdt_t));
   for (uint32_t i = 0; i < entries; ++i) {
     acpi_sdt_t *hdr = (acpi_sdt_t *)(uintptr_t)table_addrs[i];
-    if (!hdr || hdr->signature != ACPI_SIG_FADT) {
-      continue;
-    }
-    if (!checksum_ok(hdr, hdr->length)) {
-      continue;
-    }
+    if (!hdr || !checksum_ok(hdr, hdr->length)) continue;
 
-    acpi_fadt_t *fadt = (acpi_fadt_t *)hdr;
-    acpi_info_state.has_fadt = 1;
-    acpi_info_state.pm_profile = fadt->preferred_pm_profile;
-    acpi_info_state.sci_int = fadt->sci_int;
-    acpi_info_state.flags = fadt->flags;
-    if (fadt->x_pm_tmr_blk.address != 0) {
-      acpi_info_state.pm_tmr_blk = fadt->x_pm_tmr_blk.address;
-    } else {
-      acpi_info_state.pm_tmr_blk = fadt->pm_tmr_blk;
+    if (hdr->signature == ACPI_SIG_FADT) {
+      acpi_fadt_t *fadt = (acpi_fadt_t *)hdr;
+      acpi_info_state.has_fadt = 1;
+      acpi_info_state.pm_profile = fadt->preferred_pm_profile;
+      acpi_info_state.sci_int = fadt->sci_int;
+      acpi_info_state.flags = fadt->flags;
+      if (fadt->x_pm_tmr_blk.address != 0) {
+        acpi_info_state.pm_tmr_blk = fadt->x_pm_tmr_blk.address;
+      } else {
+        acpi_info_state.pm_tmr_blk = fadt->pm_tmr_blk;
+      }
+      if ((fadt->flags & ACPI_RESET_REG_SUPPORTED) && fadt->reset_reg.address != 0) {
+        acpi_info_state.has_reset_reg = 1;
+        acpi_info_state.reset_reg_addr = fadt->reset_reg.address;
+        acpi_info_state.reset_reg_space = fadt->reset_reg.space_id;
+        acpi_info_state.reset_value = fadt->reset_value;
+      }
     }
-    if ((fadt->flags & ACPI_RESET_REG_SUPPORTED) && fadt->reset_reg.address != 0) {
-      acpi_info_state.has_reset_reg = 1;
-      acpi_info_state.reset_reg_addr = fadt->reset_reg.address;
-      acpi_info_state.reset_reg_space = fadt->reset_reg.space_id;
-      acpi_info_state.reset_value = fadt->reset_value;
+    else if (hdr->signature == ACPI_SIG_MADT) {
+      /* Parse MADT for APIC info */
+      acpi_info_state.has_madt = 1;
+      uint8_t *madt_data = (uint8_t *)hdr;
+      uint32_t madt_len = hdr->length;
+
+      /* LAPIC base address at offset 36 */
+      if (madt_len >= 44) {
+        acpi_info_state.lapic_mmio = *(uint32_t *)(madt_data + 36);
+      }
+
+      /* Walk MADT entries (start at offset 44) */
+      uint32_t off = 44;
+      while (off + 2 <= madt_len) {
+        uint8_t type = madt_data[off];
+        uint8_t len = madt_data[off + 1];
+        if (len < 2 || off + len > madt_len) break;
+
+        if (type == MADT_TYPE_IOAPIC && len >= 12) {
+          if (acpi_info_state.ioapic_count < BRIGHTS_MAX_IOAPIC) {
+            brights_ioapic_entry_t *e = &acpi_info_state.ioapic[acpi_info_state.ioapic_count];
+            e->id = madt_data[off + 2];
+            e->mmio_addr = *(uint32_t *)(madt_data + off + 4);
+            e->gsi_base = *(uint32_t *)(madt_data + off + 8);
+            acpi_info_state.ioapic_count++;
+          }
+        }
+        else if (type == MADT_TYPE_OVERRIDE && len >= 10) {
+          if (acpi_info_state.override_count < BRIGHTS_MAX_LAPIC_OVERRIDE) {
+            brights_lapic_override_t *o = &acpi_info_state.override[acpi_info_state.override_count];
+            o->bus_source = madt_data[off + 2];
+            o->irq_source = madt_data[off + 3];
+            o->gsi = *(uint32_t *)(madt_data + off + 4);
+            o->flags = *(uint16_t *)(madt_data + off + 8);
+            acpi_info_state.override_count++;
+          }
+        }
+        else if (type == MADT_TYPE_NMI && len >= 8) {
+          if (acpi_info_state.nmi_count < BRIGHTS_MAX_LAPIC_NMI) {
+            brights_lapic_nmi_t *n = &acpi_info_state.nmi[acpi_info_state.nmi_count];
+            n->lint = madt_data[off + 5];
+            n->flags = *(uint16_t *)(madt_data + off + 2);
+            acpi_info_state.nmi_count++;
+          }
+        }
+
+        off += len;
+      }
     }
-    break;
+    else if (hdr->signature == ACPI_SIG_HPET) {
+      /* Parse HPET table */
+      uint8_t *hpet_data = (uint8_t *)hdr;
+      if (hdr->length >= 56) {
+        /* HPET base address at offset 44 (GAS structure) */
+        uint8_t space_id = hpet_data[44];
+        uint64_t addr = *(uint64_t *)(hpet_data + 48);
+        if (space_id == 0 && addr != 0) { /* Memory-mapped */
+          acpi_info_state.hpet_mmio = addr;
+          acpi_info_state.has_hpet = 1;
+        }
+        if (hdr->length >= 60) {
+          acpi_info_state.hpet_period_fs = *(uint32_t *)(hpet_data + 56);
+        }
+      }
+    }
   }
 
   acpi_info_state.ready = 1;

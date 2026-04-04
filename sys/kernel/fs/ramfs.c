@@ -228,11 +228,30 @@ void brights_ramfs_init(void)
   for (int i = 0; i < BRIGHTS_RAMFS_MAX_FILES; ++i) {
     ramfs_files[i].in_use = 0;
     ramfs_files[i].is_dir = 0;
+    ramfs_files[i].is_symlink = 0;
     ramfs_files[i].data = ramfs_storage[i];
     ramfs_files[i].size = 0;
     ramfs_files[i].capacity = sizeof(ramfs_storage[i]);
     ramfs_files[i].name[0] = 0;
+    ramfs_files[i].mode = 0;
+    ramfs_files[i].uid = 0;
+    ramfs_files[i].gid = 0;
+    ramfs_files[i].symlink_target[0] = 0;
   }
+}
+
+/* Initialize file with default permissions */
+static void ramfs_init_file_perms(brights_ramfs_file_t *f, int is_dir)
+{
+  if (is_dir) {
+    f->mode = 0x4000 | 0x01ED; /* S_IFDIR | 0755 */
+  } else {
+    f->mode = 0x8000 | 0x01A4; /* S_IFREG | 0644 */
+  }
+  f->uid = 0; /* root */
+  f->gid = 0; /* root */
+  f->is_symlink = 0;
+  f->symlink_target[0] = 0;
 }
 
 int brights_ramfs_mkdir(const char *name)
@@ -261,6 +280,7 @@ int brights_ramfs_mkdir(const char *name)
   f->size = 0;
   f->is_dir = 1;
   f->in_use = 1;
+  ramfs_init_file_perms(f, 1);
   return idx;
 }
 
@@ -290,6 +310,7 @@ int brights_ramfs_create(const char *name)
   f->size = 0;
   f->is_dir = 0;
   f->in_use = 1;
+  ramfs_init_file_perms(f, 0);
   return idx;
 }
 
@@ -332,7 +353,11 @@ int brights_ramfs_stat(const char *path_in, brights_ramfs_stat_t *out)
     out->path[0] = '/';
     out->path[1] = 0;
     out->size = 0;
+    out->mode = 0x4000 | 0x01ED; /* S_IFDIR | 0755 */
+    out->uid = 0;
+    out->gid = 0;
     out->is_dir = 1;
+    out->is_symlink = 0;
     return 0;
   }
   int idx = ramfs_find_name(path);
@@ -346,7 +371,11 @@ int brights_ramfs_stat(const char *path_in, brights_ramfs_stat_t *out)
     }
   }
   out->size = ramfs_files[idx].size;
+  out->mode = ramfs_files[idx].mode;
+  out->uid = ramfs_files[idx].uid;
+  out->gid = ramfs_files[idx].gid;
   out->is_dir = ramfs_files[idx].is_dir;
+  out->is_symlink = ramfs_files[idx].is_symlink;
   return 0;
 }
 
@@ -459,4 +488,102 @@ uint64_t brights_ramfs_size_at(int idx)
     return 0;
   }
   return ramfs_files[idx].size;
+}
+
+/* ===== Symlink support ===== */
+int brights_ramfs_symlink(const char *target, const char *linkpath)
+{
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (normalize_path(linkpath, path, sizeof(path)) < 0 || path_eq(path, "/")) {
+    return -1;
+  }
+  if (!ramfs_parent_exists(path) || ramfs_find_name(path) >= 0) {
+    return -1;
+  }
+
+  int idx = ramfs_find_free();
+  if (idx < 0) {
+    return -1;
+  }
+  brights_ramfs_file_t *f = &ramfs_files[idx];
+  int nlen = path_len_limited(path, BRIGHTS_RAMFS_MAX_NAME - 1);
+  if (nlen <= 0) {
+    return -1;
+  }
+  for (int n = 0; n < nlen; ++n) {
+    f->name[n] = path[n];
+  }
+  f->name[nlen] = 0;
+
+  /* Copy symlink target */
+  int tlen = 0;
+  while (target[tlen] && tlen < BRIGHTS_RAMFS_MAX_SYMLINK_TARGET - 1) {
+    f->symlink_target[tlen] = target[tlen];
+    ++tlen;
+  }
+  f->symlink_target[tlen] = 0;
+
+  f->size = 0;
+  f->is_dir = 0;
+  f->is_symlink = 1;
+  f->mode = 0xA000 | 0x01FF; /* S_IFLNK | 0777 */
+  f->in_use = 1;
+  return idx;
+}
+
+int64_t brights_ramfs_readlink(const char *path_in, char *buf, uint64_t bufsize)
+{
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (!buf || bufsize == 0 || normalize_path(path_in, path, sizeof(path)) < 0) {
+    return -1;
+  }
+  int idx = ramfs_find_name(path);
+  if (idx < 0 || !ramfs_files[idx].is_symlink) {
+    return -1;
+  }
+  brights_ramfs_file_t *f = &ramfs_files[idx];
+  uint64_t i = 0;
+  while (f->symlink_target[i] && i < bufsize - 1) {
+    buf[i] = f->symlink_target[i];
+    ++i;
+  }
+  buf[i] = 0;
+  return (int64_t)i;
+}
+
+/* ===== Permission support ===== */
+int brights_ramfs_chmod(const char *path_in, uint32_t mode)
+{
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (normalize_path(path_in, path, sizeof(path)) < 0) {
+    return -1;
+  }
+  if (path_eq(path, "/")) {
+    return -1; /* Cannot chmod root */
+  }
+  int idx = ramfs_find_name(path);
+  if (idx < 0) {
+    return -1;
+  }
+  /* Preserve file type bits, update permission bits */
+  ramfs_files[idx].mode = (ramfs_files[idx].mode & 0xF000) | (mode & 0x0FFF);
+  return 0;
+}
+
+int brights_ramfs_chown(const char *path_in, uint32_t uid, uint32_t gid)
+{
+  char path[BRIGHTS_RAMFS_MAX_NAME];
+  if (normalize_path(path_in, path, sizeof(path)) < 0) {
+    return -1;
+  }
+  if (path_eq(path, "/")) {
+    return -1; /* Cannot chown root */
+  }
+  int idx = ramfs_find_name(path);
+  if (idx < 0) {
+    return -1;
+  }
+  ramfs_files[idx].uid = uid;
+  ramfs_files[idx].gid = gid;
+  return 0;
 }

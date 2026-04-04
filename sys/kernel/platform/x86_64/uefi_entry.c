@@ -176,6 +176,25 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 
   brights_vm_init();
   uefi_print_str(&serial_con, u"BrightS kernel: vm ok\r\n");
+
+  /* Enable CR4 performance features for Tiger Lake */
+  {
+    uint64_t cr4;
+    __asm__ __volatile__("mov %%cr4, %0" : "=r"(cr4));
+    /* FSGSBASE: enables RDFSBASE/WRFSBASE/RDGSBASE/WRGSBASE */
+    cr4 |= (1ULL << 16);
+    /* PCIDE: Process-Context Identifiers for TLB efficiency */
+    cr4 |= (1ULL << 17);
+    /* SMEP: Supervisor Mode Execution Prevention */
+    cr4 |= (1ULL << 20);
+    /* SMAP: Supervisor Mode Access Prevention */
+    cr4 |= (1ULL << 21);
+    /* UMIP: User-Mode Instruction Prevention (blocks SGDT/SIDT/SMSW/SLDT/STR in user mode) */
+    cr4 |= (1ULL << 11);
+    __asm__ __volatile__("mov %0, %%cr4" :: "r"(cr4) : "memory");
+    uefi_print_str(&serial_con, u"cr4: fsgsbase/pcid/smep/smap/umip enabled\r\n");
+  }
+
   brights_idt_init();
   uefi_print_str(&serial_con, u"BrightS kernel: idt ok\r\n");
   brights_syscall_abi_init();

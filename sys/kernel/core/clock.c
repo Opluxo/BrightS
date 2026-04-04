@@ -1,3 +1,5 @@
+#include "clock.h"
+#include "hwinfo.h"
 #include <stdint.h>
 
 static uint64_t clock_ticks;
@@ -44,14 +46,18 @@ void brights_clock_advance(uint64_t ticks)
 
 void brights_clock_calibrate(void)
 {
-  if (!has_tsc()) {
+  if (tsc_freq > 0) return; /* Already calibrated */
+  if (!has_tsc()) return;
+
+  /* Use hwinfo calibration if available */
+  const brights_cpu_info_t *cpu = brights_hwinfo_cpu();
+  if (cpu && cpu->tsc_freq > 0) {
+    tsc_freq = cpu->tsc_freq;
     return;
   }
 
-  // Simple calibration: count TSC ticks over a known period
-  // We'll use a fixed estimate for now (can be improved with PIT/APIC timer)
-  // Typical modern CPUs: 2-4 GHz
-  tsc_freq = 2400000000ULL; // 2.4 GHz default
+  /* Fallback: 2.4 GHz default for modern CPUs */
+  tsc_freq = 2400000000ULL;
 }
 
 uint64_t brights_clock_ns(void)

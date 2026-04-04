@@ -1,3 +1,19 @@
+#ifndef BRIGHTS_STORAGE_H
+#define BRIGHTS_STORAGE_H
+int brights_storage_bootstrap(void);
+int brights_storage_mount_system(void);
+int brights_storage_rescan_and_mount(void);
+const char *brights_storage_backend(void);
+#endif
+
+#ifndef BRIGHTS_STORAGE_H
+#define BRIGHTS_STORAGE_H
+int brights_storage_bootstrap(void);
+int brights_storage_mount_system(void);
+int brights_storage_rescan_and_mount(void);
+const char *brights_storage_backend(void);
+#endif
+
 #include "storage.h"
 #include "../platform/x86_64/pci.h"
 #include "../dev/nvme.h"
@@ -33,7 +49,6 @@ int brights_storage_bootstrap(void)
     if (devs[i].class_code == 0x01 && devs[i].subclass == 0x08 && devs[i].prog_if == 0x02) {
       storage_debug("storage: nvme controller found\r\n");
       if (brights_nvme_init(&devs[i]) == 0) {
-        brights_block_set_root(brights_nvme_block());
         storage_backend = "nvme";
         return 0;
       }
@@ -45,7 +60,6 @@ int brights_storage_bootstrap(void)
     if (devs[i].class_code == 0x01 && devs[i].subclass == 0x06 && devs[i].prog_if == 0x01) {
       storage_debug("storage: ahci controller found\r\n");
       if (brights_ahci_init(&devs[i]) == 0) {
-        brights_block_set_root(brights_ahci_block());
         storage_backend = "ahci";
         return 0;
       }

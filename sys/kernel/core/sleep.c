@@ -1,13 +1,19 @@
+#include "sleep.h"
+#include "hwinfo.h"
+#include "../platform/x86_64/hpet.h"
 #include <stdint.h>
 
 static volatile uint64_t sleep_spin_counter;
 
-// Approximate CPU frequency for timing (will be calibrated)
-static uint64_t cpu_freq_mhz = 2400; // Default assumption: 2.4 GHz
+static inline uint64_t rdtsc_now(void)
+{
+  uint32_t lo, hi;
+  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+  return ((uint64_t)hi << 32) | lo;
+}
 
 void brights_sleep_cycles(uint64_t cycles)
 {
-  // Use pause instruction for better power efficiency on modern CPUs
   for (uint64_t i = 0; i < cycles; ++i) {
     __asm__ __volatile__("pause" ::: "memory");
   }
@@ -16,22 +22,22 @@ void brights_sleep_cycles(uint64_t cycles)
 
 void brights_sleep_us(uint64_t us)
 {
-  // Calculate cycles needed (approximate)
-  // cycles = us * (freq_mhz / 1000)
-  uint64_t cycles = (us * cpu_freq_mhz) / 1000;
-  if (cycles == 0) {
-    cycles = 1;
-  }
-  brights_sleep_cycles(cycles);
+  /* Use HPET if available (precise) */
+  brights_hpet_nsleep(us * 1000);
 }
 
 void brights_sleep_ms(uint64_t ms)
 {
-  brights_sleep_us(ms * 1000);
+  /* Use HPET for precise millisecond delays */
+  brights_hpet_nsleep(ms * 1000000);
 }
 
 void brights_halt(void)
 {
-  // Halt until next interrupt - most power efficient
   __asm__ __volatile__("hlt" ::: "memory");
+}
+
+uint64_t brights_sleep_counter(void)
+{
+  return sleep_spin_counter;
 }

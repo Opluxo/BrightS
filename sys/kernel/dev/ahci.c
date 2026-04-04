@@ -1,3 +1,14 @@
+#ifndef BRIGHTS_AHCI_H
+#define BRIGHTS_AHCI_H
+
+#include <stdint.h>
+#include "block.h"
+#include "../platform/x86_64/pci.h"
+
+int brights_ahci_init(const brights_pci_device_t *dev);
+brights_block_dev_t *brights_ahci_block(void);
+
+#endif
 #include "ahci.h"
 #include "../core/printf.h"
 #include "serial.h"
@@ -283,7 +294,14 @@ int brights_ahci_init(const brights_pci_device_t *dev)
 
   ahci_dev.read = ahci_read;
   ahci_dev.write = ahci_write;
+  ahci_dev.name = "ahci0";
+  ahci_dev.type = BRIGHTS_BLOCK_DEV_AHCI;
+  ahci_dev.total_blocks = 0;
+  ahci_dev.block_size = BRIGHTS_BLOCK_SIZE;
+  ahci_dev.ready = 1;
   ahci_ready = 1;
+  brights_block_register(&ahci_dev);
+  brights_block_set_root(&ahci_dev);
   return 0;
 }
 

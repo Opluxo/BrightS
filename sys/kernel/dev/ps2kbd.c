@@ -5,6 +5,13 @@
 #define PS2_DATA_PORT   0x60
 #define PS2_STATUS_PORT 0x64
 
+#define KBD_BUF_SIZE 256
+
+/* Ring buffer for decoded ASCII characters */
+static char kbd_buf[KBD_BUF_SIZE];
+static volatile uint32_t kbd_head = 0;
+static volatile uint32_t kbd_tail = 0;
+
 static int ps2_shift;
 static int ps2_caps_lock;
 static int ps2_extended;
@@ -76,58 +83,74 @@ static int ps2_scancode_to_ascii(uint8_t sc, char *out)
   }
 }
 
+static void kbd_buf_put(char ch)
+{
+  uint32_t next = (kbd_head + 1) % KBD_BUF_SIZE;
+  if (next != kbd_tail) {
+    kbd_buf[kbd_head] = ch;
+    kbd_head = next;
+  }
+}
+
+void brights_ps2kbd_irq_handler(void)
+{
+  uint8_t sc = inb(PS2_DATA_PORT);
+
+  if (sc == 0xE0u) {
+    ps2_extended = 1;
+    return;
+  }
+
+  /* Key release (break code) */
+  if (sc & 0x80u) {
+    uint8_t make = sc & 0x7Fu;
+    if (make == 0x2A || make == 0x36) ps2_shift = 0;
+    return;
+  }
+
+  /* Modifier keys */
+  if (sc == 0x2A || sc == 0x36) { ps2_shift = 1; return; }
+  if (sc == 0x3A) { ps2_caps_lock = !ps2_caps_lock; return; }
+
+  /* Extended key */
+  if (ps2_extended) {
+    ps2_extended = 0;
+    if (sc == 0x53) { kbd_buf_put(0x7F); } /* Delete */
+    return;
+  }
+
+  /* Convert scancode to ASCII and buffer it */
+  char ch = 0;
+  if (ps2_scancode_to_ascii(sc, &ch) > 0) {
+    kbd_buf_put(ch);
+  }
+}
+
 int brights_ps2kbd_init(void)
 {
   ps2_shift = 0;
   ps2_caps_lock = 0;
   ps2_extended = 0;
+  kbd_head = 0;
+  kbd_tail = 0;
+  /* Drain any pending data */
   for (int i = 0; i < 32; ++i) {
-    if ((inb(PS2_STATUS_PORT) & 0x01u) == 0) {
-      break;
-    }
+    if ((inb(PS2_STATUS_PORT) & 0x01u) == 0) break;
     (void)inb(PS2_DATA_PORT);
   }
   return 0;
 }
 
+int brights_ps2kbd_has_char(void)
+{
+  return kbd_head != kbd_tail;
+}
+
 int brights_ps2kbd_read_char(char *out_ch)
 {
-  if (!out_ch) {
-    return -1;
-  }
-  if ((inb(PS2_STATUS_PORT) & 0x01u) == 0) {
-    return 0;
-  }
-
-  uint8_t sc = inb(PS2_DATA_PORT);
-  if (sc == 0xE0u) {
-    ps2_extended = 1;
-    return 0;
-  }
-
-  if (sc == 0x2Au || sc == 0x36u) {
-    ps2_shift = 1;
-    return 0;
-  }
-  if (sc == 0xAAu || sc == 0xB6u) {
-    ps2_shift = 0;
-    return 0;
-  }
-  if (sc == 0x3Au) {
-    ps2_caps_lock = !ps2_caps_lock;
-    return 0;
-  }
-
-  if (ps2_extended) {
-    ps2_extended = 0;
-    switch (sc) {
-      case 0x53: *out_ch = 0x7F; return 1;
-      default: return 0;
-    }
-  }
-
-  if (sc & 0x80u) {
-    return 0;
-  }
-  return ps2_scancode_to_ascii(sc, out_ch);
+  if (!out_ch) return -1;
+  if (kbd_head == kbd_tail) return 0;
+  *out_ch = kbd_buf[kbd_tail];
+  kbd_tail = (kbd_tail + 1) % KBD_BUF_SIZE;
+  return 1;
 }

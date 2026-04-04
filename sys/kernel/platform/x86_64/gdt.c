@@ -1,3 +1,51 @@
+#ifndef BRIGHTS_X86_64_TSS_H
+#define BRIGHTS_X86_64_TSS_H
+#include <stdint.h>
+typedef struct {
+  uint32_t reserved0;
+  uint64_t rsp0;
+  uint64_t rsp1;
+  uint64_t rsp2;
+  uint64_t reserved1;
+  uint64_t ist1;
+  uint64_t ist2;
+  uint64_t ist3;
+  uint64_t ist4;
+  uint64_t ist5;
+  uint64_t ist6;
+  uint64_t ist7;
+  uint64_t reserved2;
+  uint16_t reserved3;
+  uint16_t io_map_base;
+} __attribute__((packed)) brights_tss_t;
+void brights_tss_init(uint64_t rsp0);
+brights_tss_t *brights_tss_ptr(void);
+#endif
+
+#ifndef BRIGHTS_X86_64_TSS_H
+#define BRIGHTS_X86_64_TSS_H
+#include <stdint.h>
+typedef struct {
+  uint32_t reserved0;
+  uint64_t rsp0;
+  uint64_t rsp1;
+  uint64_t rsp2;
+  uint64_t reserved1;
+  uint64_t ist1;
+  uint64_t ist2;
+  uint64_t ist3;
+  uint64_t ist4;
+  uint64_t ist5;
+  uint64_t ist6;
+  uint64_t ist7;
+  uint64_t reserved2;
+  uint16_t reserved3;
+  uint16_t io_map_base;
+} __attribute__((packed)) brights_tss_t;
+void brights_tss_init(uint64_t rsp0);
+brights_tss_t *brights_tss_ptr(void);
+#endif
+
 #include "gdt.h"
 #include "tss.h"
 
@@ -81,4 +129,18 @@ void brights_gdt_init(void)
 
   uint16_t tss_sel = BRIGHTS_TSS_SEL;
   __asm__ __volatile__("ltr %0" : : "r"(tss_sel));
+}
+#include "tss.h"
+
+static brights_tss_t tss;
+
+void brights_tss_init(uint64_t rsp0)
+{
+  tss.rsp0 = rsp0;
+  tss.io_map_base = sizeof(brights_tss_t);
+}
+
+brights_tss_t *brights_tss_ptr(void)
+{
+  return &tss;
 }

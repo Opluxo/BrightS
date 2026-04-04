@@ -1,6 +1,8 @@
 .global brights_isr_stub_0
 .global brights_isr_stub_13
 .global brights_isr_stub_14
+.global brights_isr_stub_32
+.global brights_isr_stub_33
 .global brights_isr_stub_128
 
 .extern brights_trap_handler
@@ -21,6 +23,8 @@ brights_isr_stub_\vec:
 ISR_NOERR 0
 ISR_ERR 13
 ISR_ERR 14
+ISR_NOERR 32
+ISR_NOERR 33
 ISR_NOERR 128
 
 brights_isr_common:

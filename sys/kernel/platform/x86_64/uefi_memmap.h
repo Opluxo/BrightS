@@ -1,6 +1,5 @@
 #ifndef BRIGHTS_UEFI_MEMMAP_H
 #define BRIGHTS_UEFI_MEMMAP_H
-
 #include <stdint.h>
 #include "uefi.h"
 #include "../../core/vm.h"
@@ -14,6 +13,6 @@ typedef struct {
   uint32_t desc_ver;
 } brights_uefi_memmap_info_t;
 
+void brights_uefi_memmap_init(void *memmap, uint64_t size, uint64_t desc_size);
 int brights_uefi_parse_memmap(EFI_SYSTEM_TABLE *st, brights_uefi_memmap_info_t *out);
-
 #endif

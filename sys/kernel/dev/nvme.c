@@ -1,3 +1,14 @@
+#ifndef BRIGHTS_NVME_H
+#define BRIGHTS_NVME_H
+
+#include <stdint.h>
+#include "block.h"
+#include "../platform/x86_64/pci.h"
+
+int brights_nvme_init(const brights_pci_device_t *dev);
+brights_block_dev_t *brights_nvme_block(void);
+
+#endif
 #include "nvme.h"
 #include "../core/printf.h"
 #include "serial.h"
@@ -297,7 +308,14 @@ int brights_nvme_init(const brights_pci_device_t *dev)
 
   nvme_dev.read = nvme_read;
   nvme_dev.write = nvme_write;
+  nvme_dev.name = "nvme0";
+  nvme_dev.type = BRIGHTS_BLOCK_DEV_NVME;
+  nvme_dev.total_blocks = 0; /* Could be queried from namespace identify */
+  nvme_dev.block_size = BRIGHTS_BLOCK_SIZE;
+  nvme_dev.ready = 1;
   nvme_ready = 1;
+  brights_block_register(&nvme_dev);
+  brights_block_set_root(&nvme_dev);
   return 0;
 }
 

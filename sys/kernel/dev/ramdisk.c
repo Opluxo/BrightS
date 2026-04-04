@@ -40,6 +40,12 @@ void brights_ramdisk_init(uint8_t *base, uint64_t size)
   ram_size = size;
   ram_dev.read = ramdisk_read;
   ram_dev.write = ramdisk_write;
+  ram_dev.name = "ram0";
+  ram_dev.type = BRIGHTS_BLOCK_DEV_RAMDISK;
+  ram_dev.total_blocks = size / BRIGHTS_BLOCK_SIZE;
+  ram_dev.block_size = BRIGHTS_BLOCK_SIZE;
+  ram_dev.ready = 1;
+  brights_block_register(&ram_dev);
 }
 
 brights_block_dev_t *brights_ramdisk_dev(void)

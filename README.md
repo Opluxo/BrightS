@@ -1,4 +1,4 @@
-# BrightS (UNIX V6-inspired, x86_64 UEFI)
+# BrightS OS
 
 ## 简介 | Overview
 

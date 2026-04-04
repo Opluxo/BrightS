@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+/* Network constants */
+#define BRIGHTS_NET_MAX_IF 4
+
 /* Network interface */
 typedef struct {
   char name[16];
@@ -12,6 +15,9 @@ typedef struct {
   uint32_t gateway;
   int up;
 } brights_netif_t;
+
+/* External network interfaces array */
+extern brights_netif_t netifs[BRIGHTS_NET_MAX_IF];
 
 /* Initialize network subsystem */
 void brights_net_init(void);

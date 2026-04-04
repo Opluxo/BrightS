@@ -7,7 +7,7 @@ if(UEFI_CLANG)
     message(FATAL_ERROR "clang and lld-link are required for UEFI build")
   endif()
 
-  set(KERNEL_SOURCES
+set(KERNEL_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/platform/x86_64/uefi_entry.c
     ${CMAKE_CURRENT_SOURCE_DIR}/platform/x86_64/idt.c
     ${CMAKE_CURRENT_SOURCE_DIR}/platform/x86_64/trap.c
@@ -40,6 +40,7 @@ if(UEFI_CLANG)
     ${CMAKE_CURRENT_SOURCE_DIR}/core/hwinfo.c
     ${CMAKE_CURRENT_SOURCE_DIR}/core/kmalloc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/core/lightshell.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/lightshell_cmds/netget.c
     ${CMAKE_CURRENT_SOURCE_DIR}/core/proc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/core/runtime.c
     ${CMAKE_CURRENT_SOURCE_DIR}/core/sched.c
@@ -67,6 +68,9 @@ if(UEFI_CLANG)
     ${CMAKE_CURRENT_SOURCE_DIR}/fs/devfs_vfs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/net/net.c
     ${CMAKE_CURRENT_SOURCE_DIR}/net/wifi.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/net/dhcp/dhcp.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/net/dns/dns.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/net/http/http.c
   )
 
   add_custom_command(

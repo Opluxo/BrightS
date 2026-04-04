@@ -60,6 +60,7 @@ static int cmd_profile_handler(const char *arg);
 static int cmd_passwd_handler(const char *arg);
 static int cmd_useradd_handler(const char *arg);
 static int cmd_setpf_handler(const char *arg);
+static int cmd_netget_handler(const char *arg);
 static int cmd_touch_handler(const char *arg);
 static int cmd_write_handler(const char *arg);
 static int cmd_append_handler(const char *arg);
@@ -92,6 +93,7 @@ static const cmd_entry_t cmd_table[] = {
   {"ls",      cmd_ls_handler},
   {"mkdir",   cmd_mkdir_handler},
   {"mount",   cmd_mount_handler},
+  {"netget",  cmd_netget_handler},
   {"mv",      cmd_mv_handler},
   {"passwd",  cmd_passwd_handler},
   {"profile", cmd_profile_handler},
@@ -148,7 +150,7 @@ static const char *commands[] = {
   "help", "ls", "pwd", "cd", "mkdir", "rmdir", "whoami", "profile",
   "logout", "bst", "cat", "stat", "login", "passwd", "useradd", "setpf",
   "touch", "write", "append", "rm", "cp", "mv", "hexdump", "echo",
-  "kill", "jobs", "fg", "bg",
+  "kill", "jobs", "fg", "bg", "netget",
   0
 };
 
@@ -1701,11 +1703,14 @@ static int handle_bst_procom(const char *arg)
     cmd_signal();
     return 1;
   }
-  if (streq(arg, "time")) {
-    cmd_date();
-    return 1;
-  }
-  if (streq(arg, "keyboard-test")) {
+   if (streq(arg, "time")) {
+     cmd_date();
+     return 1;
+   }
+   if (streq(arg, "netget")) {
+     return cmd_netget_handler("");
+   }
+   if (streq(arg, "keyboard-test")) {
     cmd_kbdtest();
     return 1;
   }

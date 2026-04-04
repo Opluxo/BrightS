@@ -27,7 +27,7 @@ int brights_page_fault_handler(uint64_t fault_addr, uint64_t error_code)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, " addr=0x");
 
   static const char hex[] = "0123456789ABCDEF";
-  char hexbuf[18];
+  char hexbuf[20];
   hexbuf[0] = '0'; hexbuf[1] = 'x';
   for (int i = 0; i < 16; ++i) hexbuf[2 + i] = hex[(fault_addr >> ((15 - i) * 4)) & 0xF];
   hexbuf[18] = 0;

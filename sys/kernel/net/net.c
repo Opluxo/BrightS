@@ -3,6 +3,9 @@
 #include "../dev/serial.h"
 #include "../core/printf.h"
 #include "../core/kernel_util.h"
+#include "dhcp/dhcp.h"
+#include "dns/dns.h"
+#include "http/http.h"
 #include <stdint.h>
 
 /* ===== Constants ===== */
@@ -97,7 +100,7 @@ typedef struct {
 #define TCP_PSH 0x08
 
 /* ===== Network interfaces ===== */
-static brights_netif_t netifs[BRIGHTS_NET_MAX_IF];
+brights_netif_t netifs[BRIGHTS_NET_MAX_IF];
 static int netif_count = 0;
 
 /* ===== ARP cache ===== */
@@ -816,9 +819,14 @@ int brights_netif_down(const char *name)
 
 void brights_net_init(void)
 {
-  netif_count = 0;
-  kutil_memset(arp_cache, 0, sizeof(arp_cache));
-  kutil_memset(sockets, 0, sizeof(sockets));
+    netif_count = 0;
+    kutil_memset(arp_cache, 0, sizeof(arp_cache));
+    kutil_memset(sockets, 0, sizeof(sockets));
+    
+    /* Initialize network subsystems */
+    brights_dhcp_client_init();
+    brights_dns_init("8.8.8.8", "8.8.4.4");
+    brights_http_init();
 }
 
 /* ===== IP address utilities ===== */

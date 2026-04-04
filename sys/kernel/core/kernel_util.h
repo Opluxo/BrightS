@@ -2,6 +2,7 @@
 #define BRIGHTS_KERNEL_UTIL_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* ===== Inline memory operations (fast, no libc dependency) ===== */
 
@@ -145,48 +146,135 @@ static inline char *kutil_strstr(const char *haystack, const char *needle)
 
 static inline int kutil_utoa(uint64_t val, char *buf, int base)
 {
-  static const char digits[] = "0123456789ABCDEF";
-  char tmp[24];
-  int i = 0;
+    static const char digits[] = "0123456789ABCDEF";
+    char tmp[24];
+    int i = 0;
 
-  if (val == 0) { buf[0] = '0'; buf[1] = 0; return 1; }
+    if (val == 0) { buf[0] = '0'; buf[1] = 0; return 1; }
 
-  while (val > 0) {
-    tmp[i++] = digits[val % base];
-    val /= base;
-  }
+    while (val > 0) {
+        tmp[i++] = digits[val % base];
+        val /= base;
+    }
 
-  int len = i;
-  for (int j = 0; j < len; ++j) buf[j] = tmp[len - 1 - j];
-  buf[len] = 0;
-  return len;
+    int len = i;
+    for (int j = 0; j < len; ++j) buf[j] = tmp[len - 1 - j];
+    buf[len] = 0;
+    return len;
 }
 
 static inline int kutil_itoa(int64_t val, char *buf)
 {
-  if (val < 0) {
-    buf[0] = '-';
-    return kutil_utoa((uint64_t)(-val), buf + 1, 10) + 1;
-  }
-  return kutil_utoa((uint64_t)val, buf, 10);
+    if (val < 0) {
+        buf[0] = '-';
+        return kutil_utoa((uint64_t)(-val), buf + 1, 10) + 1;
+    }
+    return kutil_utoa((uint64_t)val, buf, 10);
 }
 
-/* ===== Bit operations ===== */
+/* ===== Network byte order ===== */
 
-static inline int kutil_ffs64(uint64_t x)
+static inline uint16_t kutil_htons(uint16_t val)
 {
-  if (x == 0) return -1;
-  int n = 0;
-  if (!(x & 0xFFFFFFFF)) { n += 32; x >>= 32; }
-  if (!(x & 0xFFFF)) { n += 16; x >>= 16; }
-  if (!(x & 0xFF)) { n += 8; x >>= 8; }
-  if (!(x & 0xF)) { n += 4; x >>= 4; }
-  if (!(x & 0x3)) { n += 2; x >>= 2; }
-  if (!(x & 0x1)) { n += 1; }
-  return n;
+    return (val >> 8) | (val << 8);
 }
 
-/* ===== Circular buffer ===== */
+static inline uint32_t kutil_htonl(uint32_t val)
+{
+    return ((val >> 24) & 0xFF) |
+           ((val >> 8) & 0xFF00) |
+           ((val << 8) & 0xFF0000) |
+           ((val << 24) & 0xFF000000);
+}
+
+static inline uint16_t kutil_ntohs(uint16_t val)
+{
+    return kutil_htons(val);
+}
+
+static inline uint32_t kutil_ntohl(uint32_t val)
+{
+    return kutil_htonl(val);
+}
+
+/* ===== IP address parsing ===== */
+
+static inline int kutil_parse_ipv4(const char *str, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d)
+{
+    int count = 0;
+    uint8_t vals[4] = {0};
+    const char *p = str;
+    
+    while (*p && count < 4) {
+        // Skip non-digits
+        while (*p && (*p < '0' || *p > '9')) p++;
+        
+        if (!*p) break;
+        
+        // Parse number
+        int val = 0;
+        while (*p >= '0' && *p <= '9') {
+            val = val * 10 + (*p - '0');
+            p++;
+            if (val > 255) return -1; // Invalid octet
+        }
+        
+        vals[count++] = val;
+        
+        // Skip to next part
+        while (*p && *p != '.') p++;
+        if (*p == '.') p++;
+    }
+    
+    if (count == 4) {
+        if (a) *a = vals[0];
+        if (b) *b = vals[1];
+        if (c) *c = vals[2];
+        if (d) *d = vals[3];
+        return 4;
+    }
+    return -1;
+}
+
+/* ===== String tokenization ===== */
+
+static inline char *kutil_strtok(char *str, const char *delim)
+{
+    static char *next_token = 0;
+    
+    if (str != NULL) {
+        next_token = str;
+    }
+    
+    if (next_token == NULL) {
+        return NULL;
+    }
+    
+    // Skip leading delimiters
+    while (*next_token && kutil_strchr(delim, *next_token)) {
+        next_token++;
+    }
+    
+    if (*next_token == '\0') {
+        next_token = NULL;
+        return NULL;
+    }
+    
+    // Find end of token
+    char *token_start = next_token;
+    while (*next_token && !kutil_strchr(delim, *next_token)) {
+        next_token++;
+    }
+    
+    if (*next_token != '\0') {
+        *next_token = '\0';
+        next_token++;
+    } else {
+        next_token = NULL;
+    }
+    
+    return token_start;
+}
 
 typedef struct {
   uint8_t *buf;

@@ -63,7 +63,6 @@ set(KERNEL_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/fs/ramfs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/fs/ramfs_vfs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/fs/btrfs.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/fs/btrfs_btree.c
     ${CMAKE_CURRENT_SOURCE_DIR}/fs/devfs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/fs/devfs_vfs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/net/net.c

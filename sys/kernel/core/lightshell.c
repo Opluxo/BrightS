@@ -1,4 +1,5 @@
 #include "lightshell.h"
+#include "lightshell_cmds/netget.h"
 #include "../dev/serial.h"
 #include "../platform/x86_64/io.h"
 #include "../fs/ramfs.h"
@@ -60,7 +61,6 @@ static int cmd_profile_handler(const char *arg);
 static int cmd_passwd_handler(const char *arg);
 static int cmd_useradd_handler(const char *arg);
 static int cmd_setpf_handler(const char *arg);
-static int cmd_netget_handler(const char *arg);
 static int cmd_touch_handler(const char *arg);
 static int cmd_write_handler(const char *arg);
 static int cmd_append_handler(const char *arg);

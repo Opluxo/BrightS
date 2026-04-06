@@ -2528,6 +2528,17 @@ void brights_lightshell_reset_for_test(void)
   is_root = 0;
 }
 
+const char *brights_lightshell_current_dir(void)
+{
+  return current_dir;
+}
+
+void brights_lightshell_set_current_dir(const char *path)
+{
+  kutil_strncpy(current_dir, path, sizeof(current_dir) - 1);
+  current_dir[sizeof(current_dir) - 1] = '\0';
+}
+
 int brights_lightshell_eval_for_test(char *line)
 {
   return handle_line(line);

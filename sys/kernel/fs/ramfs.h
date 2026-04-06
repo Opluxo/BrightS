@@ -33,8 +33,10 @@ typedef struct {
 
 void brights_ramfs_init(void);
 int brights_ramfs_mkdir(const char *name);
+int brights_ramfs_rmdir(const char *name);
 int brights_ramfs_create(const char *name);
 int brights_ramfs_open(const char *name);
+int brights_ramfs_close(int fd);
 int brights_ramfs_unlink(const char *name);
 int brights_ramfs_stat(const char *path, brights_ramfs_stat_t *out);
 int64_t brights_ramfs_read(int fd, uint64_t off, void *buf, uint64_t len);
@@ -45,6 +47,7 @@ uint64_t brights_ramfs_total_capacity(void);
 int brights_ramfs_count(void);
 const char *brights_ramfs_name_at(int idx);
 uint64_t brights_ramfs_size_at(int idx);
+int brights_ramfs_get_dir_entries(const char *path, const char **out_names, int max_entries);
 
 /* Symlink support */
 int brights_ramfs_symlink(const char *target, const char *linkpath);

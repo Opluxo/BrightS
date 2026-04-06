@@ -110,6 +110,14 @@ static inline char *kutil_strncpy(char *dst, const char *src, uint64_t n)
   return dst;
 }
 
+static inline char *kutil_strcat(char *dst, const char *src)
+{
+  char *d = dst;
+  while (*d) ++d;
+  while ((*d++ = *src++));
+  return dst;
+}
+
 static inline char *kutil_strchr(const char *s, int c)
 {
   while (*s) {

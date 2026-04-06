@@ -11,5 +11,6 @@ void brights_serial_console_init(brights_console_t *con, uint16_t port);
 int brights_serial_read_byte(uint16_t port, uint8_t *out);
 uint8_t brights_serial_read_byte_blocking(uint16_t port);
 void brights_serial_write_ascii(uint16_t port, const char *s);
+void brights_serial_write(uint16_t port, const void *buf, uint64_t len);
 
 #endif

@@ -19,10 +19,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential cmake nasm mtools dosfstools qemu-system-x86 ovmf git
+          sudo apt install -y build-essential cmake nasm mtools dosfstools qemu-system-x86 ovmf git clang lld
 
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: CC=clang LD=lld cmake -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build project
         run: cmake --build build -j$(nproc)

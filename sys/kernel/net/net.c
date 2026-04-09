@@ -472,8 +472,6 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
   uint16_t src_port = (uint16_t)((tcp->src_port >> 8) | (tcp->src_port << 8));
   uint32_t seq = (uint32_t)((tcp->seq >> 24) | ((tcp->seq >> 8) & 0xFF00) |
                             ((tcp->seq << 8) & 0xFF0000) | (tcp->seq << 24));
-  uint32_t ack = (uint32_t)((tcp->ack >> 24) | ((tcp->ack >> 8) & 0xFF00) |
-                            ((tcp->ack << 8) & 0xFF0000) | (tcp->ack << 24));
 
   /* Find matching socket */
   for (int i = 0; i < BRIGHTS_NET_MAX_SOCKETS; ++i) {

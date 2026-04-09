@@ -9,73 +9,26 @@ static uint32_t dns_server2 = 0x08080404; /* 8.8.4.4 */
 
 static uint16_t dns_id_counter = 0x1234;
 
-static uint16_t dns_parse_name(const uint8_t *packet, int offset, char *name, int name_len)
-{
-    int ptr = offset;
-    int name_ptr = 0;
-    int jumped = 0;
-    int max_offset = 0;
-    
-    while (1) {
-        if (ptr >= 512) return -1;
-        
-        uint8_t len = packet[ptr++];
-        if (len == 0) break;
-        
-        if ((len & 0xC0) == 0xC0) { /* Pointer */
-            if (!jumped) {
-                max_offset = ptr;
-            }
-            ptr = ((len & 0x3F) << 8) | packet[ptr];
-            if (!jumped) {
-                jumped = 1;
-            }
-            continue;
-        }
-        
-        if (ptr + len > 512) return -1;
-        
-        if (name_ptr + len >= name_len) return -1;
-        
-        kutil_memcpy(name + name_ptr, packet + ptr, len);
-        name_ptr += len;
-        ptr += len;
-        
-        if (packet[ptr] != 0) {
-            if (name_ptr >= name_len) return -1;
-            name[name_ptr++] = '.';
-        }
-    }
-    
-    if (name_ptr >= name_len) return -1;
-    name[name_ptr] = '\0';
-    
-    if (!jumped && max_offset > 0) {
-        return max_offset + 1;
-    }
-    return ptr;
-}
-
 int brights_dns_resolve(const char *hostname, uint32_t *ip_out)
 {
     if (!hostname || !ip_out) return -1;
-    
+
     /* Create DNS query */
     uint8_t packet[512];
     kutil_memset(packet, 0, sizeof(packet));
-    
+
     dns_header_t *header = (dns_header_t *)packet;
     header->id = dns_id_counter++;
     header->qr = 0; /* Query */
     header->opcode = DNS_OP_QUERY;
     header->rd = 1; /* Recursion desired */
     header->qdcount = kutil_htons(1); /* One question */
-    
+
     /* Encode hostname */
     uint8_t *ptr = packet + sizeof(dns_header_t);
     const char *start = hostname;
     const char *end;
-    
+
     while ((end = kutil_strchr(start, '.')) != NULL) {
         int len = end - start;
         if (len > 63) return -1;
@@ -84,29 +37,27 @@ int brights_dns_resolve(const char *hostname, uint32_t *ip_out)
         ptr += len;
         start = end + 1;
     }
-    
+
     int len = kutil_strlen(start);
     if (len > 63) return -1;
     *ptr++ = len;
     kutil_memcpy(ptr, start, len);
     ptr += len;
     *ptr++ = 0; /* Null terminator */
-    
+
     /* Question section */
     dns_question_t *question = (dns_question_t *)ptr;
     question->type = kutil_htons(DNS_TYPE_A); /* A record */
     question->class = kutil_htons(DNS_CLASS_IN); /* Internet */
     ptr += sizeof(dns_question_t);
-    
+
     header->qdcount = kutil_htons(1);
-    
-    int packet_len = ptr - packet;
-    
+
     /* Send DNS query (simplified - in reality would send via UDP) */
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "dns: resolving ");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, hostname);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "...\n");
-    
+
     /* For now, return simulated results for common domains */
     if (kutil_strcmp(hostname, "github.com") == 0) {
         *ip_out = 0x402B0A14; /* 14.10.2.64 */
@@ -120,7 +71,7 @@ int brights_dns_resolve(const char *hostname, uint32_t *ip_out)
         *ip_out = 0x0A0A0A10; /* 16.16.16.10 */
         return 0;
     }
-    
+
     /* Fallback to DNS servers */
     *ip_out = dns_server1;
     return 0;

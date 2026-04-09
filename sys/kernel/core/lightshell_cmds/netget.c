@@ -3,6 +3,7 @@
 #include "../../core/printf.h"
 #include "../../core/kmalloc.h"
 #include "../../core/kernel_util.h"
+#include "../../fs/ramfs.h"
 #include "../../net/http/http.h"
 #include "../../net/dns/dns.h"
 #include "../../dev/serial.h"
@@ -80,15 +81,6 @@ int cmd_netget_handler(const char *arg)
         return 1;
     }
     
-    /* If output file specified, write to file */
-    if (output_file != (const char *)0) {
-        /* TODO: Implement file writing using VFS */
-        brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Saving to file: ");
-        brights_serial_write_ascii(BRIGHTS_COM1_PORT, output_file);
-        brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
-        brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Note: File saving not yet implemented, displaying instead\n");
-    }
-    
     /* Display the response (skip HTTP headers for simplicity) */
     uint8_t *content_start = buffer;
     uint32_t content_len = bytes_received;
@@ -100,6 +92,28 @@ int cmd_netget_handler(const char *arg)
             content_start = &buffer[i+4];
             content_len = bytes_received - (i+4);
             break;
+        }
+    }
+
+    /* If output file specified, write to file */
+    if (output_file != (const char *)0) {
+        int fd = brights_ramfs_create(output_file);
+        if (fd < 0) {
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Error: Cannot create file ");
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, output_file);
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+        } else {
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Saving to file: ");
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, output_file);
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, " (");
+            
+            char size_buf[32];
+            kutil_utoa(content_len, size_buf, 10);
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, size_buf);
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, " bytes)\n");
+            
+            brights_ramfs_write(fd, 0, content_start, content_len);
+            brights_ramfs_close(fd);
         }
     }
     

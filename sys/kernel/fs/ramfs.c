@@ -1,4 +1,5 @@
 #include "ramfs.h"
+#include "../core/kernel_util.h"
 #include <stdint.h>
 
 static brights_ramfs_file_t ramfs_files[BRIGHTS_RAMFS_MAX_FILES];
@@ -128,29 +129,6 @@ static int path_parent(const char *path, char *out, int cap)
   out[last] = 0;
   return 0;
 }
-
-static int path_base(const char *path, char *out, int cap)
-{
-  if (!path || !out || cap <= 0) {
-    return -1;
-  }
-  int start = 0;
-  for (int i = 0; path[i]; ++i) {
-    if (path[i] == '/') {
-      start = i + 1;
-    }
-  }
-  int p = 0;
-  for (int i = start; path[i]; ++i) {
-    if (p >= cap - 1) {
-      return -1;
-    }
-    out[p++] = path[i];
-  }
-  out[p] = 0;
-  return (p > 0) ? 0 : -1;
-}
-
 static int ramfs_find_free(void)
 {
   for (int i = 0; i < BRIGHTS_RAMFS_MAX_FILES; ++i) {
@@ -586,4 +564,41 @@ int brights_ramfs_chown(const char *path_in, uint32_t uid, uint32_t gid)
   ramfs_files[idx].uid = uid;
   ramfs_files[idx].gid = gid;
   return 0;
+}
+
+int brights_ramfs_close(int fd)
+{
+  /* RAMFS does not need file descriptors cleanup for basic implementation
+     All operations are stateless, file descriptors are just indices
+     This function exists for API compatibility */
+  return 0;
+}
+
+int brights_ramfs_get_dir_entries(const char *path, const char **out_names, int max_entries)
+{
+  char normal_path[BRIGHTS_RAMFS_MAX_NAME];
+  if (normalize_path(path, normal_path, sizeof(normal_path)) < 0) {
+    return -1;
+  }
+  
+  int count = 0;
+  int path_len = kutil_strlen(normal_path);
+  
+  for (int i = 0; i < BRIGHTS_RAMFS_MAX_FILES && count < max_entries; i++) {
+    if (!ramfs_files[i].in_use) continue;
+    
+    if (kutil_strncmp(ramfs_files[i].name, normal_path, path_len) == 0) {
+      const char *entry_name = &ramfs_files[i].name[path_len];
+      
+      /* Skip root directory itself */
+      if (entry_name[0] == '\0') continue;
+      
+      /* Skip entries with slashes in remaining path (subdirectory entries) */
+      if (kutil_strchr(entry_name, '/') != NULL) continue;
+      
+      out_names[count++] = entry_name[0] == '/' ? entry_name + 1 : entry_name;
+    }
+  }
+  
+  return count;
 }

@@ -132,15 +132,6 @@ static int devfs_disk_ioctl(vfs_file_t *f, uint64_t request, void *argp)
 
 /* ---- file_ops tables ---- */
 
-/* tty0: stdin/stdout */
-static vfs_file_ops_t devfs_tty_fops = {
-  .read = 0,
-  .write = 0,
-  .close = 0,
-  .lseek = 0,
-  .ioctl = 0,
-  .readdir = 0,
-};
 
 static int64_t devfs_tty_read(vfs_file_t *f, void *buf, uint64_t count)
 {
@@ -325,30 +316,6 @@ static vfs_sb_ops_t devfs_sb_ops = {
   .readdir = devfs_sb_readdir,
 };
 
-/* ---- Open override ---- */
-static int devfs_vfs_open(const char *path, uint32_t flags, vfs_file_t **out)
-{
-  (void)flags;
-  if (!path || !out) return -1;
-
-  vfs_inode_t *ino = devfs_sb_lookup(&devfs_sb, path);
-  if (!ino) return -1;
-
-  int idx = (int)(uintptr_t)ino->fs_private;
-  if (idx < 0) return -1;
-
-  vfs_file_t *f = brights_vfs2_file_alloc();
-  if (!f) return -1;
-
-  f->inode = ino;
-  f->pos = 0;
-  f->flags = flags;
-  f->fops = devfs_get_fops(idx);
-  f->private_data = ino->fs_private;
-
-  *out = f;
-  return 0;
-}
 
 /* ---- Public ---- */
 vfs_superblock_t *brights_devfs_vfs_sb(void)

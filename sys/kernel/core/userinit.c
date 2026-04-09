@@ -279,12 +279,6 @@ static const uint8_t embedded_init_elf[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
-
-static void userinit_debug(const char *msg)
-{
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, msg);
-}
-
 static int load_file_to_buffer(const char *path, void *buf, uint64_t buf_size, uint64_t *out_size)
 {
   int fd = brights_ramfs_open(path);

@@ -18,15 +18,6 @@ void brights_ramfs_vfs_init(void);
 #define RAMFS_VFS_MAX_INODES 64
 
 static vfs_inode_t ramfs_vfs_inodes[RAMFS_VFS_MAX_INODES];
-
-static vfs_inode_t *ramfs_vfs_inode_get(int ramfs_idx)
-{
-  if (ramfs_idx < 0 || ramfs_idx >= RAMFS_VFS_MAX_INODES) return 0;
-  vfs_inode_t *ino = &ramfs_vfs_inodes[ramfs_idx];
-  if (ino->mode == 0) return 0;
-  return ino;
-}
-
 /* ---- file_ops: read/write/close/lseek ---- */
 static int64_t ramfs_vfs_read(vfs_file_t *f, void *buf, uint64_t count)
 {

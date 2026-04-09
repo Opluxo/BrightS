@@ -138,12 +138,10 @@ int brights_elf_load(const void *buf, uint64_t size, elf64_load_info_t *info_out
       kutil_memset(phys_page, 0, 4096);
 
       /* Copy file data for this page */
-      uint64_t page_file_offset = 0;
       uint64_t page_copy_len = 0;
 
       if (seg_filesz > 0) {
         /* How many bytes of this page overlap with file data? */
-        uint64_t seg_start_in_page = (pg == 0) ? (seg_vaddr - page_start) : 0;
         uint64_t file_offset_for_page = phdrs[i].p_offset + pg * 4096;
         if (pg == 0) {
           file_offset_for_page = phdrs[i].p_offset;
@@ -154,9 +152,6 @@ int brights_elf_load(const void *buf, uint64_t size, elf64_load_info_t *info_out
         if (pg == 0) {
           file_bytes_remaining = seg_filesz;
         }
-
-        page_file_offset = (pg == 0) ? (seg_vaddr - page_start) : 0;
-        uint64_t src_offset = phdrs[i].p_offset + pg * 4096 - (pg == 0 ? 0 : 0);
 
         /* Simpler: compute how much to copy into this page */
         uint64_t copy_start_vaddr = (seg_vaddr > vaddr) ? seg_vaddr : vaddr;

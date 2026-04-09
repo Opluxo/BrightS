@@ -12,42 +12,6 @@ extern brights_netif_t netifs[BRIGHTS_NET_MAX_IF];
 
 static uint8_t dhcp_state = 0;
 static uint32_t dhcp_xid = 0x12345678;
-
-static uint8_t dhcp_options_to_msg_type(const uint8_t *options, int options_len)
-{
-    int ptr = 0;
-    while (ptr < options_len) {
-        uint8_t code = options[ptr++];
-        if (code == DHCP_OPTION_END) break;
-        
-        if (ptr >= options_len) break;
-        uint8_t len = options[ptr++];
-        if (ptr + len > options_len) break;
-        
-        if (code == 53 && len >= 1) { /* DHCP Message Type */
-            return options[ptr];
-        }
-        
-        ptr += len;
-    }
-    return 0;
-}
-
-static void dhcp_add_option(uint8_t **options_ptr, uint8_t code, const void *data, uint8_t len)
-{
-    uint8_t *opt = *options_ptr;
-    *opt++ = code;
-    *opt++ = len;
-    kutil_memcpy(opt, data, len);
-    *options_ptr = opt + len;
-}
-
-static void dhcp_add_end(uint8_t **options_ptr)
-{
-    **options_ptr = DHCP_OPTION_END;
-    (*options_ptr)++;
-}
-
 int brights_dhcp_client_init(void)
 {
     /* Initialize DHCP client state */

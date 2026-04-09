@@ -18,6 +18,7 @@ extern const uint64_t brights_sysent_count;
 #include "../fs/ramfs.h"
 #include "../fs/vfs.h"
 #include "../fs/vfs2.h"
+#include "../ipc/pipe.h"
 #include "../net/net.h"
 #include "elf.h"
 #include "clock.h"
@@ -413,8 +414,6 @@ static int64_t sys_pipe(uint64_t fildes, uint64_t a1, uint64_t a2, uint64_t a3, 
   if (!fds) return -1;
 
   /* Create a pipe */
-  extern int brights_pipe_create(void);
-  extern void *brights_pipe_get(int idx);
 
   int pipe_idx = brights_pipe_create();
   if (pipe_idx < 0) return -1;

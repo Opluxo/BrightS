@@ -26,10 +26,6 @@ static uint64_t pmem_base;        /* Lowest usable physical address */
 static uint64_t pmem_total_pages; /* Total pages tracked */
 static uint64_t pmem_free_pages;  /* Currently free pages */
 
-/* Kernel image reservation (will be set during init) */
-static uint64_t pmem_kernel_start;
-static uint64_t pmem_kernel_end;
-
 static inline void bitmap_set(uint64_t page_idx)
 {
   pmem_bitmap[page_idx / 64] |= (1ULL << (page_idx % 64));

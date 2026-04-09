@@ -25,7 +25,7 @@ static brights_proc_info_t *proc_get_by_pid(uint32_t pid);
 static brights_proc_info_t *proc_get_current(void);
 static int proc_find_free_slot(void);
 static void proc_mark_slot_used(int slot);
-static void proc_mark_slot_free(int slot);
+
 
 void brights_proc_init(void)
 {
@@ -110,14 +110,6 @@ static void proc_str_copy(char *dst, int cap, const char *src)
   }
   dst[i] = 0;
 }
-
-static int proc_str_len(const char *s)
-{
-  int n = 0;
-  while (s[n]) ++n;
-  return n;
-}
-
 /* O(1) PID lookup using direct mapping */
 static brights_proc_info_t *proc_get_by_pid(uint32_t pid)
 {
@@ -147,12 +139,6 @@ static void proc_mark_slot_used(int slot)
 {
   free_slots_bitmap |= (1ULL << slot);
 }
-
-static void proc_mark_slot_free(int slot)
-{
-  free_slots_bitmap &= ~(1ULL << slot);
-}
-
 uint32_t brights_proc_count(brights_proc_state_t state)
 {
   uint32_t count = 0;

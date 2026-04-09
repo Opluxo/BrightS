@@ -4,14 +4,6 @@
 #include <stdint.h>
 
 static volatile uint64_t sleep_spin_counter;
-
-static inline uint64_t rdtsc_now(void)
-{
-  uint32_t lo, hi;
-  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-  return ((uint64_t)hi << 32) | lo;
-}
-
 void brights_sleep_cycles(uint64_t cycles)
 {
   for (uint64_t i = 0; i < cycles; ++i) {

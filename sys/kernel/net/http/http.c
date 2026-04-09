@@ -6,34 +6,6 @@
 #include "../../core/kernel_util.h"
 
 static uint8_t http_state = 0;
-
-static int uint32_to_str(uint32_t val, char *buf, int bufsize)
-{
-    if (bufsize < 1) return 0;
-    
-    char tmp[16];
-    int pos = 0;
-    
-    if (val == 0) {
-        tmp[pos++] = '0';
-    } else {
-        while (val > 0 && pos < (int)sizeof(tmp)-1) {
-            tmp[pos++] = '0' + (val % 10);
-            val /= 10;
-        }
-    }
-    
-    // Reverse the string
-    int len = pos;
-    for (int i = 0; i < len; i++) {
-        if (i < bufsize) {
-            buf[i] = tmp[len - 1 - i];
-        }
-    }
-    
-    return len;
-}
-
 int brights_http_init(void)
 {
     http_state = 0;

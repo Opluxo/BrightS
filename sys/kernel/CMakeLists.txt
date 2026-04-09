@@ -74,16 +74,23 @@ set(KERNEL_SOURCES
 
   add_custom_command(
     OUTPUT ${KERNEL_EFI}
-    COMMAND ${CLANG_BIN}
-      -target x86_64-unknown-windows
-      -ffreestanding -fno-stack-protector -fno-pic
-      -Wl,/subsystem:efi_application
-      -Wl,/entry:efi_main
-      -Wl,/nodefaultlib
-      -Wl,/base:0
-      -Wl,/align:4096
-      -fuse-ld=lld
-      -I${CMAKE_CURRENT_SOURCE_DIR}
+     COMMAND ${CLANG_BIN}
+       -target x86_64-unknown-windows
+       -ffreestanding -fno-stack-protector -fno-pic
+        -Os -fomit-frame-pointer -mno-red-zone
+        -ffunction-sections -fdata-sections -flto
+       -Wl,/subsystem:efi_application
+       -Wl,/entry:efi_main
+       -Wl,/nodefaultlib
+       -Wl,/base:0
+       -Wl,/align:4096
+       -Wl,/opt:ref
+       -Wl,/opt:icf
+       -fuse-ld=lld
+     -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes
+     -Wmissing-prototypes -Wno-unused-parameter -Wno-pointer-sign
+     -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+     -I${CMAKE_CURRENT_SOURCE_DIR}
       ${KERNEL_SOURCES}
       -o ${KERNEL_EFI}
     DEPENDS ${KERNEL_SOURCES}

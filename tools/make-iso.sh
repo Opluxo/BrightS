@@ -19,7 +19,7 @@ if command -v xorriso >/dev/null 2>&1; then
   cp "${KERNEL_EFI}" "${ESP_DIR}/BOOTX64.EFI"
 
   # Build FAT32 EFI image and place it in the ISO tree
-  python3 "${ROOT_DIR}/scripts/create-efi-img.py" "${KERNEL_EFI}" "${BUILD_DIR}/efi-boot.img"
+  python3 "${ROOT_DIR}/tools/create-efi-img.py" "${KERNEL_EFI}" "${BUILD_DIR}/efi-boot.img"
   cp "${BUILD_DIR}/efi-boot.img" "${ISO_DIR}/efi-boot.img"
 
   xorriso -as mkisofs \
@@ -37,7 +37,7 @@ fi
 
 # Fallback: create FAT32 EFI system partition image (UEFI bootable)
 echo "xorriso not found, creating FAT32 EFI image instead..."
-python3 "${ROOT_DIR}/scripts/create-efi-img.py" "${KERNEL_EFI}" "${OUTPUT_IMG}"
+python3 "${ROOT_DIR}/tools/create-efi-img.py" "${KERNEL_EFI}" "${OUTPUT_IMG}"
 
 printf "EFI image created: %s\n" "${OUTPUT_IMG}"
 printf "Usage: qemu-system-x86_64 -drive file=%s,format=raw -m 512M\n" "${OUTPUT_IMG}"

@@ -3,7 +3,7 @@
 #include "../../dev/serial.h"
 #include "../../core/printf.h"
 #include "../../core/kernel_util.h"
-#include <stddef.h>
+#include "kernel/stddef.h"
 
 #define DHCP_TIMEOUT_MS 5000
 #define DHCP_RETRY_COUNT 3

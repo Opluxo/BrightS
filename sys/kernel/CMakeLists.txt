@@ -90,7 +90,8 @@ set(KERNEL_SOURCES
      -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes
      -Wmissing-prototypes -Wno-unused-parameter -Wno-pointer-sign
      -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
-     -I${CMAKE_CURRENT_SOURCE_DIR}
+      -I${CMAKE_CURRENT_SOURCE_DIR}
+      -I${CMAKE_SOURCE_DIR}/include
       ${KERNEL_SOURCES}
       -o ${KERNEL_EFI}
     DEPENDS ${KERNEL_SOURCES}

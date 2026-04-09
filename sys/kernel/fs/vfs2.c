@@ -1,7 +1,7 @@
 #include "vfs2.h"
 #include "../core/kmalloc.h"
 #include "../core/kernel_util.h"
-#include <stddef.h>
+#include "kernel/stddef.h"
 
 /* ---- Global file pool ---- */
 #define VFS_FILE_POOL_SIZE 64

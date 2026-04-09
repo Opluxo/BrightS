@@ -2,7 +2,11 @@
 #define BRIGHTS_KERNEL_UTIL_H
 
 #include <stdint.h>
+#ifndef BRIGHTS_TEST_BUILD
+#include "kernel/stddef.h"
+#else
 #include <stddef.h>
+#endif
 
 /* ===== Inline memory operations (fast, no libc dependency) ===== */
 

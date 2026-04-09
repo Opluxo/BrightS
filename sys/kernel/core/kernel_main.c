@@ -49,7 +49,7 @@
 #include "../platform/x86_64/hpet.h"
 #include "../platform/x86_64/mtrr.h"
 #include "../net/net.h"
-#include <stddef.h>
+#include "kernel/stddef.h"
 
 /* Helper to print a uint64_t as decimal */
 static void print_u64(brights_console_t *con, uint64_t val)

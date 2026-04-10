@@ -323,4 +323,8 @@ static inline int kutil_ringbuf_pop(kutil_ringbuf_t *rb, uint8_t *byte)
   return 0;
 }
 
+/* Runtime functions */
+void *memcpy(void *dst, const void *src, size_t n);
+void __chkstk(void);
+
 #endif

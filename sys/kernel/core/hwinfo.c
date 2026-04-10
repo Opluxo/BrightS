@@ -17,15 +17,6 @@ static void cpuid_leaf(uint32_t leaf, uint32_t subleaf,
   if (edx) *edx = d;
 }
 
-static inline uint64_t rdtsc_serialized(void)
-{
-  uint32_t lo, hi;
-  /* cpuid serializes the instruction stream */
-  __asm__ __volatile__("cpuid" : "=a"(lo) : "a"(0) : "rbx", "rcx", "rdx");
-  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-  return ((uint64_t)hi << 32) | lo;
-}
-
 static inline uint64_t rdtsc_now(void)
 {
   uint32_t lo, hi;

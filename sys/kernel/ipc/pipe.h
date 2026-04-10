@@ -6,7 +6,14 @@
 #define BRIGHTS_PIPE_BUF_SIZE 4096u
 #define BRIGHTS_MAX_PIPES 16
 
-typedef struct brights_pipe brights_pipe_t;
+typedef struct {
+  uint8_t buf[BRIGHTS_PIPE_BUF_SIZE];
+  volatile uint32_t rd;
+  volatile uint32_t wr;
+  volatile uint32_t len;
+  int read_end_open;
+  int write_end_open;
+} brights_pipe_t;
 
 /* Create a new pipe and return its index */
 int brights_pipe_create(void);

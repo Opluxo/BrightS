@@ -3,8 +3,7 @@
 
 #include <stdint.h>
 #include "vm.h"
-
-#define BRIGHTS_PAGE_SIZE 4096u
+#include "../../../include/kernel/stddef.h"
 
 /* Initialize physical memory manager */
 void brights_pmem_init(const brights_mem_region_t *regions, uint32_t count);

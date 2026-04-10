@@ -87,9 +87,9 @@ set(KERNEL_SOURCES
        -Wl,/opt:ref
        -Wl,/opt:icf
        -fuse-ld=lld
-     -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes
-     -Wmissing-prototypes -Wno-unused-parameter -Wno-pointer-sign
-     -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+      -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes
+      -Wmissing-prototypes -Wno-unused-parameter -Wno-pointer-sign
+      -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-cast-qual
       -I${CMAKE_CURRENT_SOURCE_DIR}
       -I${CMAKE_SOURCE_DIR}/include
       ${KERNEL_SOURCES}

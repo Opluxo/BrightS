@@ -1374,19 +1374,6 @@ static void cmd_clearsig(const char *arg)
   }
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "signal cleared\n");
 }
-
-static void print_hex64(uint64_t v)
-{
-  static const char *h = "0123456789ABCDEF";
-  char out[19];
-  out[0] = '0'; out[1] = 'x';
-  for (int i = 0; i < 16; ++i) {
-    out[2 + i] = h[(v >> (60 - i * 4)) & 0xF];
-  }
-  out[18] = 0;
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, out);
-}
-
 static void cmd_hooks(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS Syscall Hook Information\n");

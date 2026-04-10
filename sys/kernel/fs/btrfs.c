@@ -236,7 +236,7 @@ static void print_str(brights_console_t *con, const char *s)
   }
 }
 
-int brights_btrfs_raw_read(uint64_t bytenr, void *dst, uint64_t size)
+static int brights_btrfs_raw_read(uint64_t bytenr, void *dst, uint64_t size)
 {
   brights_block_dev_t *dev = brights_block_root();
   if (!dev || !dev->read) {
@@ -247,7 +247,7 @@ int brights_btrfs_raw_read(uint64_t bytenr, void *dst, uint64_t size)
   return dev->read(lba, dst, count);
 }
 
-int brights_btrfs_raw_write(uint64_t bytenr, const void *src, uint64_t size)
+static int brights_btrfs_raw_write(uint64_t bytenr, const void *src, uint64_t size)
 {
   brights_block_dev_t *dev = brights_block_root();
   if (!dev || !dev->write) {

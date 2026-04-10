@@ -141,17 +141,6 @@ int brights_elf_load(const void *buf, uint64_t size, elf64_load_info_t *info_out
       uint64_t page_copy_len = 0;
 
       if (seg_filesz > 0) {
-        /* How many bytes of this page overlap with file data? */
-        uint64_t file_offset_for_page = phdrs[i].p_offset + pg * 4096;
-        if (pg == 0) {
-          file_offset_for_page = phdrs[i].p_offset;
-        }
-
-        /* Bytes of file data in this page */
-        uint64_t file_bytes_remaining = seg_filesz - pg * 4096;
-        if (pg == 0) {
-          file_bytes_remaining = seg_filesz;
-        }
 
         /* Simpler: compute how much to copy into this page */
         uint64_t copy_start_vaddr = (seg_vaddr > vaddr) ? seg_vaddr : vaddr;

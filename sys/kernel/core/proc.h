@@ -104,4 +104,7 @@ uint64_t brights_proc_kernel_stack(void);
 // Fork: create a child process
 int brights_proc_fork(void);
 
+// Get pointer to process table (for scheduler)
+brights_proc_info_t *brights_proc_table_ptr(void);
+
 #endif

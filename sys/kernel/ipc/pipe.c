@@ -1,16 +1,5 @@
 #include <stdint.h>
-
-#define BRIGHTS_PIPE_BUF_SIZE 4096u
-#define BRIGHTS_MAX_PIPES 16
-
-typedef struct {
-  uint8_t buf[BRIGHTS_PIPE_BUF_SIZE];
-  volatile uint32_t rd;
-  volatile uint32_t wr;
-  volatile uint32_t len;
-  int read_end_open;
-  int write_end_open;
-} brights_pipe_t;
+#include "pipe.h"
 
 /* Pipe table */
 static brights_pipe_t pipe_table[BRIGHTS_MAX_PIPES];

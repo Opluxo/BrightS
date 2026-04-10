@@ -16,12 +16,7 @@ typedef struct {
   int minor;
 } brights_devfs_node_t;
 
-static brights_devfs_node_t devfs_nodes[] = {
-  {"tty0", 4, 0},
-  {"disk0", 8, 0},
-};
-
 int brights_devfs_init(void)
 {
-  return (int)(sizeof(devfs_nodes) / sizeof(devfs_nodes[0]));
+  return 2; /* tty0 and disk0 */
 }

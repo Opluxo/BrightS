@@ -38,4 +38,8 @@ brights_block_dev_t *brights_block_get(int index);
 /* Get number of registered block devices */
 int brights_block_count(void);
 
+/* Read/write from/to the root block device */
+int brights_disk_read(uint64_t lba, void *buf, uint64_t nblocks);
+int brights_disk_write(uint64_t lba, const void *buf, uint64_t nblocks);
+
 #endif

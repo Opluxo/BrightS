@@ -105,22 +105,6 @@ void brights_pmem_init(const brights_mem_region_t *regions, uint32_t count)
   }
 }
 
-/* Mark a kernel region as reserved (called during early boot) */
-void brights_pmem_reserve(uint64_t start, uint64_t end)
-{
-  start = align_down_page(start);
-  end = align_up_page(end);
-  for (uint64_t addr = start; addr < end; addr += BRIGHTS_PAGE_SIZE) {
-    if (addr >= pmem_base) {
-      uint64_t idx = (addr - pmem_base) / BRIGHTS_PAGE_SIZE;
-      if (idx < PMEM_MAX_PAGES && !bitmap_test(idx)) {
-        bitmap_set(idx);
-        --pmem_free_pages;
-      }
-    }
-  }
-}
-
 void *brights_pmem_alloc_page(void)
 {
   /* Fast scan: use bit-scan-forward (BSF) on each 64-bit word */

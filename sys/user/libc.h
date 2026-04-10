@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+
 /* ===== String functions ===== */
 void *memset(void *s, int c, uint64_t n);
 void *memcpy(void *dst, const void *src, uint64_t n);
@@ -17,6 +21,9 @@ char *strcat(char *dst, const char *src);
 char *strchr(const char *s, int c);
 char *strrchr(const char *s, int c);
 char *strstr(const char *haystack, const char *needle);
+int   sscanf(const char *str, const char *format, ...);
+int   atoi(const char *str);
+char *strtok(char *str, const char *delim);
 
 /* ===== Memory allocation ===== */
 void *malloc(uint64_t size);
@@ -73,6 +80,9 @@ int64_t sys_icmp_echo(uint32_t dst_ip);
 int64_t sys_ifconfig(int cmd);
 int64_t sys_ip_parse(const char *str);
 void sys_ip_to_str(uint32_t ip, char *buf);
+int64_t sys_brk(uint64_t addr);
+int64_t sys_kill(int64_t pid, int sig);
+int64_t sys_setsid(void);
 
 /* ===== Utility ===== */
 void abort(void);

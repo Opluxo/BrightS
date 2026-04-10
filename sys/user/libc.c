@@ -113,6 +113,81 @@ char *strstr(const char *haystack, const char *needle)
   return 0;
 }
 
+/* ===== Additional string functions ===== */
+
+int sscanf(const char *str, const char *format, ...)
+{
+  /* Very simplified implementation - only supports %[^]] for service name parsing */
+  if (strstr(format, "%[^]]") && str[0] == '[') {
+    /* Special case: %[^]] */
+    char *dest = (char *)((void **)&format)[1]; /* Hack: get first vararg */
+
+    const char *start = str + 1; /* Skip [ */
+    const char *end = strchr(start, ']');
+    if (end) {
+      uint64_t len = end - start;
+      if (len > 0 && len < 32) {
+        memcpy(dest, start, len);
+        dest[len] = 0;
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+int atoi(const char *str)
+{
+  int num = 0;
+  int neg = 0;
+  const char *s = str;
+
+  while (*s == ' ' || *s == '\t') s++;
+
+  if (*s == '-') { neg = 1; s++; }
+  else if (*s == '+') s++;
+
+  while (*s >= '0' && *s <= '9') {
+    num = num * 10 + (*s - '0');
+    s++;
+  }
+
+  return neg ? -num : num;
+}
+
+static char *strtok_save = NULL;
+
+char *strtok(char *str, const char *delim)
+{
+  if (str) {
+    strtok_save = str;
+  }
+
+  if (!strtok_save) return NULL;
+
+  /* Skip leading delimiters */
+  char *start = strtok_save;
+  while (*start && strchr(delim, *start)) start++;
+
+  if (!*start) {
+    strtok_save = NULL;
+    return NULL;
+  }
+
+  /* Find end of token */
+  char *end = start;
+  while (*end && !strchr(delim, *end)) end++;
+
+  if (*end) {
+    *end = 0;
+    strtok_save = end + 1;
+  } else {
+    strtok_save = NULL;
+  }
+
+  return start;
+}
+
 /* ===== Minimal malloc (brk-based) ===== */
 
 static uint64_t heap_start = 0;
@@ -120,6 +195,7 @@ static uint64_t heap_end = 0;
 static uint64_t heap_brk = 0;
 
 #define MALLOC_ALIGN 8
+#define SERVICE_NAME_MAX 32
 
 typedef struct {
   uint64_t size;  /* Size of this block (excluding header) */

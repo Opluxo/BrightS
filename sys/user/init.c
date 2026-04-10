@@ -1,90 +1,120 @@
 #include "libc.h"
+#include "service.h"
 
 /*
- * BrightS init - PID 1
+ * BrightS init - PID 1 - Service Manager
  *
- * This is the first user-space process. It:
- * 1. Mounts essential filesystems
- * 2. Sets up /dev, /tmp directories
- * 3. Launches the login shell
- * 4. Reaps zombie children
+ * This is the first user-space process. It manages the entire system:
+ * 1. Initializes service management system
+ * 2. Loads service configurations
+ * 3. Starts essential services in dependency order
+ * 4. Monitors service health and handles failures
+ * 5. Provides service control interface
  */
 
-static void mount_dev(void)
+static void setup_filesystem(void)
 {
-  /* /dev is handled by devfs in kernel */
-  printf("init: /dev ready\n");
+  /* Create essential directories */
+  const char *dirs[] = {
+    "/usr", "/usr/home", "/usr/home/guest",
+    "/bin", "/bin/pkg", "/bin/config", "/bin/runtime", "/bin/firmware",
+    "/mnt", "/mnt/drive", "/mnt/input", "/mnt/output",
+    "/swp", "/tmp", "/var", "/var/log", "/var/run",
+    NULL
+  };
+
+  for (int i = 0; dirs[i]; i++) {
+    if (sys_mkdir(dirs[i]) < 0) {
+      printf("init: failed to create directory %s\n", dirs[i]);
+    }
+  }
+
+  printf("init: filesystem initialized\n");
 }
 
-static void mount_tmp(void)
+static void setup_default_config(void)
 {
-  /* /tmp is handled by ramfs in kernel */
-  printf("init: /tmp ready\n");
-}
+  /* Create default service configuration */
+  int fd = sys_open("/bin/config/services.ini", 0x40); /* O_CREAT */
+  if (fd >= 0) {
+    const char *config =
+      "[syslogd]\n"
+      "description=System Logging Daemon\n"
+      "command=/bin/syslogd\n"
+      "type=daemon\n"
+      "restart=yes\n"
+      "restart_delay=1000\n"
+      "\n"
+      "[dhcpd]\n"
+      "description=DHCP Client Daemon\n"
+      "command=/bin/dhcpd\n"
+      "type=daemon\n"
+      "restart=yes\n"
+      "restart_delay=5000\n"
+      "depends_on=syslogd\n"
+      "\n"
+      "[shell]\n"
+      "description=BrightS Command Shell\n"
+      "command=/bin/shell\n"
+      "type=daemon\n"
+      "restart=yes\n"
+      "restart_delay=1000\n";
 
-static void setup_dirs(void)
-{
-  sys_mkdir("/usr");
-  sys_mkdir("/usr/home");
-  sys_mkdir("/usr/home/guest");
-  sys_mkdir("/bin");
-  sys_mkdir("/bin/pkg");
-  sys_mkdir("/bin/config");
-  sys_mkdir("/bin/runtime");
-  sys_mkdir("/bin/firmware");
-  sys_mkdir("/mnt");
-  sys_mkdir("/mnt/drive");
-  sys_mkdir("/mnt/input");
-  sys_mkdir("/mnt/output");
-  sys_mkdir("/swp");
-  sys_mkdir("/tmp");
-  printf("init: directories ready\n");
-}
+    sys_write(fd, config, strlen(config));
+    sys_close(fd);
+    printf("init: default service config created\n");
+  } else {
+    printf("init: failed to create service config\n");
+  }
 
-static void setup_profile(void)
-{
-  /* Create default guest profile */
-  int fd = sys_open("/bin/config/guest/example.pf", 0x40); /* O_CREAT */
+  /* Create default user profile */
+  fd = sys_open("/bin/config/guest/profile.ini", 0x40);
   if (fd >= 0) {
     const char *profile =
-      "username:guest\n"
-      "hostname:brights\n"
-      "avatar:\"default\"\n"
-      "email:user@local\n"
-      "password:guest\n";
+      "[user]\n"
+      "username=guest\n"
+      "hostname=brights\n"
+      "shell=/bin/shell\n"
+      "home=/usr/home/guest\n";
+
     sys_write(fd, profile, strlen(profile));
     sys_close(fd);
-  }
-  printf("init: profile ready\n");
-}
-
-static void reap_children(void)
-{
-  /* Reap any zombie children */
-  int status;
-  while (sys_wait(-1, &status) > 0) {
-    /* Child reaped */
+    printf("init: default user profile created\n");
   }
 }
 
-static void launch_shell(void)
+static void start_essential_services(void)
 {
-  printf("init: launching shell...\n");
+  printf("init: starting essential services...\n");
 
-  /* Fork and exec shell */
-  int64_t pid = sys_fork();
-  if (pid == 0) {
-    /* Child: exec shell */
-    char *argv[] = { "shell", 0 };
-    sys_exec("/bin/shell", argv, 0);
+  /* Load service configuration */
+  if (service_load_config("/bin/config/services.ini") == 0) {
+    /* Start core services in order */
+    const char *essential_services[] = {
+      "syslogd",  /* System logging first */
+      "dhcpd",    /* Network configuration */
+      "shell",    /* User interface */
+      NULL
+    };
 
-    /* If exec fails, print error and exit */
-    printf("init: failed to exec shell\n");
-    sys_exit(1);
-  } else if (pid > 0) {
-    printf("init: shell pid=%d\n", (int)pid);
+    for (int i = 0; essential_services[i]; i++) {
+      if (service_start(essential_services[i]) != 0) {
+        printf("init: failed to start %s\n", essential_services[i]);
+      }
+    }
   } else {
-    printf("init: fork failed\n");
+    printf("init: no service configuration found, starting shell directly\n");
+
+    /* Fallback: start shell directly */
+    int64_t pid = sys_fork();
+    if (pid == 0) {
+      char *argv[] = { "shell", NULL };
+      sys_exec("/bin/shell", argv, NULL);
+      printf("init: failed to exec shell\n");
+      sys_exit(1);
+    } else if (pid > 0) {
+      printf("init: shell started (pid=%d)\n", (int)pid);
+    }
   }
 }
 
@@ -92,28 +122,30 @@ int main(int argc, char **argv)
 {
   (void)argc; (void)argv;
 
-  printf("BrightS init starting...\n");
+  printf("BrightS init v2.0 - Service Manager starting...\n");
 
-  /* Setup directories */
-  setup_dirs();
-
-  /* Mount filesystems */
-  mount_dev();
-  mount_tmp();
-
-  /* Setup default profile */
-  setup_profile();
-
-  printf("init: system ready\n");
-
-  /* Launch shell */
-  launch_shell();
-
-  /* Main loop: reap zombies */
-  for (;;) {
-    sys_sleep_ms(1000);
-    reap_children();
+  /* Initialize service management system */
+  if (service_init() != 0) {
+    printf("init: failed to initialize service system\n");
+    return 1;
   }
 
+  /* Setup filesystem structure */
+  setup_filesystem();
+
+  /* Create default configurations */
+  setup_default_config();
+
+  printf("init: system initialization complete\n");
+
+  /* Start essential services */
+  start_essential_services();
+
+  printf("init: all services started, entering monitor mode\n");
+
+  /* Main service monitoring loop */
+  service_monitor_loop();
+
+  /* Should never reach here */
   return 0;
 }

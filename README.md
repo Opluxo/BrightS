@@ -1,6 +1,6 @@
 # BrightS - Unix-like Operating System
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.1.2.2-green.svg)]()
 [![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](docs/README.md)
 
@@ -52,7 +52,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## 📄 License | 许可证
 
-This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
+This project is licensed under the GNU General Public License v2.0 with a special exception for userspace programs. See [LICENSE](LICENSE) for details.
 
 ---
 

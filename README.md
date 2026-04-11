@@ -24,8 +24,18 @@ make all
 # Run in QEMU | 在QEMU中运行
 make run
 
-# Build tests | 构建测试
+# Debug build | 调试构建
+make debug
+make run-debug
+
+# Run tests | 运行测试
 make test
+
+# Clean build | 清理构建
+make clean
+
+# Get build info | 获取构建信息
+make info
 ```
 
 ## 📚 Documentation | 文档
@@ -36,10 +46,34 @@ make test
 
 ## 🏗️ Build Requirements | 构建要求
 
-- GCC/Clang compiler
-- NASM assembler
-- Make build system
-- QEMU (for testing)
+- **GCC/Clang compiler** (C compiler)
+- **NASM assembler** (for x86 assembly)
+- **CMake** (build system generator)
+- **Make** (build automation)
+- **QEMU** (for testing and emulation)
+- **lld** (LLVM linker, optional but recommended)
+
+### Build Options | 构建选项
+
+```bash
+# Custom build directory
+make BUILD_DIR=mybuild all
+
+# Debug build with symbols
+make BUILD_TYPE=Debug all
+
+# Release optimized build
+make BUILD_TYPE=Release all
+
+# Parallel build with custom job count
+make -j4 all
+```
+
+### Supported Platforms | 支持平台
+
+- Linux (primary development platform)
+- macOS (with Homebrew dependencies)
+- Windows (with WSL or MSYS2)
 
 ## 🤝 Related Projects | 相关项目
 

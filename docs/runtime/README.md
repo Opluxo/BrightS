@@ -2,11 +2,32 @@
 
 ## 概述
 
-BrightS 现在包含了完整的用户空间运行时环境，包括服务管理系统、守护进程框架和基本的系统服务。
+BrightS 现在包含了完整的用户空间运行时环境，包括服务管理系统、守护进程框架、系统服务以及**多语言编程支持**。
 
 ## 核心组件
 
-### 1. 服务管理系统 (service.c)
+### 1. 多语言运行时系统
+- **语言管理器** (lang_runtime.c/h): 统一的语言运行时注册和切换
+- **运行时接口**: 标准化的语言执行和编译接口
+- **语言检测**: 基于文件扩展名的自动语言识别
+- **支持的语言**: Rust, Python, C++
+
+#### Rust运行时 (rust_runtime.c/h)
+- **编译器前端**: `rustc` - Rust到C的源代码转换器
+- **运行时库**: 基本的内存分配和字符串操作
+- **语法支持**: 函数定义、println!宏、变量绑定
+
+#### Python运行时 (python_runtime.c/h)
+- **解释器**: `python` - 简单的Python代码解释器
+- **内置函数**: print(), len(), type()等
+- **对象系统**: 基本的Python对象类型支持
+
+#### C++运行时 (cpp_runtime.c/h)
+- **编译器前端**: `g++` - C++到C的源代码转换器
+- **标准库**: iostream, string, vector等基础支持
+- **异常处理**: 基本的异常抛出和捕获
+
+### 2. 服务管理系统 (service.c)
 - **服务配置**: `/bin/config/services.ini`
 - **支持的服务类型**: daemon, oneshot, forking, notify
 - **依赖管理**: 服务可以声明依赖关系
@@ -89,6 +110,46 @@ DHCP客户端会在启动后自动：
 - 端口: 514
 - 协议: UDP
 - 格式: `[LEVEL]: message`
+
+## 多语言编程示例
+
+### Rust代码执行
+```bash
+# 编译Rust代码
+echo 'fn main() { println!("Hello Rust!"); }' > hello.rs
+rustc hello.rs hello
+gcc hello.c -o hello
+./hello
+```
+
+### Python代码执行
+```bash
+# 运行Python代码
+python -c "print('Hello Python!')"
+# 或创建文件
+echo "print('Hello from file!')" > hello.py
+python hello.py
+```
+
+### C++代码执行
+```bash
+# 编译C++代码
+echo '#include <iostream>
+int main() { std::cout << "Hello C++!" << std::endl; }' > hello.cpp
+g++ hello.cpp hello
+gcc hello.c -o hello
+./hello
+```
+
+### 语言运行时切换
+```c
+// 在C代码中切换运行时
+lang_switch_runtime("rust");
+lang_execute_file("program.rs", NULL, NULL);
+
+lang_switch_runtime("python");
+lang_execute_string("print('Hello')", "python", "<inline>");
+```
 
 ## 开发指南
 

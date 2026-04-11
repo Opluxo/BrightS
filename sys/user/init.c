@@ -1,5 +1,9 @@
 #include "libc.h"
 #include "service.h"
+#include "lang_runtime.h"
+#include "rust_runtime.h"
+#include "python_runtime.h"
+#include "cpp_runtime.h"
 
 /*
  * BrightS init - PID 1 - Service Manager
@@ -83,6 +87,40 @@ static void setup_default_config(void)
   }
 }
 
+static void init_language_runtimes(void)
+{
+  printf("init: initializing language runtimes...\n");
+
+  /* Initialize language runtime system */
+  if (lang_init() != 0) {
+    printf("init: failed to initialize language system\n");
+    return;
+  }
+
+  /* Register Rust runtime */
+  runtime_t *rust_rt = rust_create_runtime();
+  if (lang_register_runtime(rust_rt) != 0) {
+    printf("init: failed to register Rust runtime\n");
+  }
+
+  /* Register Python runtime */
+  runtime_t *python_rt = py_create_runtime();
+  if (lang_register_runtime(python_rt) != 0) {
+    printf("init: failed to register Python runtime\n");
+  }
+
+  /* Register C++ runtime */
+  runtime_t *cpp_rt = cpp_create_runtime();
+  if (lang_register_runtime(cpp_rt) != 0) {
+    printf("init: failed to register C++ runtime\n");
+  }
+
+  /* Set C as default runtime */
+  lang_switch_runtime("c");
+
+  printf("init: language runtimes initialized\n");
+}
+
 static void start_essential_services(void)
 {
   printf("init: starting essential services...\n");
@@ -135,6 +173,9 @@ int main(int argc, char **argv)
 
   /* Create default configurations */
   setup_default_config();
+
+  /* Initialize language runtimes */
+  init_language_runtimes();
 
   printf("init: system initialization complete\n");
 

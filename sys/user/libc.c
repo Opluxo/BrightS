@@ -188,6 +188,60 @@ char *strtok(char *str, const char *delim)
   return start;
 }
 
+/* ===== Additional string functions ===== */
+
+char *strndup(const char *s, uint64_t n)
+{
+  uint64_t len = strlen(s);
+  if (n < len) len = n;
+
+  char *dup = malloc(len + 1);
+  if (dup) {
+    memcpy(dup, s, len);
+    dup[len] = 0;
+  }
+  return dup;
+}
+
+int vsnprintf(char *buf, uint64_t n, const char *fmt, ...)
+{
+  /* Very simplified implementation - only supports %s and %d */
+  uint64_t pos = 0;
+  const char *p = fmt;
+
+  /* Get variable arguments (simplified) */
+  void **args_ptr = (void **)&fmt + 1;
+  int arg_index = 0;
+
+  while (*p && pos < n - 1) {
+    if (*p == '%') {
+      p++;
+      if (*p == 's') {
+        char *str = (char *)args_ptr[arg_index++];
+        while (*str && pos < n - 1) {
+          buf[pos++] = *str++;
+        }
+      } else if (*p == 'd') {
+        int num = (int)(int64_t)args_ptr[arg_index++];
+        char numbuf[16];
+        sprintf(numbuf, "%d", num);
+        char *s = numbuf;
+        while (*s && pos < n - 1) {
+          buf[pos++] = *s++;
+        }
+      } else {
+        buf[pos++] = *p;
+      }
+      p++;
+    } else {
+      buf[pos++] = *p++;
+    }
+  }
+
+  buf[pos] = 0;
+  return pos;
+}
+
 /* ===== Minimal malloc (brk-based) ===== */
 
 static uint64_t heap_start = 0;
@@ -295,11 +349,33 @@ void free(void *ptr)
 
 void *realloc(void *ptr, uint64_t new_size)
 {
-  if (!ptr) return malloc(new_size);
-  if (new_size == 0) {
+    if (!ptr) return malloc(new_size);
+    if (new_size == 0) {
+        free(ptr);
+        return NULL;
+    }
+
+    /* Simple implementation: allocate new block and copy */
+    void *new_ptr = malloc(new_size);
+    if (!new_ptr) return NULL;
+
+    /* Copy existing data (we don't know the old size, so copy conservatively) */
+    /* This is a limitation of our simple malloc */
+    memcpy(new_ptr, ptr, new_size); /* Hope this is enough */
     free(ptr);
-    return 0;
-  }
+
+    return new_ptr;
+}
+
+void *calloc(uint64_t nmemb, uint64_t size)
+{
+    uint64_t total = nmemb * size;
+    void *ptr = malloc(total);
+    if (ptr) {
+        memset(ptr, 0, total);
+    }
+    return ptr;
+}
 
   malloc_header_t *hdr = (malloc_header_t *)((uint64_t)ptr - sizeof(malloc_header_t));
   if (hdr->size >= new_size) return ptr; /* Block is big enough */

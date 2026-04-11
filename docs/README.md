@@ -1,72 +1,138 @@
-# BrightS 文档索引 | Documentation Index
+# BrightS Documentation | BrightS 文档
 
-## 快速开始 | Quick Start
+Welcome to the BrightS operating system documentation! This comprehensive documentation is organized into clear sections for users and developers.
 
-- [README.md](../README.md) - 项目概述、功能特性、构建运行指南
-- [docs/build/build.md](build/build.md) - 详细构建和运行说明
+## 📚 Documentation Structure | 文档结构
 
-## 技术文档 | Technical Documentation
+```
+docs/
+├── user-guide/           # 🚀 用户指南
+│   ├── COMMAND_REFERENCE.md      # 命令参考手册
+│   └── COMMAND_REFERENCE_CN.md   # 命令参考手册 (中文)
+├── developer-guide/     # 🛠️ 开发者指南
+│   ├── DEVELOPMENT.md           # 开发环境设置
+│   ├── CONTRIBUTING.md          # 贡献指南 (英文)
+│   ├── CONTRIBUTING_zh_CN.md    # 贡献指南 (中文)
+│   ├── PROJECT_STRUCTURE.md     # 项目架构
+│   └── PERFORMANCE.md           # 性能优化
+├── api-reference/       # 📋 API参考
+│   └── API.md                    # 内核API文档
+├── runtime/            # 🎯 运行时文档
+│   └── README.md                # 多语言运行时
+└── README.md           # 📖 文档首页 (本文件)
+```
 
-### 系统架构 | System Architecture
-- [docs/PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - 项目结构和代码组织
-- [docs/design/File_Struct_Define](design/File_Struct_Define) - 文件系统结构定义
+## 🚀 Quick Start | 快速开始
 
-### 性能和优化 | Performance & Optimization
-- [docs/PERFORMANCE.md](PERFORMANCE.md) - 性能指标和基准测试结果
-- [docs/CHANGELOG.md](CHANGELOG.md) - 版本更新日志
+### For Users | 面向用户
+- **[📖 Command Reference](user-guide/COMMAND_REFERENCE.md)** - Complete command reference
+- **[📖 命令参考手册](user-guide/COMMAND_REFERENCE_CN.md)** - 中文命令参考
+- **[🏠 Main README](../README.md)** - Project overview and setup
 
-## 开发文档 | Development Documentation
+### For Developers | 面向开发者
+- **[🛠️ Development Setup](developer-guide/DEVELOPMENT.md)** - Environment setup
+- **[🏗️ Project Structure](developer-guide/PROJECT_STRUCTURE.md)** - Code architecture
+- **[⚡ Performance Guide](developer-guide/PERFORMANCE.md)** - Optimization tips
 
-### 环境设置 | Environment Setup
-- [docs/DEVELOPMENT.md](DEVELOPMENT.md) - 完整的开发环境设置指南
+## 📖 User Guide | 用户指南
 
-### 贡献指南 | Contributing
-- [CONTRIBUTING.md](../CONTRIBUTING.md) - 英文贡献指南
-- [docs/CONTRIBUTING_zh_CN.md](CONTRIBUTING_zh_CN.md) - 中文贡献指南
+Everything you need to know about using BrightS:
 
-### 开发工具 | Development Tools
-- [docs/TODO](TODO) - 待完成任务和开发计划
+### Commands & Shell | 命令与Shell
+- **[📚 Complete Command Reference](user-guide/COMMAND_REFERENCE.md)**
+  - File operations: `ls`, `cp`, `mv`, `rm`, `mkdir`, `chmod`
+  - Text processing: `echo`, `grep`, `find`
+  - System info: `pwd`, `ps`, `jobs`
+  - Network: `ping`
+  - Package management: `bspm install`, `bspm search`, etc.
+- **[📚 完整命令参考](user-guide/COMMAND_REFERENCE_CN.md)** - 中文版
 
-## API文档 | API Documentation
+### Advanced Features | 高级功能
+- **Pipes & Redirection**: `cmd1 | cmd2`, `cmd > file`, `cmd < input`
+- **Background Jobs**: `command &`, `jobs` command
+- **Command History**: Arrow keys navigation
+- **Auto-completion**: Tab key completion
+- **Multi-language**: `rust "code"`, `python "code"`, `cpp "code"`
 
-### 完整API参考 | Complete API Reference
-- **[📖 详细API文档](API.md)** - 完整的API函数参考和示例
+## 🛠️ Developer Guide | 开发者指南
 
-### 核心系统API | Core System APIs
+### Getting Started | 开始开发
+- **[🛠️ Development Environment](developer-guide/DEVELOPMENT.md)**
+  - Required tools and dependencies
+  - Build system setup
+  - Testing environment
 
-#### 内存管理 | Memory Management
-- `void *brights_kmalloc(size_t size)` - 分配内核内存
-- `void brights_kfree(void *ptr)` - 释放内核内存
-- `size_t brights_kmalloc_used(void)` - 获取已用内存
-- `size_t brights_kmalloc_capacity(void)` - 获取总容量
+### Architecture & Design | 架构与设计
+- **[🏗️ Project Structure](developer-guide/PROJECT_STRUCTURE.md)**
+  - Kernel architecture overview
+  - Code organization
+  - Module structure
 
-#### 文件系统 | Filesystem
-- `int brights_ramfs_create(const char *name)` - 创建文件
-- `int brights_ramfs_open(const char *name)` - 打开文件
-- `int64_t brights_ramfs_read(int fd, uint64_t off, void *buf, uint64_t len)` - 读取文件
-- `int64_t brights_ramfs_write(int fd, uint64_t off, const void *buf, uint64_t len)` - 写入文件
-- `int brights_ramfs_close(int fd)` - 关闭文件
+### Performance & Optimization | 性能与优化
+- **[⚡ Performance Guide](developer-guide/PERFORMANCE.md)**
+  - Benchmarking results
+  - Optimization techniques
+  - Memory management
 
-#### 字符串操作 | String Operations
-- `char *kutil_strchr(const char *s, int c)` - 查找字符
-- `char *kutil_strrchr(const char *s, int c)` - 反向查找字符
-- `char *kutil_strstr(const char *haystack, const char *needle)` - 查找子串
-- `int kutil_strcmp(const char *a, const char *b)` - 字符串比较
+### Contributing | 贡献代码
+- **[🤝 Contributing Guide](developer-guide/CONTRIBUTING.md)** - English
+- **[🤝 贡献指南](developer-guide/CONTRIBUTING_zh_CN.md)** - 中文
 
-#### 网络操作 | Network Operations
-- `int brights_dns_resolve(const char *hostname, uint32_t *ip_out)` - DNS解析
-- `int brights_http_init(void)` - HTTP初始化
+## 📋 API Reference | API参考
 
-## 测试套件 | Test Suite
+Technical documentation for BrightS internals:
 
-- `test_ramfs` - RAMFS功能测试（7个测试用例）
-- `test_benchmark` - 性能基准测试（字符串、文件、内存操作）
+### Kernel APIs | 内核API
+- **[📖 Complete API Reference](api-reference/API.md)**
+  - Memory management functions
+  - Filesystem operations
+  - String utilities
+  - Network functions
 
-## 许可证 | License
+### System Calls | 系统调用
+All available system calls with parameters and return values are documented in the command references above.
 
-本项目采用 GNU GPL v2 许可证。详见 [LICENSE](../LICENSE) 文件。
+## 🎯 Runtime Documentation | 运行时文档
+
+Multi-language support and runtime systems:
+
+- **[🌍 Runtime Guide](runtime/README.md)**
+  - Rust runtime integration
+  - Python interpreter
+  - C++ compilation support
+
+## 📊 Additional Resources | 其他资源
+
+- **[📝 Changelog](CHANGELOG.md)** - Version history
+- **[🔧 Build Guide](build/build.md)** - Detailed build instructions
+- **[🎯 TODO List](TODO)** - Development roadmap
+
+## 🧪 Testing | 测试
+
+- `test_ramfs` - RAM filesystem tests (7 test cases)
+- `test_benchmark` - Performance benchmarks (string, file, memory operations)
+
+## 🌍 Languages | 语言支持
+
+This documentation is available in:
+- **English** (primary language)
+- **简体中文** (Simplified Chinese)
+
+## 📞 Support & Community | 支持与社区
+
+- **🐛 Issues**: [GitHub Issues](https://github.com/OpenLight-Studio/BrightS/issues)
+- **💬 Discussions**: [GitHub Discussions](https://github.com/OpenLight-Studio/BrightS/discussions)
+- **📖 Documentation Issues**: Report docs problems [here](https://github.com/OpenLight-Studio/BrightS/issues/new?labels=documentation)
+
+## 📝 Contributing to Docs | 文档贡献
+
+We welcome documentation improvements! See our [Contributing Guide](developer-guide/CONTRIBUTING.md) for details.
+
+## 📄 License | 许可证
+
+This project is licensed under the GNU GPL v2 License. See [LICENSE](../LICENSE) for details.
 
 ---
 
-*最后更新时间：2026年4月9日*</content>
+*Last updated: 2026-04-11* | *最后更新：2026年4月11日*</content>
 <parameter name="filePath">docs/README.md

@@ -281,14 +281,16 @@ depends_on=service1,service2
 - **文件操作**: ls (支持通配符), cat, cp, mv, rm (支持-rf), mkdir, chmod
 - **文本处理**: echo, grep (字符串搜索), find (递归查找)
 - **网络工具**: ping (ICMP echo测试)
-- **系统管理**: ps (进程列表)
+- **系统管理**: ps (进程列表), jobs (作业信息)
 - **Shell功能**: history (命令历史), help (命令帮助)
 
 ### Shell增强
 - **命令历史**: 使用上下箭头浏览历史命令
 - **自动补全**: Tab键补全命令名称
 - **多语言执行**: 支持内联执行Rust/Python/C++代码
-- **管道支持**: 命令间数据流 (计划中)
+- **管道支持**: 完整的命令管道 (cmd1 | cmd2)
+- **I/O重定向**: 支持 <, >, >> 重定向
+- **后台作业**: 支持 & 后台运行和作业控制
 
 ### 使用示例
 ```bash
@@ -315,6 +317,15 @@ cpp "std::cout << \"Hello C++!\" << std::endl;"
 [上下箭头]        # 浏览历史
 [Tab]             # 补全命令
 help ls           # 显示命令帮助
+
+# 管道和重定向
+ls | grep "\.c$"   # 管道：列出C文件
+cat file.txt > output.txt   # 重定向输出
+sort < input.txt >> results.txt  # 重定向输入和追加输出
+
+# 后台作业
+long_running_command &   # 后台运行
+[job_id]                 # 显示作业ID
 ```
 
 ## 未来扩展

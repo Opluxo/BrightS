@@ -24,6 +24,8 @@ int cmd_ping_handler(int argc, char **argv);
 void cmd_ping_help(void);
 int cmd_ps_handler(int argc, char **argv);
 void cmd_ps_help(void);
+int cmd_jobs_handler(int argc, char **argv);
+void cmd_jobs_help(void);
 
 /*
  * Register all system commands
@@ -167,6 +169,15 @@ int cmd_register_all(void)
         .flags = CMD_FLAG_PIPE_OUT,
         .handler = cmd_ps_handler,
         .help_func = cmd_ps_help
+    });
+
+    cmd_register(&(command_t){
+        .name = "jobs",
+        .description = "Display job information",
+        .category = CMD_CAT_SYSTEM,
+        .flags = 0,
+        .handler = cmd_jobs_handler,
+        .help_func = cmd_jobs_help
     });
 
     /* Administrative commands */

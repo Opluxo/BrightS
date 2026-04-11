@@ -170,6 +170,194 @@ static int parse_args(char *line, char **argv)
 }
 
 /*
+ * Execute a single command with redirection support
+ */
+static int execute_command(int argc, char **argv)
+{
+    char *input_file = NULL;
+    char *output_file = NULL;
+    int append = 0;
+
+    /* Parse redirections */
+    int new_argc = 0;
+    char *new_argv[MAX_ARGS];
+
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i], "<") == 0 && i + 1 < argc) {
+            input_file = argv[i + 1];
+            i++;  /* Skip next arg */
+        } else if (strcmp(argv[i], ">") == 0 && i + 1 < argc) {
+            output_file = argv[i + 1];
+            append = 0;
+            i++;  /* Skip next arg */
+        } else if (strcmp(argv[i], ">>") == 0 && i + 1 < argc) {
+            output_file = argv[i + 1];
+            append = 1;
+            i++;  /* Skip next arg */
+        } else {
+            new_argv[new_argc++] = argv[i];
+        }
+    }
+
+    /* Handle redirections */
+    int saved_stdin = -1;
+    int saved_stdout = -1;
+
+    if (input_file) {
+        saved_stdin = sys_dup(0);
+        int fd = sys_open(input_file, 0);
+        if (fd < 0) {
+            printf("Cannot open input file: %s\n", input_file);
+            return 1;
+        }
+        sys_dup2(fd, 0);
+        sys_close(fd);
+    }
+
+    if (output_file) {
+        saved_stdout = sys_dup(1);
+        int flags = 1;  /* O_CREAT */
+        if (append) flags |= 8;  /* O_APPEND */
+        int fd = sys_open(output_file, flags);
+        if (fd < 0) {
+            printf("Cannot open output file: %s\n", output_file);
+            if (saved_stdin != -1) {
+                sys_dup2(saved_stdin, 0);
+                sys_close(saved_stdin);
+            }
+            return 1;
+        }
+        sys_dup2(fd, 1);
+        sys_close(fd);
+    }
+
+    int result;
+
+    /* Check for language-specific execution */
+    if (strcmp(new_argv[0], "rust") == 0 && new_argc > 1) {
+        /* Execute Rust code */
+        result = lang_execute_string(new_argv[1], "rust", "<command>");
+    } else if (strcmp(new_argv[0], "python") == 0 && new_argc > 1) {
+        /* Execute Python code */
+        result = lang_execute_string(new_argv[1], "python", "<command>");
+    } else if (strcmp(new_argv[0], "cpp") == 0 && new_argc > 1) {
+        /* Execute C++ code */
+        result = lang_execute_string(new_argv[1], "cpp", "<command>");
+    } else {
+        /* Execute regular command */
+        result = cmd_execute(new_argc, new_argv);
+    }
+
+    /* Restore redirections */
+    if (saved_stdin != -1) {
+        sys_dup2(saved_stdin, 0);
+        sys_close(saved_stdin);
+    }
+    if (saved_stdout != -1) {
+        sys_dup2(saved_stdout, 1);
+        sys_close(saved_stdout);
+    }
+
+    return result;
+}
+
+/*
+ * Execute a pipeline of commands
+ */
+static int execute_pipeline(char *line, int background)
+{
+    char *commands[10];  /* Max 10 commands in pipeline */
+    int cmd_count = 0;
+
+    /* Split by pipes */
+    char *token = strtok(line, "|");
+    while (token && cmd_count < 10) {
+        /* Trim spaces */
+        while (*token && (*token == ' ' || *token == '\t')) token++;
+        char *end = token + strlen(token) - 1;
+        while (end > token && (*end == ' ' || *end == '\t')) {
+            *end = 0;
+            end--;
+        }
+        if (*token) {
+            commands[cmd_count++] = token;
+        }
+        token = strtok(NULL, "|");
+    }
+
+    if (cmd_count == 1) {
+        /* Single command */
+        char *argv[MAX_ARGS];
+        int argc = parse_args(commands[0], argv);
+        if (argc > 0) {
+            return execute_command(argc, argv);
+        }
+        return 0;
+    }
+
+    /* Execute pipeline */
+    int prev_pipe[2] = {-1, -1};
+    int pipes[2];
+
+    for (int i = 0; i < cmd_count; i++) {
+        if (i < cmd_count - 1) {
+            if (sys_pipe(pipes) != 0) {
+                printf("Failed to create pipe\n");
+                return 1;
+            }
+        }
+
+        int64_t pid = sys_fork();
+        if (pid == 0) {
+            /* Child process */
+            if (prev_pipe[0] != -1) {
+                /* Redirect stdin from previous pipe */
+                sys_close(prev_pipe[1]);
+                sys_dup2(prev_pipe[0], 0);  /* stdin */
+                sys_close(prev_pipe[0]);
+            }
+            if (i < cmd_count - 1) {
+                /* Redirect stdout to next pipe */
+                sys_close(pipes[0]);
+                sys_dup2(pipes[1], 1);  /* stdout */
+                sys_close(pipes[1]);
+            }
+
+            /* Execute command */
+            char *argv[MAX_ARGS];
+            int argc = parse_args(commands[i], argv);
+            if (argc > 0) {
+                int result = execute_command(argc, argv);
+                sys_exit(result);
+            } else {
+                sys_exit(0);
+            }
+        } else if (pid > 0) {
+            /* Parent process */
+            if (prev_pipe[0] != -1) {
+                sys_close(prev_pipe[0]);
+                sys_close(prev_pipe[1]);
+            }
+            if (i < cmd_count - 1) {
+                prev_pipe[0] = pipes[0];
+                prev_pipe[1] = pipes[1];
+            }
+        } else {
+            printf("Failed to fork\n");
+            return 1;
+        }
+    }
+
+    /* Wait for all children */
+    for (int i = 0; i < cmd_count; i++) {
+        int status;
+        sys_wait(-1, &status);
+    }
+
+    return 0;
+}
+
+/*
  * Execute a command line
  */
 static int execute_line(char *line)
@@ -189,26 +377,42 @@ static int execute_line(char *line)
     while (*p && (*p == ' ' || *p == '\t')) p++;
     if (!*p) return 0;
 
-    /* Parse arguments */
-    char *argv[MAX_ARGS];
-    int argc = parse_args(line, argv);
-
-    if (argc == 0) return 0;
-
-    /* Check for language-specific execution */
-    if (strcmp(argv[0], "rust") == 0 && argc > 1) {
-        /* Execute Rust code */
-        return lang_execute_string(argv[1], "rust", "<command>");
-    } else if (strcmp(argv[0], "python") == 0 && argc > 1) {
-        /* Execute Python code */
-        return lang_execute_string(argv[1], "python", "<command>");
-    } else if (strcmp(argv[0], "cpp") == 0 && argc > 1) {
-        /* Execute C++ code */
-        return lang_execute_string(argv[1], "cpp", "<command>");
-    } else {
-        /* Execute regular command */
-        return cmd_execute(argc, argv);
+    /* Check for background */
+    int background = 0;
+    char *ampersand = strstr(line, "&");
+    if (ampersand) {
+        *ampersand = 0;  /* Remove & */
+        background = 1;
     }
+
+    /* Check for pipes */
+    if (strchr(line, '|')) {
+        return execute_pipeline(line, background);
+    } else {
+        /* Single command */
+        char *argv[MAX_ARGS];
+        int argc = parse_args(line, argv);
+        if (argc > 0) {
+            if (background) {
+                int64_t pid = sys_fork();
+                if (pid == 0) {
+                    /* Child */
+                    int result = execute_command(argc, argv);
+                    sys_exit(result);
+                } else if (pid > 0) {
+                    printf("[%lld]\n", pid);  /* Show job ID */
+                    return 0;
+                } else {
+                    printf("Failed to fork\n");
+                    return 1;
+                }
+            } else {
+                return execute_command(argc, argv);
+            }
+        }
+    }
+
+    return 0;
 }
 
 /*

@@ -2,9 +2,37 @@
 #include "libc.h"
 
 /*
- * List directory contents
+ * Simple glob pattern matching
  */
-static void list_dir(const char *path, int long_format)
+static int match_pattern(const char *pattern, const char *str)
+{
+    if (!pattern || !str) return 0;
+
+    while (*pattern && *str) {
+        if (*pattern == '*') {
+            /* Wildcard: match zero or more characters */
+            pattern++;
+            if (!*pattern) return 1;  /* * at end matches */
+            while (*str) {
+                if (match_pattern(pattern, str)) return 1;
+                str++;
+            }
+            return 0;
+        } else if (*pattern == '?' || *pattern == *str) {
+            pattern++;
+            str++;
+        } else {
+            return 0;
+        }
+    }
+
+    return *pattern == 0 && *str == 0;
+}
+
+/*
+ * List directory contents with pattern matching
+ */
+static void list_dir(const char *path, const char *pattern, int long_format)
 {
     int fd = sys_open(path, 0);
     if (fd < 0) {
@@ -29,6 +57,9 @@ static void list_dir(const char *path, int long_format)
         if (*end == '\n') { *end = 0; ++end; }
 
         if (entry[0] == 0) { entry = end; continue; }
+
+        /* Check pattern match */
+        if (pattern && !match_pattern(pattern, entry)) { entry = end; continue; }
 
         if (long_format) {
             /* Build full path for stat */
@@ -75,7 +106,8 @@ static void list_dir(const char *path, int long_format)
 int cmd_ls_handler(int argc, char **argv)
 {
     int long_format = 0;
-    const char *dir = ".";
+    const char *path = ".";
+    const char *pattern = NULL;
 
     /* Parse arguments */
     for (int i = 1; i < argc; ++i) {
@@ -84,11 +116,22 @@ int cmd_ls_handler(int argc, char **argv)
                 if (argv[i][j] == 'l') long_format = 1;
             }
         } else {
-            dir = argv[i];
+            if (!pattern) {
+                /* Check if contains wildcard */
+                if (strchr(argv[i], '*') || strchr(argv[i], '?')) {
+                    pattern = argv[i];
+                } else {
+                    path = argv[i];
+                }
+            } else {
+                /* Multiple patterns not supported yet */
+                printf("ls: too many arguments\n");
+                return 1;
+            }
         }
     }
 
     /* List directory */
-    list_dir(dir, long_format);
+    list_dir(path, pattern, long_format);
     return 0;
 }

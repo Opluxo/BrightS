@@ -1,7 +1,7 @@
 #include "command.h"
 #include "libc.h"
 
-/* Forward declarations for command handlers */
+/* Forward declarations for command handlers and help functions */
 int cmd_ls_handler(int argc, char **argv);
 int cmd_cat_handler(int argc, char **argv);
 int cmd_echo_handler(int argc, char **argv);
@@ -9,13 +9,21 @@ int cmd_pwd_handler(int argc, char **argv);
 int cmd_cd_handler(int argc, char **argv);
 int cmd_mkdir_handler(int argc, char **argv);
 int cmd_rm_handler(int argc, char **argv);
+void cmd_rm_help(void);
 int cmd_cp_handler(int argc, char **argv);
+void cmd_cp_help(void);
 int cmd_mv_handler(int argc, char **argv);
+void cmd_mv_help(void);
 int cmd_chmod_handler(int argc, char **argv);
+void cmd_chmod_help(void);
 int cmd_grep_handler(int argc, char **argv);
+void cmd_grep_help(void);
 int cmd_find_handler(int argc, char **argv);
+void cmd_find_help(void);
 int cmd_ping_handler(int argc, char **argv);
+void cmd_ping_help(void);
 int cmd_ps_handler(int argc, char **argv);
+void cmd_ps_help(void);
 
 /*
  * Register all system commands
@@ -47,7 +55,7 @@ int cmd_register_all(void)
         .category = CMD_CAT_FILE,
         .flags = 0,
         .handler = cmd_cp_handler,
-        .help_func = NULL
+        .help_func = cmd_cp_help
     });
 
     cmd_register(&(command_t){
@@ -56,7 +64,7 @@ int cmd_register_all(void)
         .category = CMD_CAT_FILE,
         .flags = 0,
         .handler = cmd_mv_handler,
-        .help_func = NULL
+        .help_func = cmd_mv_help
     });
 
     cmd_register(&(command_t){
@@ -65,7 +73,7 @@ int cmd_register_all(void)
         .category = CMD_CAT_FILE,
         .flags = 0,
         .handler = cmd_rm_handler,
-        .help_func = NULL
+        .help_func = cmd_rm_help
     });
 
     cmd_register(&(command_t){
@@ -129,7 +137,7 @@ int cmd_register_all(void)
         .category = CMD_CAT_UTILITY,
         .flags = CMD_FLAG_PIPE_IN | CMD_FLAG_PIPE_OUT,
         .handler = cmd_grep_handler,
-        .help_func = NULL
+        .help_func = cmd_grep_help
     });
 
     cmd_register(&(command_t){
@@ -138,7 +146,7 @@ int cmd_register_all(void)
         .category = CMD_CAT_UTILITY,
         .flags = CMD_FLAG_PIPE_OUT,
         .handler = cmd_find_handler,
-        .help_func = NULL
+        .help_func = cmd_find_help
     });
 
     /* Network commands */
@@ -148,7 +156,7 @@ int cmd_register_all(void)
         .category = CMD_CAT_NETWORK,
         .flags = 0,
         .handler = cmd_ping_handler,
-        .help_func = NULL
+        .help_func = cmd_ping_help
     });
 
     /* System commands */
@@ -158,7 +166,7 @@ int cmd_register_all(void)
         .category = CMD_CAT_SYSTEM,
         .flags = CMD_FLAG_PIPE_OUT,
         .handler = cmd_ps_handler,
-        .help_func = NULL
+        .help_func = cmd_ps_help
     });
 
     /* Administrative commands */
@@ -168,7 +176,7 @@ int cmd_register_all(void)
         .category = CMD_CAT_ADMIN,
         .flags = CMD_FLAG_NEEDS_ROOT,
         .handler = cmd_chmod_handler,
-        .help_func = NULL
+        .help_func = cmd_chmod_help
     });
 
     return 0;

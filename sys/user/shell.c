@@ -10,6 +10,121 @@
 
 #define MAX_LINE 1024
 #define MAX_ARGS 64
+#define HISTORY_SIZE 100
+
+/*
+ * Read line with history support
+ */
+static int read_line_with_history(char *line, int max_len, char history[HISTORY_SIZE][MAX_LINE], int *history_count, int *history_index)
+{
+    int i = 0;
+    int ch;
+
+    while (i < max_len - 1) {
+        ch = getchar();
+        if (ch == '\n') {
+            line[i] = 0;
+            break;
+        } else if (ch == '\033') {  /* Escape sequence */
+            ch = getchar();
+            if (ch == '[') {
+                ch = getchar();
+                if (ch == 'A') {  /* Up arrow */
+                    if (*history_index > 0) {
+                        (*history_index)--;
+                        strcpy(line, history[*history_index]);
+                        printf("\r$ %s", line);
+                        fflush(stdout);
+                        i = strlen(line);
+                    }
+                } else if (ch == 'B') {  /* Down arrow */
+                    if (*history_index < *history_count - 1) {
+                        (*history_index)++;
+                        strcpy(line, history[*history_index]);
+                        printf("\r$ %s", line);
+                        fflush(stdout);
+                        i = strlen(line);
+                    } else if (*history_index == *history_count - 1) {
+                        (*history_index) = *history_count;
+                        line[0] = 0;
+                        printf("\r$ ");
+                        fflush(stdout);
+                        i = 0;
+                    }
+                }
+            }
+        } else if (ch == '\t') {  /* Tab for completion */
+            /* Find partial command */
+            line[i] = 0;
+            char *partial = line;
+            /* Skip to last word */
+            char *last_space = strrchr(line, ' ');
+            if (last_space) {
+                partial = last_space + 1;
+            }
+
+            /* Find matching commands */
+            command_t commands[MAX_COMMANDS];
+            int count = cmd_list(commands, MAX_COMMANDS, CMD_CAT_MAX);  /* All categories */
+
+            char *match = NULL;
+            int match_count = 0;
+            for (int j = 0; j < count; j++) {
+                if (strncmp(commands[j].name, partial, strlen(partial)) == 0) {
+                    if (match_count == 0) {
+                        match = commands[j].name;
+                    }
+                    match_count++;
+                }
+            }
+
+            if (match_count == 1) {
+                /* Complete */
+                strcpy(partial, match);
+                printf("\r$ %s", line);
+                fflush(stdout);
+                i = strlen(line);
+            } else if (match_count > 1) {
+                /* Show possibilities */
+                printf("\n");
+                for (int j = 0; j < count; j++) {
+                    if (strncmp(commands[j].name, partial, strlen(partial)) == 0) {
+                        printf("%s ", commands[j].name);
+                    }
+                }
+                printf("\n$ %s", line);
+                fflush(stdout);
+            }
+        } else if (ch == 127 || ch == '\b') {  /* Backspace */
+            if (i > 0) {
+                i--;
+                printf("\b \b");
+                fflush(stdout);
+            }
+        } else {
+            line[i++] = ch;
+            putchar(ch);
+            fflush(stdout);
+        }
+    }
+
+    if (i > 0) {
+        /* Add to history */
+        if (*history_count < HISTORY_SIZE) {
+            strcpy(history[*history_count], line);
+            (*history_count)++;
+        } else {
+            /* Shift */
+            for (int j = 1; j < HISTORY_SIZE; j++) {
+                strcpy(history[j-1], history[j]);
+            }
+            strcpy(history[HISTORY_SIZE-1], line);
+        }
+        *history_index = *history_count;
+    }
+
+    return i;
+}
 
 /*
  * Parse command line into arguments
@@ -124,20 +239,18 @@ int main(int argc, char **argv)
     lang_register_runtime(cpp_create_runtime());
 
     char line[MAX_LINE];
+    char history[HISTORY_SIZE][MAX_LINE];
+    int history_count = 0;
+    int history_index = -1;
 
     while (1) {
         printf("$ ");
         fflush(stdout);
 
-        /* Read line */
-        int i = 0;
-        int ch;
-        while ((ch = getchar()) != '\n' && ch != EOF && i < sizeof(line) - 1) {
-            line[i++] = ch;
-        }
-        line[i] = 0;
+        /* Read line with history */
+        int len = read_line_with_history(line, sizeof(line), history, &history_count, &history_index);
 
-        if (ch == EOF) break;
+        if (len < 0) break;  /* EOF */
 
         /* Execute command */
         if (execute_line(line) != 0) {

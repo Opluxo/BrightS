@@ -31,12 +31,11 @@ if command -v xorriso >/dev/null 2>&1; then
     -isohybrid-gpt-basdat \
     "${ISO_DIR}"
 
-  printf "ISO created: %s\n" "${BUILD_DIR}/brights.iso"
-  exit 0
+   printf "ISO created: %s\n" "${BUILD_DIR}/brights.iso"
 fi
 
-# Fallback: create FAT32 EFI system partition image (UEFI bootable)
-echo "xorriso not found, creating FAT32 EFI image instead..."
+# Always create FAT32 EFI system partition image (UEFI bootable)
+echo "Creating FAT32 EFI image..."
 python3 "${ROOT_DIR}/tools/create-efi-img.py" "${KERNEL_EFI}" "${OUTPUT_IMG}"
 
 printf "EFI image created: %s\n" "${OUTPUT_IMG}"

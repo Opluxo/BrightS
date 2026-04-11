@@ -242,6 +242,25 @@ int vsnprintf(char *buf, uint64_t n, const char *fmt, ...)
   return pos;
 }
 
+/*
+ * Basic I/O functions
+ */
+int getchar(void)
+{
+    char c;
+    if (sys_read(0, &c, 1) == 1) {
+        return (int)(unsigned char)c;
+    }
+    return EOF;
+}
+
+int fflush(void *stream)
+{
+    (void)stream;
+    /* For now, just return success */
+    return 0;
+}
+
 /* ===== Minimal malloc (brk-based) ===== */
 
 static uint64_t heap_start = 0;
@@ -355,15 +374,16 @@ void *realloc(void *ptr, uint64_t new_size)
         return NULL;
     }
 
-    /* Simple implementation: allocate new block and copy */
+    /* Get current block size */
+    malloc_header_t *hdr = (malloc_header_t *)((uint64_t)ptr - sizeof(malloc_header_t));
+    if (hdr->size >= new_size) return ptr; /* Block is big enough */
+
+    /* Allocate new block and copy */
     void *new_ptr = malloc(new_size);
-    if (!new_ptr) return NULL;
-
-    /* Copy existing data (we don't know the old size, so copy conservatively) */
-    /* This is a limitation of our simple malloc */
-    memcpy(new_ptr, ptr, new_size); /* Hope this is enough */
-    free(ptr);
-
+    if (new_ptr) {
+        memcpy(new_ptr, ptr, hdr->size);
+        free(ptr);
+    }
     return new_ptr;
 }
 
@@ -375,17 +395,6 @@ void *calloc(uint64_t nmemb, uint64_t size)
         memset(ptr, 0, total);
     }
     return ptr;
-}
-
-  malloc_header_t *hdr = (malloc_header_t *)((uint64_t)ptr - sizeof(malloc_header_t));
-  if (hdr->size >= new_size) return ptr; /* Block is big enough */
-
-  void *new_ptr = malloc(new_size);
-  if (new_ptr) {
-    memcpy(new_ptr, ptr, hdr->size);
-    free(ptr);
-  }
-  return new_ptr;
 }
 
 /* ===== Simple printf ===== */

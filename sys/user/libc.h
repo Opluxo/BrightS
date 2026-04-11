@@ -37,6 +37,12 @@ int puts(const char *s);
 int printf(const char *fmt, ...);
 int sprintf(char *buf, const char *fmt, ...);
 int snprintf(char *buf, uint64_t n, const char *fmt, ...);
+int getchar(void);
+int fflush(void *stream);
+
+/* Standard I/O constants */
+#define EOF (-1)
+#define stdout ((void*)1)
 
 /* ===== System calls (direct wrappers) ===== */
 int64_t sys_read(int fd, void *buf, uint64_t count);

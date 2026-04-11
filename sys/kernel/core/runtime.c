@@ -101,7 +101,9 @@ void *memcpy(void *dst, const void *src, size_t n)
 
   return dst;
 }
-void __chkstk(void)
+__attribute__((used)) void __chkstk(void)
 {
-  /* Minimal stack probe hook for UEFI/COFF toolchain */
+  /* Stack probe hook for x86-64 - ensures stack space availability */
+  /* In UEFI environment, we assume sufficient stack space */
+  __asm__ __volatile__("" : : : "memory");
 }

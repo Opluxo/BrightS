@@ -2,7 +2,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Version](https://img.shields.io/badge/version-0.1.2.2-green.svg)]()
-[![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](BrightS/docs/README.md)
+[![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](docs/README.md)
 
 BrightS System Suite 是一个完整的类Unix操作系统生态系统，包含内核、包管理系统和系统优化工具。
 

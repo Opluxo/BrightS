@@ -2,8 +2,9 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Version](https://img.shields.io/badge/version-0.1.2.2-green.svg)]()
+[![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](BrightS/docs/README.md)
 
-BrightS System Suite 是一个完整的类Unix操作系统生态系统，包含内核、包管理系统和辅助工具。
+BrightS System Suite 是一个完整的类Unix操作系统生态系统，包含内核、包管理系统和系统优化工具。
 
 ## 📁 项目结构
 
@@ -49,7 +50,7 @@ BrightS_System_Suite/
 - 启动时间优化
 
 **📍 位置**: `SuperFetch/`
-**📚 文档**: 开发中
+**📚 文档**: [SuperFetch README](SuperFetch/README.md)
 
 ## 🏗️ 构建和安装
 
@@ -86,11 +87,11 @@ make run
 
 | 文档 | 描述 | 位置 |
 |------|------|------|
-| [系统参考手册](BrightS/COMMAND_REFERENCE.md) | 完整的命令和API参考 | `BrightS/COMMAND_REFERENCE.md` |
-| [系统参考手册 (中文)](BrightS/COMMAND_REFERENCE_CN.md) | 中文版命令参考 | `BrightS/COMMAND_REFERENCE_CN.md` |
+| [系统参考手册](BrightS/docs/user-guide/COMMAND_REFERENCE.md) | 完整的命令和API参考 | `BrightS/docs/user-guide/COMMAND_REFERENCE.md` |
+| [系统参考手册 (中文)](BrightS/docs/user-guide/COMMAND_REFERENCE_CN.md) | 中文版命令参考 | `BrightS/docs/user-guide/COMMAND_REFERENCE_CN.md` |
 | [包格式规范](BrightS_Package_Manager/PACKAGE_FORMAT.md) | BSPM包格式标准 | `BrightS_Package_Manager/PACKAGE_FORMAT.md` |
-| [项目结构](BrightS/docs/PROJECT_STRUCTURE.md) | 内核架构说明 | `BrightS/docs/PROJECT_STRUCTURE.md` |
-| [开发指南](BrightS/docs/DEVELOPMENT.md) | 开发环境设置 | `BrightS/docs/DEVELOPMENT.md` |
+| [项目架构](BrightS/docs/developer-guide/PROJECT_STRUCTURE.md) | 内核架构说明 | `BrightS/docs/developer-guide/PROJECT_STRUCTURE.md` |
+| [开发指南](BrightS/docs/developer-guide/DEVELOPMENT.md) | 开发环境设置 | `BrightS/docs/developer-guide/DEVELOPMENT.md` |
 
 ### 🛠️ 开发文档
 

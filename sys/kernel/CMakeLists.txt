@@ -99,6 +99,54 @@ set(KERNEL_SOURCES
   )
 
   add_custom_target(kernel_efi ALL DEPENDS ${KERNEL_EFI})
+
+  # Find QEMU
+  find_program(QEMU_BIN qemu-system-x86_64)
+  if(QEMU_BIN)
+    # Create EFI boot directory structure
+    add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/EFI/BOOT/BOOTX64.EFI
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/EFI/BOOT
+      COMMAND ${CMAKE_COMMAND} -E copy ${KERNEL_EFI} ${CMAKE_CURRENT_BINARY_DIR}/EFI/BOOT/BOOTX64.EFI
+      DEPENDS ${KERNEL_EFI}
+      VERBATIM
+    )
+
+    add_custom_target(efi_boot ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/EFI/BOOT/BOOTX64.EFI)
+
+    # Run target - direct EFI execution
+    add_custom_target(run
+      COMMAND ${QEMU_BIN}
+        -bios /usr/share/edk2/x64/OVMF.4m.fd
+        -drive file=fat:rw:${CMAKE_CURRENT_BINARY_DIR},format=raw
+        -net none
+        -serial stdio
+        -no-reboot
+        -no-shutdown
+        -m 512
+      DEPENDS efi_boot
+      USES_TERMINAL
+      VERBATIM
+    )
+
+    # Debug run target
+    add_custom_target(run-debug
+      COMMAND ${QEMU_BIN}
+        -bios /usr/share/edk2/x64/OVMF.4m.fd
+        -drive file=fat:rw:${CMAKE_CURRENT_BINARY_DIR},format=raw
+        -net none
+        -serial stdio
+        -no-reboot
+        -no-shutdown
+        -s -S
+        -m 512
+      DEPENDS efi_boot
+      USES_TERMINAL
+      VERBATIM
+    )
+  else()
+    message(STATUS "QEMU not found - run targets disabled")
+  endif()
 else()
   message(STATUS "UEFI_CLANG=OFF: kernel_efi target disabled")
 endif()

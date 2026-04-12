@@ -3,7 +3,7 @@
 #include "../dev/serial.h"
 #include "../core/printf.h"
 #include "../core/kernel_util.h"
-#include "../core/cache.h"
+/* #include "../../include/kernel/cache.h" */  /* TODO: Enable when cache system is complete */
 #include "dhcp/dhcp.h"
 #include "dns/dns.h"
 #include "http/http.h"
@@ -822,10 +822,12 @@ void brights_net_init(void)
     kutil_memset(arp_cache, 0, sizeof(arp_cache));
     kutil_memset(sockets, 0, sizeof(sockets));
 
-    /* Initialize network caches */
+    /* TODO: Initialize network caches */
+    /*
     if (global_caches[CACHE_TYPE_DNS]) {
-        /* DNS cache already initialized globally */
+        // DNS cache already initialized globally
     }
+    */
 
     /* Initialize network subsystems */
     brights_dhcp_client_init();

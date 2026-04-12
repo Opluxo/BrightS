@@ -34,7 +34,7 @@
 #include "clock.h"
 #include "hwinfo.h"
 #include "kmalloc.h"
-#include "cache.h"
+/* #include "../../../include/kernel/cache.h" */  /* TODO: Enable when cache system is complete */
 #include "pmem.h"
 #include "proc.h"
 #include "sched.h"
@@ -205,7 +205,7 @@ void brights_kernel_main(void)
 
   /* ---- Memory ---- */
   brights_kmalloc_init();
-  brights_cache_init();  /* Initialize global cache system */
+  /* brights_cache_init(); */  /* TODO: Implement cache system */
   brights_proc_init();
   brights_sched_init();
   brights_signal_init();

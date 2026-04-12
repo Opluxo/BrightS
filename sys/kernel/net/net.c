@@ -3,6 +3,7 @@
 #include "../dev/serial.h"
 #include "../core/printf.h"
 #include "../core/kernel_util.h"
+#include "../core/cache.h"
 #include "dhcp/dhcp.h"
 #include "dns/dns.h"
 #include "http/http.h"
@@ -820,7 +821,12 @@ void brights_net_init(void)
     netif_count = 0;
     kutil_memset(arp_cache, 0, sizeof(arp_cache));
     kutil_memset(sockets, 0, sizeof(sockets));
-    
+
+    /* Initialize network caches */
+    if (global_caches[CACHE_TYPE_DNS]) {
+        /* DNS cache already initialized globally */
+    }
+
     /* Initialize network subsystems */
     brights_dhcp_client_init();
     brights_dns_init("8.8.8.8", "8.8.4.4");

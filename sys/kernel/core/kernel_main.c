@@ -34,6 +34,7 @@
 #include "clock.h"
 #include "hwinfo.h"
 #include "kmalloc.h"
+#include "cache.h"
 #include "pmem.h"
 #include "proc.h"
 #include "sched.h"
@@ -204,6 +205,7 @@ void brights_kernel_main(void)
 
   /* ---- Memory ---- */
   brights_kmalloc_init();
+  brights_cache_init();  /* Initialize global cache system */
   brights_proc_init();
   brights_sched_init();
   brights_signal_init();

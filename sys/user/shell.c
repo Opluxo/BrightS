@@ -67,14 +67,18 @@ static int read_line_with_history(char *line, int max_len, char history[HISTORY_
             command_t commands[MAX_COMMANDS];
             int count = cmd_list(commands, MAX_COMMANDS, CMD_CAT_MAX);  /* All categories */
 
+            /* Single pass to find matches and collect completion list */
             char *match = NULL;
+            char *completion_list[32];  /* Max 32 completions */
             int match_count = 0;
-            for (int j = 0; j < count; j++) {
-                if (strncmp(commands[j].name, partial, strlen(partial)) == 0) {
+            int partial_len = strlen(partial);
+
+            for (int j = 0; j < count && match_count < 32; j++) {
+                if (strncmp(commands[j].name, partial, partial_len) == 0) {
                     if (match_count == 0) {
                         match = commands[j].name;
                     }
-                    match_count++;
+                    completion_list[match_count++] = commands[j].name;
                 }
             }
 
@@ -87,10 +91,8 @@ static int read_line_with_history(char *line, int max_len, char history[HISTORY_
             } else if (match_count > 1) {
                 /* Show possibilities */
                 printf("\n");
-                for (int j = 0; j < count; j++) {
-                    if (strncmp(commands[j].name, partial, strlen(partial)) == 0) {
-                        printf("%s ", commands[j].name);
-                    }
+                for (int j = 0; j < match_count; j++) {
+                    printf("%s ", completion_list[j]);
                 }
                 printf("\n$ %s", line);
                 fflush(stdout);

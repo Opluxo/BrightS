@@ -92,16 +92,39 @@ int cmd_execute(int argc, char **argv)
 }
 
 /*
- * Find a command by name
+ * Find a command by name (optimized with early exit for common prefixes)
  */
 int cmd_find(const char *name, command_t *cmd)
 {
-    for (int i = 0; i < command_count; i++) {
+    if (!name || !*name) return -1;
+
+    /* Fast path: check if name starts with common prefixes */
+    char first_char = *name;
+    int start_idx = 0;
+
+    /* Simple hash-based start position hint */
+    if (first_char >= 'a' && first_char <= 'z') {
+        /* Estimate starting position based on first letter */
+        start_idx = (first_char - 'a') * (command_count / 26);
+        if (start_idx >= command_count) start_idx = 0;
+    }
+
+    /* Search from hinted position first, then wrap around */
+    for (int i = start_idx; i < command_count; i++) {
         if (strcmp(commands[i].name, name) == 0) {
             memcpy(cmd, &commands[i], sizeof(command_t));
             return 0;
         }
     }
+
+    /* If not found in hinted range, search from beginning */
+    for (int i = 0; i < start_idx; i++) {
+        if (strcmp(commands[i].name, name) == 0) {
+            memcpy(cmd, &commands[i], sizeof(command_t));
+            return 0;
+        }
+    }
+
     return -1;
 }
 

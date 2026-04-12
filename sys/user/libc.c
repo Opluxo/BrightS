@@ -102,15 +102,30 @@ char *strrchr(const char *s, int c)
 char *strstr(const char *haystack, const char *needle)
 {
   if (!*needle) return (char *)haystack;
-  for (; *haystack; ++haystack) {
-    if (*haystack == *needle) {
-      const char *h = haystack;
-      const char *n = needle;
-      while (*n && *h == *n) { ++h; ++n; }
-      if (!*n) return (char *)haystack;
+
+  /* Optimized version using simple skip-ahead for common cases */
+  int needle_len = strlen(needle);
+  if (needle_len == 0) return (char *)haystack;
+  if (needle_len == 1) {
+    /* Fast path for single character search */
+    return strchr(haystack, *needle);
+  }
+
+  /* Use Boyer-Moore like skip for first character */
+  const char *hay = haystack;
+  const char *end = haystack + strlen(haystack) - needle_len + 1;
+
+  for (; hay < end; ++hay) {
+    if (*hay == *needle) {
+      /* Check if rest matches */
+      int i;
+      for (i = 1; i < needle_len; ++i) {
+        if (hay[i] != needle[i]) break;
+      }
+      if (i == needle_len) return (char *)hay;
     }
   }
-  return 0;
+  return NULL;
 }
 
 /* ===== Additional string functions ===== */

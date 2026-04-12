@@ -13,6 +13,15 @@ static uint64_t file_pool_bitmap;  /* Bit 0=free, 1=used */
 static vfs_mount_t mount_table[VFS_MAX_MOUNTS];
 static uint8_t mount_bitmap;  /* Bit 0=free, 1=used */
 
+/* Path resolution cache */
+#define PATH_CACHE_SIZE 16
+static struct {
+    char path[128];
+    vfs_mount_t *mount;
+    char rel_path[128];
+} path_cache[PATH_CACHE_SIZE];
+static int path_cache_next = 0;
+
 /* ---- String helpers ---- */
 static int vfs_str_len(const char *s)
 {
@@ -150,8 +159,17 @@ vfs_mount_t *brights_vfs2_resolve(const char *full_path, const char **rel_path_o
   char norm[256];
   if (vfs_normalize(full_path, norm, sizeof(norm)) < 0) return 0;
 
+  /* Check cache first */
+  for (int i = 0; i < PATH_CACHE_SIZE; i++) {
+    if (path_cache[i].mount && vfs_str_eq(path_cache[i].path, full_path)) {
+      if (rel_path_out) *rel_path_out = path_cache[i].rel_path;
+      return path_cache[i].mount;
+    }
+  }
+
   vfs_mount_t *best = 0;
   int best_len = 0;
+  char best_rel_path[256];
 
   for (int i = 0; i < VFS_MAX_MOUNTS; ++i) {
     if (!mount_table[i].active) continue;
@@ -164,7 +182,7 @@ vfs_mount_t *brights_vfs2_resolve(const char *full_path, const char **rel_path_o
       if (best_len < 1) {
         best = &mount_table[i];
         best_len = 1;
-        if (rel_path_out) *rel_path_out = norm;
+        vfs_str_copy(best_rel_path, sizeof(best_rel_path), norm);
       }
       continue;
     }
@@ -175,13 +193,23 @@ vfs_mount_t *brights_vfs2_resolve(const char *full_path, const char **rel_path_o
         if (ml > best_len) {
           best = &mount_table[i];
           best_len = ml;
-          if (rel_path_out) {
-            *rel_path_out = (next == 0) ? "/" : &norm[ml];
-          }
+          vfs_str_copy(best_rel_path, sizeof(best_rel_path),
+                      (next == 0) ? "/" : &norm[ml]);
         }
       }
     }
   }
+
+  if (best) {
+    /* Update cache */
+    path_cache[path_cache_next].mount = best;
+    vfs_str_copy(path_cache[path_cache_next].path, sizeof(path_cache[path_cache_next].path), full_path);
+    vfs_str_copy(path_cache[path_cache_next].rel_path, sizeof(path_cache[path_cache_next].rel_path), best_rel_path);
+    path_cache_next = (path_cache_next + 1) % PATH_CACHE_SIZE;
+
+    if (rel_path_out) *rel_path_out = best_rel_path;
+  }
+
   return best;
 }
 

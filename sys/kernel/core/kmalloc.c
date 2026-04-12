@@ -40,6 +40,9 @@ typedef struct {
 
 static slab_class_t slab_classes[SLAB_CLASSES];
 
+/* Cache recently used slab pages for faster allocation */
+static slab_page_t *recent_pages[SLAB_CLASSES];
+
 /* Stats */
 static size_t kmalloc_total_used = 0;
 static size_t kmalloc_slab_used = 0;
@@ -110,6 +113,7 @@ void brights_kmalloc_init(void)
   for (int i = 0; i < SLAB_CLASSES; ++i) {
     slab_classes[i].block_size = slab_sizes[i];
     slab_classes[i].pages = 0;
+    recent_pages[i] = 0;  /* Initialize recent page cache */
   }
 
   /* Initialize fallback heap */
@@ -122,12 +126,27 @@ void brights_kmalloc_init(void)
   kmalloc_heap_used = 0;
 }
 
-/* Find slab class for given size */
+/* Find slab class for given size (optimized binary search) */
 static int find_slab_class(size_t size)
 {
-  for (int i = 0; i < SLAB_CLASSES; ++i) {
-    if (size <= slab_sizes[i]) return i;
+  if (size == 0 || size > slab_sizes[SLAB_CLASSES - 1]) return -1;
+
+  /* Binary search for the appropriate slab class */
+  int left = 0;
+  int right = SLAB_CLASSES - 1;
+
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    if (slab_sizes[mid] >= size) {
+      if (mid == 0 || slab_sizes[mid - 1] < size) {
+        return mid;
+      }
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+    }
   }
+
   return -1;
 }
 
@@ -140,9 +159,24 @@ void *brights_kmalloc(size_t size)
   if (class_idx >= 0) {
     slab_class_t *sc = &slab_classes[class_idx];
 
+    /* Try recently used page first for better cache locality */
+    slab_page_t *recent = recent_pages[class_idx];
+    if (recent && recent->free_count > 0 && recent->free_list) {
+      slab_free_t *block = recent->free_list;
+      recent->free_list = block->next;
+      recent->free_count--;
+      kmalloc_slab_used += sc->block_size;
+      kmalloc_total_used += sc->block_size;
+      zero_mem(block, sc->block_size);
+      return (void *)block;
+    }
+
     /* Try existing pages */
     for (slab_page_t *sp = sc->pages; sp; sp = sp->next) {
       if (sp->free_count > 0 && sp->free_list) {
+        /* Update recent page cache */
+        recent_pages[class_idx] = sp;
+
         slab_free_t *block = sp->free_list;
         sp->free_list = block->next;
         sp->free_count--;
@@ -170,31 +204,47 @@ void *brights_kmalloc(size_t size)
     /* Fall through to heap if pmem exhausted */
   }
 
-  /* Fallback heap allocator for large allocations */
+  /* Fallback heap allocator for large allocations (best-fit algorithm) */
   size_t total_size = align_up(size + sizeof(kmalloc_block_t), KMALLOC_ALIGN);
   if (total_size < KMALLOC_MIN_BLOCK) total_size = KMALLOC_MIN_BLOCK;
 
-  kmalloc_block_t *prev = 0;
+  kmalloc_block_t *best_fit = 0;
+  kmalloc_block_t *best_fit_prev = 0;
   kmalloc_block_t *curr = free_list;
+  kmalloc_block_t *prev = 0;
+  size_t best_fit_size = (size_t)-1;  /* Maximum size_t value */
 
+  /* Find best-fit block */
   while (curr) {
-    if (curr->size >= total_size) {
-      if (curr->size >= total_size + KMALLOC_MIN_BLOCK) {
-        kmalloc_block_t *new_block = (kmalloc_block_t *)((uint8_t *)curr + total_size);
-        new_block->size = curr->size - total_size;
-        new_block->next = curr->next;
-        curr->size = total_size;
-        curr->next = new_block;
-      }
-      if (prev) prev->next = curr->next;
-      else free_list = curr->next;
-      kmalloc_heap_used += curr->size;
-      kmalloc_total_used += curr->size;
-      return (void *)((uint8_t *)curr + sizeof(kmalloc_block_t));
+    if (curr->size >= total_size && curr->size < best_fit_size) {
+      best_fit = curr;
+      best_fit_prev = prev;
+      best_fit_size = curr->size;
     }
     prev = curr;
     curr = curr->next;
   }
+
+  if (!best_fit) {
+    return 0;  /* No suitable block found */
+  }
+
+  /* Split block if it's large enough */
+  if (best_fit->size >= total_size + KMALLOC_MIN_BLOCK) {
+    kmalloc_block_t *new_block = (kmalloc_block_t *)((uint8_t *)best_fit + total_size);
+    new_block->size = best_fit->size - total_size;
+    new_block->next = best_fit->next;
+    best_fit->size = total_size;
+    best_fit->next = new_block;
+  }
+
+  /* Remove from free list */
+  if (best_fit_prev) best_fit_prev->next = best_fit->next;
+  else free_list = best_fit->next;
+
+  kmalloc_heap_used += best_fit->size;
+  kmalloc_total_used += best_fit->size;
+  return (void *)((uint8_t *)best_fit + sizeof(kmalloc_block_t));
 
   return 0;
 }

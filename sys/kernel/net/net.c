@@ -31,6 +31,18 @@ typedef struct {
   uint16_t type;
 } __attribute__((packed)) eth_hdr_t;
 
+/* ===== Helper functions ===== */
+static inline void net_copy_mac(uint8_t *dst, const uint8_t *src) {
+    kutil_memcpy(dst, src, 6);
+}
+
+static inline void net_set_eth_header(eth_hdr_t *eth, const uint8_t *dst_mac,
+                                    const uint8_t *src_mac, uint16_t type) {
+    net_copy_mac(eth->dst, dst_mac);
+    net_copy_mac(eth->src, src_mac);
+    eth->type = type;
+}
+
 /* ===== ARP ===== */
 typedef struct {
   uint16_t hw_type;
@@ -310,9 +322,7 @@ int brights_ip_send(uint32_t dst_ip, uint8_t protocol, const void *data, uint32_
 
   /* Build Ethernet header */
   eth_hdr_t *eth = (eth_hdr_t *)frame;
-  kutil_memcpy(eth->dst, dst_mac, 6);
-  kutil_memcpy(eth->src, iface->mac, 6);
-  eth->type = 0x0008; /* ETH_TYPE_IP (big-endian) */
+  net_set_eth_header(eth, dst_mac, iface->mac, 0x0008); /* ETH_TYPE_IP (big-endian) */
 
   uint32_t frame_len = sizeof(eth_hdr_t) + total_len;
   brights_net_send(frame, frame_len);

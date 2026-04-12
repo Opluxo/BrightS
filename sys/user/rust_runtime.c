@@ -1,4 +1,5 @@
 #include "rust_runtime.h"
+#include "lang_runtime.h"
 #include "libc.h"
 
 static rust_runtime_context_t rust_ctx;
@@ -16,7 +17,20 @@ static void rust_default_panic_handler(rust_panic_info_t *info)
  */
 int rust_runtime_init(void)
 {
-    memset(&rust_ctx, 0, sizeof(rust_ctx));
+    /* Use common initialization */
+    if (runtime_init_common("rust", &rust_ctx, sizeof(rust_ctx),
+                           RUST_HEAP_SIZE, &rust_ctx.heap_base, NULL) != 0) {
+        return -1;
+    }
+
+    /* Initialize stack separately */
+    rust_ctx.stack_size = RUST_STACK_SIZE;
+    rust_ctx.stack_base = malloc(rust_ctx.stack_size);
+    if (!rust_ctx.stack_base) {
+        printf("rust: failed to allocate stack\n");
+        free(rust_ctx.heap_base);
+        return -1;
+    }
 
     /* Setup memory management */
     rust_ctx.alloc = rust_alloc;
@@ -25,23 +39,6 @@ int rust_runtime_init(void)
 
     /* Setup panic handler */
     rust_ctx.panic_handler = rust_default_panic_handler;
-
-    /* Initialize heap */
-    rust_ctx.heap_size = RUST_HEAP_SIZE;
-    rust_ctx.heap_base = malloc(rust_ctx.heap_size);
-    if (!rust_ctx.heap_base) {
-        printf("rust: failed to allocate heap\n");
-        return -1;
-    }
-
-    /* Initialize stack */
-    rust_ctx.stack_size = RUST_STACK_SIZE;
-    rust_ctx.stack_base = malloc(rust_ctx.stack_size);
-    if (!rust_ctx.stack_base) {
-        printf("rust: failed to allocate stack\n");
-        free(rust_ctx.heap_base);
-        return -1;
-    }
 
     printf("rust: runtime initialized (heap: %dKB, stack: %dKB)\n",
            rust_ctx.heap_size / 1024, rust_ctx.stack_size / 1024);

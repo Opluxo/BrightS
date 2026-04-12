@@ -172,15 +172,9 @@ int brights_simd_memcmp(const void *a, const void *b, size_t n)
 void brights_simd_vec_add_f32(float *dst, const float *a, const float *b, size_t n)
 {
 #ifdef __AVX__
-    if (brights_simd_caps.has_avx && n >= 8) {
-        size_t avx_blocks = n / 8;
-        for (size_t i = 0; i < avx_blocks; i++) {
-            __m256 va = _mm256_loadu_ps(a + i * 8);
-            __m256 vb = _mm256_loadu_ps(b + i * 8);
-            __m256 result = _mm256_add_ps(va, vb);
-            _mm256_storeu_ps(dst + i * 8, result);
-        }
-        n %= 8;
+    if (SIMD_AVX_CHECK(n, 8)) {
+        SIMD_VEC_PROCESS_AVX(__m256, _mm256_loadu_ps, _mm256_storeu_ps,
+                           _mm256_add_ps, dst, a, b, 8, n);
     }
 #endif
 

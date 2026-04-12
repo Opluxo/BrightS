@@ -21,6 +21,23 @@
 #include <immintrin.h>
 #endif
 
+/* SIMD helper macros */
+#define SIMD_AVX_CHECK(n, vec_size) (brights_simd_caps.has_avx && (n) >= (vec_size))
+#define SIMD_SSE2_CHECK(n, vec_size) (brights_simd_caps.has_sse2 && (n) >= (vec_size))
+
+/* Vector processing macros */
+#define SIMD_VEC_PROCESS_AVX(type, load, store, op, dst, a, b, vec_size, total) \
+    do { \
+        size_t blocks = (total) / (vec_size); \
+        for (size_t i = 0; i < blocks; i++) { \
+            type va = load((a) + i * (vec_size)); \
+            type vb = load((b) + i * (vec_size)); \
+            type result = op(va, vb); \
+            store((dst) + i * (vec_size), result); \
+        } \
+        (total) %= (vec_size); \
+    } while(0)
+
 /* SIMD capability detection */
 typedef struct {
     int has_sse2;

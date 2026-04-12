@@ -1,4 +1,5 @@
 #include "cpp_runtime.h"
+#include "lang_runtime.h"
 #include "libc.h"
 
 static cpp_runtime_context_t cpp_ctx;
@@ -8,24 +9,47 @@ static cpp_runtime_context_t cpp_ctx;
  */
 int cpp_runtime_init(void)
 {
-    memset(&cpp_ctx, 0, sizeof(cpp_ctx));
-
-    /* Initialize heap */
-    cpp_ctx.heap_size = CPP_HEAP_SIZE;
-    cpp_ctx.heap_base = malloc(cpp_ctx.heap_size);
-    if (!cpp_ctx.heap_base) {
-        printf("cpp: failed to allocate heap\n");
+    /* Use common initialization */
+    if (runtime_init_common("cpp", &cpp_ctx, sizeof(cpp_ctx),
+                           CPP_HEAP_SIZE, &cpp_ctx.heap_base, &cpp_ctx.heap_ptr) != 0) {
         return -1;
     }
-    cpp_ctx.heap_ptr = cpp_ctx.heap_base;
 
     /* Initialize standard streams */
     cpp_ctx.iostream_cout = calloc(1, 1024); /* Simplified stream buffer */
+    if (!cpp_ctx.iostream_cout) {
+        free(cpp_ctx.heap_base);
+        printf("cpp: failed to allocate cout buffer\n");
+        return -1;
+    }
+
     cpp_ctx.iostream_cin = calloc(1, 1024);
+    if (!cpp_ctx.iostream_cin) {
+        free(cpp_ctx.iostream_cout);
+        free(cpp_ctx.heap_base);
+        printf("cpp: failed to allocate cin buffer\n");
+        return -1;
+    }
+
     cpp_ctx.iostream_cerr = calloc(1, 1024);
+    if (!cpp_ctx.iostream_cerr) {
+        free(cpp_ctx.iostream_cin);
+        free(cpp_ctx.iostream_cout);
+        free(cpp_ctx.heap_base);
+        printf("cpp: failed to allocate cerr buffer\n");
+        return -1;
+    }
 
     /* Initialize RTTI cache */
     cpp_ctx.vtable_cache = calloc(64, sizeof(void *));
+    if (!cpp_ctx.vtable_cache) {
+        free(cpp_ctx.iostream_cerr);
+        free(cpp_ctx.iostream_cin);
+        free(cpp_ctx.iostream_cout);
+        free(cpp_ctx.heap_base);
+        printf("cpp: failed to allocate vtable cache\n");
+        return -1;
+    }
     cpp_ctx.vtable_count = 0;
 
     printf("cpp: runtime initialized (heap: %dKB)\n", cpp_ctx.heap_size / 1024);

@@ -1,4 +1,5 @@
 #include "python_runtime.h"
+#include "lang_runtime.h"
 #include "libc.h"
 
 static py_vm_t py_vm;
@@ -8,20 +9,27 @@ static py_vm_t py_vm;
  */
 int py_runtime_init(void)
 {
-    memset(&py_vm, 0, sizeof(py_vm));
-
-    /* Initialize heap */
-    py_vm.heap_size = PY_HEAP_SIZE;
-    py_vm.heap_base = malloc(py_vm.heap_size);
-    if (!py_vm.heap_base) {
-        printf("python: failed to allocate heap\n");
+    /* Use common initialization */
+    if (runtime_init_common("python", &py_vm, sizeof(py_vm),
+                           PY_HEAP_SIZE, &py_vm.heap_base, &py_vm.heap_ptr) != 0) {
         return -1;
     }
-    py_vm.heap_ptr = py_vm.heap_base;
 
     /* Initialize globals */
     py_vm.globals = calloc(256, sizeof(py_object_t *));
+    if (!py_vm.globals) {
+        free(py_vm.heap_base);
+        printf("python: failed to allocate globals\n");
+        return -1;
+    }
+
     py_vm.builtins = calloc(256, sizeof(py_object_t *));
+    if (!py_vm.builtins) {
+        free(py_vm.globals);
+        free(py_vm.heap_base);
+        printf("python: failed to allocate builtins\n");
+        return -1;
+    }
 
     /* Setup built-ins */
     py_vm.builtins['p' - 'a'] = py_new_object(PY_FUNCTION); /* print */
@@ -30,8 +38,6 @@ int py_runtime_init(void)
 
     py_vm.running = 1;
     py_vm.error = 0;
-
-    printf("python: runtime initialized (heap: %dKB)\n", py_vm.heap_size / 1024);
     return 0;
 }
 

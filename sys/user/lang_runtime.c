@@ -4,6 +4,44 @@
 static language_manager_t lang_mgr;
 
 /*
+ * Common runtime initialization helper (public for use by runtime implementations)
+ */
+int runtime_init_common(const char *name, void *context, size_t context_size,
+                       size_t heap_size, void **heap_base, void **heap_ptr)
+{
+    /* Initialize context */
+    memset(context, 0, context_size);
+
+    /* Allocate heap */
+    *heap_base = malloc(heap_size);
+    if (!*heap_base) {
+        printf("%s: failed to allocate heap (%zu bytes)\n", name, heap_size);
+        return -1;
+    }
+
+    if (heap_ptr) {
+        *heap_ptr = *heap_base;
+    }
+
+    printf("%s: runtime initialized (heap: %zuKB)\n", name, heap_size / 1024);
+    return 0;
+}
+
+/*
+ * Common runtime cleanup helper
+ */
+static void runtime_cleanup_common(const char *name, void *heap_base, void *stack_base)
+{
+    if (heap_base) {
+        free(heap_base);
+    }
+    if (stack_base) {
+        free(stack_base);
+    }
+    printf("%s: runtime cleaned up\n", name);
+}
+
+/*
  * Initialize language runtime system
  */
 int lang_init(void)

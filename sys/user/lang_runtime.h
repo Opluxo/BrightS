@@ -56,6 +56,11 @@ typedef struct {
     runtime_t *current_runtime;
 } language_manager_t;
 
+/* Internal helpers (used by runtime implementations) */
+int runtime_init_common(const char *name, void *context, size_t context_size,
+                       size_t heap_size, void **heap_base, void **heap_ptr);
+void runtime_cleanup_common(const char *name, void *heap_base, void *stack_base);
+
 /* Public API */
 int lang_init(void);
 int lang_register_runtime(const runtime_t *runtime);

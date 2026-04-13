@@ -127,16 +127,6 @@ int brights_tty_read_char(char *out_ch)
     char raw_ch;
     if (brights_ps2kbd_read_char(&raw_ch) > 0) {
       cooked_process_char(raw_ch);
-      /* After processing, check if line is ready */
-      if (line_ready && line_pos < line_len) {
-        *out_ch = line_buf[line_pos++];
-        if (line_pos >= line_len) {
-          line_ready = 0;
-          line_len = 0;
-          line_pos = 0;
-        }
-        return 1;
-      }
     }
 
     /* Also check serial input */

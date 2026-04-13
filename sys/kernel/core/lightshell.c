@@ -1887,6 +1887,8 @@ static void cmd_date(void)
 
 static void cmd_kbdtest(void)
 {
+  int old_mode = brights_tty_get_mode();
+  brights_tty_set_mode(TTY_MODE_RAW);
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "kbdtest: type keys (ESC to exit)\n");
   for (;;) {
     char ch = 0;
@@ -1896,6 +1898,7 @@ static void cmd_kbdtest(void)
     }
     if (ch == 27) {
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\nkbdtest: done\n");
+      brights_tty_set_mode(old_mode);
       return;
     }
     char out[2] = {ch, 0};

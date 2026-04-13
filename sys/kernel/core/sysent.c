@@ -229,9 +229,13 @@ static int64_t sys_exec(uint64_t path, uint64_t argv, uint64_t envp, uint64_t a3
   if (brights_elf_load(elf_buf, (uint64_t)n, &load_info) != 0) return -1;
 
   /* Jump to new entry point (no return from exec) */
-  extern void brights_enter_user(void *rip, void *rsp);
+  extern void brights_enter_user(void *rip, void *rsp, uint64_t cr3);
+  extern uint64_t brights_proc_get_cr3(uint32_t pid);
+  extern uint32_t brights_proc_current(void);
+  uint64_t user_cr3 = brights_proc_get_cr3(brights_proc_current());
   brights_enter_user((void *)(uintptr_t)load_info.entry,
-                     (void *)(uintptr_t)load_info.stack_top);
+                      (void *)(uintptr_t)load_info.stack_top,
+                      user_cr3);
 
   /* Should not reach here */
   return -1;

@@ -69,6 +69,7 @@ void brights_kernel_main(void)
 {
   brights_console_t con;
   brights_serial_console_init(&con, BRIGHTS_COM1_PORT);
+  brights_print(&con, u"DEBUG: Kernel main started\r\n");
   brights_tty_init();
 
   brights_clock_init();
@@ -199,9 +200,9 @@ void brights_kernel_main(void)
   brights_print(&con, u" entries, pat configured\r\n");
 
   /* ---- SMP ---- */
-  if (brights_apic_available()) {
-    brights_smp_init();
-  }
+  // if (brights_apic_available()) {
+  //   brights_smp_init();
+  // }
 
   /* ---- Memory ---- */
   brights_kmalloc_init();
@@ -210,7 +211,8 @@ void brights_kernel_main(void)
   brights_sched_init();
   brights_signal_init();
   brights_syshook_init();
-  brights_print(&con, u"syshook: init ok (32 hook slots)\r\n");
+   brights_print(&con, u"syshook: init ok (32 hook slots)\r\n");
+   brights_print(&con, u"DEBUG: Syshook initialized\r\n");
 
   brights_print(&con, u"pmem: ");
   print_u64(&con, brights_pmem_total_bytes() / (1024 * 1024));
@@ -230,12 +232,12 @@ void brights_kernel_main(void)
 
   /* ---- Scheduler timer ---- */
   /* Use APIC timer if available, otherwise PIT handles it via IDT */
-  if (brights_apic_available()) {
-    brights_apic_timer_init(100); /* 100 Hz scheduling tick */
-    brights_print(&con, u"sched: APIC timer @ 100Hz\r\n");
-  } else {
-    brights_print(&con, u"sched: PIT timer @ 100Hz\r\n");
-  }
+  // if (brights_apic_available()) {
+  //   brights_apic_timer_init(100); /* 100 Hz scheduling tick */
+  //   brights_print(&con, u"sched: APIC timer @ 100Hz\r\n");
+  // } else {
+  //   brights_print(&con, u"sched: PIT timer @ 100Hz\r\n");
+  // }
 
   /* ---- Process system ---- */
   int dev_count = brights_devfs_init();
@@ -266,11 +268,14 @@ void brights_kernel_main(void)
     brights_print(&con, u"storage: mounted at /mnt/drive/\r\n");
   } else {
     brights_print(&con, u"storage: mount failed (system disk must be btrfs)\r\n");
-    for (;;) { __asm__ __volatile__("hlt"); }
+    brights_print(&con, u"storage: continuing with limited functionality\r\n");
+    brights_print(&con, u"DEBUG: About to init RTC\r\n");
   }
 
   /* ---- RTC ---- */
+  brights_print(&con, u"rtc: checking...\r\n");
   brights_rtc_time_t rt;
+  brights_print(&con, u"DEBUG: About to call rtc_read\r\n");
   if (brights_rtc_read(&rt) == 0) {
     brights_print(&con, u"rtc: ");
     /* Print date/time */
@@ -292,17 +297,20 @@ void brights_kernel_main(void)
   }
 
   /* ---- VFS2 + User mode ---- */
+  brights_print(&con, u"DEBUG: About to init user mode\r\n");
+  brights_print(&con, u"user: initializing...\r\n");
   brights_userinit();
+  brights_print(&con, u"DEBUG: userinit() returned\r\n");
 
   /* ---- Network ---- */
-  brights_net_init();
-  {
-    uint8_t mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
-    brights_netif_add("eth0", mac);
-    brights_netif_set_ip("eth0", 0xC0A80164, 0xFFFFFF00, 0xC0A80101);
-    brights_netif_up("eth0");
-    brights_print(&con, u"net: eth0 up 192.168.1.100/24 gw=192.168.1.1\r\n");
-  }
+  // brights_net_init();
+  // {
+  //   uint8_t mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+  //   brights_netif_add("eth0", mac);
+  //   brights_netif_set_ip("eth0", 0xC0A80164, 0xFFFFFF00, 0xC0A80101);
+  //   brights_netif_up("eth0");
+  //   brights_print(&con, u"net: eth0 up 192.168.1.100/24 gw=192.168.1.1\r\n");
+  // }
 
   /* ---- Enable interrupts ---- */
   __asm__ __volatile__("sti");

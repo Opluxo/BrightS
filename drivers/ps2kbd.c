@@ -1,4 +1,5 @@
 #include "ps2kbd.h"
+#include "im.h"
 #include "../arch/x86_64/io.h"
 #include <stdint.h>
 
@@ -153,6 +154,15 @@ void brights_ps2kbd_irq_handler(void)
   if (sc == 0x38) { ps2_alt = 1; return; }
   if (sc == 0x3A) { ps2_caps_lock = !ps2_caps_lock; return; }
 
+  /* Shift+Space toggles input method */
+  if (sc == 0x39 && ps2_shift) {
+    brights_im_toggle();
+    if (brights_im_is_active()) {
+      brights_im_draw_candidates();
+    }
+    return;
+  }
+
   /* Handle extended keys (E1 prefix - Pause/Break) */
   if (ps2_extended2) {
     ps2_extended2 = 0;
@@ -164,10 +174,38 @@ void brights_ps2kbd_irq_handler(void)
     ps2_extended = 0;
     switch (sc) {
       case 0x1C: kbd_buf_put('\n'); break;  /* Numpad Enter */
-      case 0x48: kbd_buf_put(KBD_KEY_UP); break;
-      case 0x4B: kbd_buf_put(KBD_KEY_LEFT); break;
-      case 0x4D: kbd_buf_put(KBD_KEY_RIGHT); break;
-      case 0x50: kbd_buf_put(KBD_KEY_DOWN); break;
+      case 0x48: /* Up - select previous candidate */
+        if (brights_im_is_active()) {
+          brights_im_handle_special(2);
+          brights_im_draw_candidates();
+        } else {
+          kbd_buf_put(KBD_KEY_UP);
+        }
+        break;
+      case 0x4B: /* Left */
+        if (brights_im_is_active()) {
+          brights_im_handle_special(2);
+          brights_im_draw_candidates();
+        } else {
+          kbd_buf_put(KBD_KEY_LEFT);
+        }
+        break;
+      case 0x4D: /* Right - select next candidate */
+        if (brights_im_is_active()) {
+          brights_im_handle_special(1);
+          brights_im_draw_candidates();
+        } else {
+          kbd_buf_put(KBD_KEY_RIGHT);
+        }
+        break;
+      case 0x50: /* Down - select next candidate */
+        if (brights_im_is_active()) {
+          brights_im_handle_special(1);
+          brights_im_draw_candidates();
+        } else {
+          kbd_buf_put(KBD_KEY_DOWN);
+        }
+        break;
       case 0x52: kbd_buf_put(KBD_KEY_INSERT); break;
       case 0x53: kbd_buf_put(KBD_KEY_DELETE); break;
       case 0x47: kbd_buf_put(KBD_KEY_HOME); break;
@@ -196,10 +234,52 @@ void brights_ps2kbd_irq_handler(void)
     case 0x58: kbd_buf_put(KBD_KEY_F12); return;
   }
 
+  /* Handle number keys for IM candidate selection before ASCII conversion */
+  if (brights_im_is_active() && sc >= 0x02 && sc <= 0x0A) {
+    int num = sc - 0x02 + 1;
+    if (num >= 1 && num <= 9 && num <= brights_im_get_candidate_count()) {
+      brights_im_select_candidate(num - 1);
+    }
+    return;
+  }
+
   /* Convert scancode to ASCII and buffer it */
   char ch = 0;
   if (ps2_scancode_to_ascii(sc, &ch) > 0) {
-    kbd_buf_put(ch);
+    /* Handle input method when active */
+    if (brights_im_is_active()) {
+      /* Pass lowercase letters to IM for pinyin input */
+      if (ch >= 'a' && ch <= 'z') {
+        brights_im_handle_char(ch);
+        brights_im_draw_candidates();
+      } else if (ch == '\b') {
+        brights_im_backspace();
+        brights_im_draw_candidates();
+      } else if (ch == '\n') {
+        if (brights_im_get_candidate_count() > 0) {
+          brights_im_select_candidate(brights_im_get_candidate_count() - 1);
+        } else {
+          brights_im_commit();
+        }
+      } else if (ch == ' ') {
+        /* Space selects first candidate */
+        if (brights_im_get_candidate_count() > 0) {
+          brights_im_select_candidate(0);
+        } else {
+          brights_im_commit();
+        }
+      } else if (ch >= '1' && ch <= '9') {
+        /* Number keys 1-9 (without shift) - pass to IM as pinyin */
+        brights_im_handle_char(ch);
+        brights_im_draw_candidates();
+      } else {
+        /* Other characters commit current input and pass through */
+        brights_im_commit();
+        kbd_buf_put(ch);
+      }
+    } else {
+      kbd_buf_put(ch);
+    }
   }
 }
 

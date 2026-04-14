@@ -35,6 +35,7 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/drivers/tty.c
     ${CMAKE_SOURCE_DIR}/drivers/fb.c
     ${CMAKE_SOURCE_DIR}/drivers/font.c
+    ${CMAKE_SOURCE_DIR}/drivers/im.c
     ${CMAKE_SOURCE_DIR}/drivers/ahci.c
     ${CMAKE_SOURCE_DIR}/drivers/nvme.c
     ${CMAKE_SOURCE_DIR}/kernel/pipe.c

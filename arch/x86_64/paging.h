@@ -8,6 +8,9 @@
 #define BRIGHTS_PAGE_SIZE_2M (2ULL * 1024 * 1024)
 #define BRIGHTS_PAGE_SIZE_1G (1ULL * 1024 * 1024 * 1024)
 
+/* Alias for common usage */
+#define BRIGHTS_PAGE_SIZE BRIGHTS_PAGE_SIZE_4K
+
 /* Page table entry flags */
 #define BRIGHTS_PTE_PRESENT   (1ULL << 0)
 #define BRIGHTS_PTE_WRITABLE  (1ULL << 1)

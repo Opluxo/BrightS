@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "fs/vfs2.h"
+#include "elf.h"
 
 #define BRIGHTS_PROC_NAME_LEN 32
 #define BRIGHTS_PROC_CWD_LEN 128
@@ -103,6 +104,12 @@ uint64_t brights_proc_kernel_stack(void);
 
 // Fork: create a child process
 int brights_proc_fork(void);
+
+// Exec: replace current process with new program
+int brights_proc_exec(const void *elf_data, uint64_t elf_size, elf64_load_info_t *info_out);
+
+// Continue exec: enter new user program (does not return)
+int brights_proc_exec_continue(void);
 
 // Get pointer to process table (for scheduler)
 brights_proc_info_t *brights_proc_table_ptr(void);

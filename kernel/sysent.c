@@ -184,29 +184,22 @@ static int64_t sys_fork(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint
   return child_pid;
 }
 
-// sys_exec(path, argv, envp) - Execute program
+// sys_exec(path, argv, envp) - Execute program (POSIX semantics)
 static int64_t sys_exec(uint64_t path, uint64_t argv, uint64_t envp, uint64_t a3, uint64_t a4, uint64_t a5)
 {
   (void)argv; (void)envp; (void)a3; (void)a4; (void)a5;
   const char *pathname = (const char *)(uintptr_t)path;
   if (!pathname) return -1;
 
-  /* Resolve path */
   char resolved[256];
   if (brights_proc_resolve_path(pathname, resolved, sizeof(resolved)) != 0) {
-    /* Try absolute path */
     int i = 0;
     while (pathname[i] && i < 255) { resolved[i] = pathname[i]; ++i; }
     resolved[i] = 0;
   }
 
-  /* Try to read the file from ramfs */
-  extern int brights_ramfs_open(const char *path);
-  extern int64_t brights_ramfs_read(int fd, uint64_t offset, void *buf, uint64_t count);
-
   int fd = brights_ramfs_open(resolved);
   if (fd < 0) {
-    /* Try /bin/ prefix */
     char binpath[256];
     int i = 0;
     const char *prefix = "/bin/";
@@ -218,26 +211,18 @@ static int64_t sys_exec(uint64_t path, uint64_t argv, uint64_t envp, uint64_t a3
   }
   if (fd < 0) return -1;
 
-  /* Read the ELF file */
   static uint8_t elf_buf[65536];
   int64_t n = brights_ramfs_read(fd, 0, elf_buf, sizeof(elf_buf));
+  brights_ramfs_close(fd);
   if (n <= 0) return -1;
 
-  /* Load ELF */
-  extern int brights_elf_load(const void *buf, uint64_t size, elf64_load_info_t *info_out);
   elf64_load_info_t load_info;
-  if (brights_elf_load(elf_buf, (uint64_t)n, &load_info) != 0) return -1;
+  if (brights_proc_exec(elf_buf, (uint64_t)n, &load_info) != 0) {
+    return -1;
+  }
 
-  /* Jump to new entry point (no return from exec) */
-  extern void brights_enter_user(void *rip, void *rsp, uint64_t cr3);
-  extern uint64_t brights_proc_get_cr3(uint32_t pid);
-  extern uint32_t brights_proc_current(void);
-  uint64_t user_cr3 = brights_proc_get_cr3(brights_proc_current());
-  brights_enter_user((void *)(uintptr_t)load_info.entry,
-                      (void *)(uintptr_t)load_info.stack_top,
-                      user_cr3);
+  brights_proc_exec_continue();
 
-  /* Should not reach here */
   return -1;
 }
 
@@ -378,8 +363,28 @@ static int64_t sys_signal_pending(uint64_t a0, uint64_t a1, uint64_t a2, uint64_
 static int64_t sys_signal_handler(uint64_t handler, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
 {
   (void)a1; (void)a2; (void)a3; (void)a4; (void)a5;
-  // Simplified - store handler address
   return handler;
+}
+
+// sys_sigaction(signo, act, oldact) - Examine/change signal action
+static int64_t sys_sigaction(uint64_t signo, uint64_t act, uint64_t oldact, uint64_t a3, uint64_t a4, uint64_t a5)
+{
+  (void)a3; (void)a4; (void)a5;
+  const brights_sigaction_t *act_ptr = (const brights_sigaction_t *)(uintptr_t)act;
+  brights_sigaction_t *oldact_ptr = (brights_sigaction_t *)(uintptr_t)oldact;
+  return brights_signal_sigaction((uint32_t)signo, act_ptr, oldact_ptr);
+}
+
+// sys_kill(pid, signo) - Send signal to process
+static int64_t sys_kill(uint64_t pid, uint64_t signo, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
+{
+  (void)a2; (void)a3; (void)a4; (void)a5;
+  if (signo >= BRIGHTS_SIGNAL_MAX) return -1;
+  
+  brights_proc_info_t info;
+  if (brights_proc_get_by_pid((uint32_t)pid, &info) != 0) return -1;
+  
+  return brights_signal_raise((uint32_t)signo);
 }
 
 // sys_yield() - Yield CPU to next process
@@ -888,7 +893,9 @@ brights_sysent_t brights_sysent_table[] = {
   {1, sys_signal_raise},       // 22: signal_raise
   {0, sys_signal_pending},     // 23: signal_pending
   {1, sys_signal_handler},     // 24: signal_handler
-  {0, sys_yield},              // 25: yield
+  {3, sys_sigaction},          // 25: sigaction
+  {2, sys_kill},               // 26: kill
+  {0, sys_yield},              // 27: yield
   {1, sys_pipe},               // 26: pipe
   {1, sys_dup},                // 27: dup
   {2, sys_dup2},               // 28: dup2

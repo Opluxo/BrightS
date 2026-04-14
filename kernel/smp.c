@@ -1,9 +1,12 @@
 #include "smp.h"
 #include "hwinfo.h"
 #include "printf.h"
+#include "sched.h"
+#include "proc.h"
 #include "../arch/x86_64/apic.h"
 #include "../arch/x86_64/msr.h"
 #include "../arch/x86_64/io.h"
+#include "../arch/x86_64/cpu_local.h"
 #include "../drivers/serial.h"
 #include <stdint.h>
 
@@ -272,14 +275,38 @@ void brights_smp_ap_entry(uint32_t apic_id)
   uint32_t idx = __sync_fetch_and_add(&ap_startup_count, 1);
   smp_apic_ids[idx] = apic_id;
 
+  /* Initialize per-CPU data for this AP */
+  uint64_t ap_stack_top = (uint64_t)(uintptr_t)&ap_stacks[apic_id & 0x7][AP_STACK_SIZE];
+  brights_cpu_local_init_ap(apic_id, ap_stack_top);
+
   /* Enable APIC on this core */
   brights_apic_eoi();
   brights_apic_write(0x80, 0); /* TPR = 0 */
 
-  /* Halt - wait for IPI from scheduler */
+  /* AP idle loop - wait for scheduler to assign work */
   for (;;) {
-    __asm__ __volatile__("cli; hlt");
+    __asm__ __volatile__("sti; hlt");
   }
+}
+
+void brights_smp_schedule_ap(uint32_t apic_id)
+{
+  if (apic_id >= smp_core_count) return;
+  
+  /* Send IPI to target AP to request scheduling */
+  uint8_t vector = 0xE0; /* Use available vector for scheduler */
+  brights_apic_write(0x310, smp_apic_ids[apic_id] << 24);
+  brights_apic_write(0x300, 0x000C4000 | vector);
+}
+
+void brights_smp_broadcast_sched(void)
+{
+  if (smp_core_count <= 1) return;
+  
+  /* Broadcast scheduler IPI to all APs */
+  uint8_t vector = 0xE0;
+  brights_apic_write(0x310, 0);
+  brights_apic_write(0x300, 0x000C4500 | vector);
 }
 
 uint32_t brights_smp_core_count(void)

@@ -75,7 +75,9 @@ void brights_cpu_local_init_ap(uint32_t apic_id, uint64_t kernel_rsp)
 
 uint32_t brights_cpu_local_id(void)
 {
-  return cpu_data[0].cpu_id;
+  uint32_t eax, ebx, ecx, edx;
+  __asm__ __volatile__("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(1));
+  return (ebx >> 24) & 0xFF;
 }
 
 uint32_t brights_cpu_local_current_pid(void)

@@ -18,6 +18,7 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/arch/x86_64/syscall_entry.S
     ${CMAKE_SOURCE_DIR}/arch/x86_64/user_enter.S
     ${CMAKE_SOURCE_DIR}/arch/x86_64/user_stub.S
+    ${CMAKE_SOURCE_DIR}/arch/x86_64/enter_user_from_syscall.S
     ${CMAKE_SOURCE_DIR}/arch/x86_64/syscall_abi.c
     ${CMAKE_SOURCE_DIR}/arch/x86_64/uefi_memmap.c
     ${CMAKE_SOURCE_DIR}/arch/x86_64/paging.c
@@ -94,10 +95,14 @@ set(KERNEL_SOURCES
       -Wmissing-prototypes -Wno-unused-parameter -Wno-pointer-sign
       -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-cast-qual
        -I${CMAKE_SOURCE_DIR}/arch/x86_64
-       -I${CMAKE_SOURCE_DIR}/kernel
-       -I${CMAKE_SOURCE_DIR}/drivers
-       -I${CMAKE_SOURCE_DIR}/include
-      ${KERNEL_SOURCES}
+        -I${CMAKE_SOURCE_DIR}/kernel
+        -I${CMAKE_SOURCE_DIR}/kernel/net
+        -I${CMAKE_SOURCE_DIR}/kernel/net/dhcp
+        -I${CMAKE_SOURCE_DIR}/kernel/net/dns
+        -I${CMAKE_SOURCE_DIR}/kernel/net/http
+        -I${CMAKE_SOURCE_DIR}/drivers
+        -I${CMAKE_SOURCE_DIR}/include
+       ${KERNEL_SOURCES}
       -o ${KERNEL_EFI}
     DEPENDS ${KERNEL_SOURCES}
     VERBATIM

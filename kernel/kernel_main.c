@@ -50,8 +50,7 @@
 #include "../arch/x86_64/hpet.h"
 #include "../arch/x86_64/mtrr.h"
 #include "../net/net.h"
-#include <kernel/kernel_main.h>
-#include "kernel/stddef.h"
+#include "kernel_main.h"
 
 /* Helper to print a uint64_t as decimal */
 static void print_u64(brights_console_t *con, uint64_t val)

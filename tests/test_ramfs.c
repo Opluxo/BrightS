@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "../sys/kernel/fs/ramfs.h"
+#include "../kernel/fs/ramfs.h"
 
 static void test_nested_paths_and_dirs(void)
 {

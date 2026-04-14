@@ -71,6 +71,12 @@ static int cmd_clear_handler(const char *arg);
 static int cmd_reboot_handler(const char *arg);
 static int cmd_halt_handler(const char *arg);
 static int cmd_date_handler(const char *arg);
+static int cmd_free_handler(const char *arg);
+static int cmd_uptime_handler(const char *arg);
+static int cmd_ping_handler(const char *arg);
+static int cmd_history_handler(const char *arg);
+static int cmd_sleep_handler(const char *arg);
+static int cmd_env_handler(const char *arg);
 
 /* Sorted command table for binary search */
 static const cmd_entry_t cmd_table[] = {
@@ -109,6 +115,12 @@ static const cmd_entry_t cmd_table[] = {
   {"whoami",  cmd_whoami_handler},
   {"wifi",    cmd_wifi_handler},
   {"write",   cmd_write_handler},
+  {"free",    cmd_free_handler},
+  {"uptime",  cmd_uptime_handler},
+  {"ping",    cmd_ping_handler},
+  {"history", cmd_history_handler},
+  {"sleep",   cmd_sleep_handler},
+  {"env",     cmd_env_handler},
 };
 
 static const int cmd_count = sizeof(cmd_table) / sizeof(cmd_table[0]);
@@ -794,7 +806,11 @@ static void print_prompt(void)
 static void cmd_help(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "commands: help echo pwd cd mkdir rmdir whoami login logout passwd useradd profile setpf ls stat cat touch write append cp mv rm hexdump bst kill jobs wifi ifconfig\n");
+    "commands: help echo pwd cd mkdir rmdir whoami login logout passwd useradd profile setpf\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "         ls stat cat touch write append cp mv rm hexdump bst kill jobs wifi ifconfig\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT,
+    "         free uptime ping history sleep env reboot halt clear mount\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "bst: help procom\n");
 }
@@ -2757,4 +2773,188 @@ void brights_lightshell_run(void)
     }
   }
   cmd_clear();
+}
+
+/* ===== New command implementations ===== */
+
+static void print_u64_mem(uint64_t v)
+{
+  char tmp[24];
+  int i = 0;
+  if (v == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "0");
+    return;
+  }
+  while (v > 0 && i < (int)sizeof(tmp)) {
+    tmp[i++] = (char)('0' + (v % 10));
+    v /= 10;
+  }
+  while (i > 0) {
+    char out[2] = {tmp[--i], 0};
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, out);
+  }
+}
+
+static int cmd_free_handler(const char *arg)
+{
+  (void)arg;
+  uint64_t total = brights_pmem_total_bytes();
+  uint64_t free = brights_pmem_free_bytes();
+  uint64_t used = total - free;
+  uint64_t kmalloc_used = (uint64_t)brights_kmalloc_used();
+  uint64_t kmalloc_total = (uint64_t)brights_kmalloc_capacity();
+  
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Memory Information:\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "              total       used       free\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Mem:   ");
+  print_u64_mem(total);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+  print_u64_mem(used);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+  print_u64_mem(free);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\nKMalloc: ");
+  print_u64_mem(kmalloc_total);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+  print_u64_mem(kmalloc_used);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+  print_u64_mem(kmalloc_total - kmalloc_used);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  
+  return 1;
+}
+
+static void print_u64_padded(uint64_t v, int width)
+{
+  char tmp[24];
+  int len = 0;
+  if (v == 0) {
+    tmp[len++] = '0';
+  } else {
+    while (v > 0) {
+      tmp[len++] = (char)('0' + (v % 10));
+      v /= 10;
+    }
+  }
+  while (len < width) {
+    char out[2] = {" ", 0};
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, out);
+    width--;
+  }
+  while (len > 0) {
+    char out[2] = {tmp[--len], 0};
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, out);
+  }
+}
+
+static int cmd_uptime_handler(const char *arg)
+{
+  (void)arg;
+  uint64_t uptime_sec = brights_clock_ms() / 1000;
+  uint64_t days = uptime_sec / 86400;
+  uint64_t hours = (uptime_sec % 86400) / 3600;
+  uint64_t mins = (uptime_sec % 3600) / 60;
+  uint64_t secs = uptime_sec % 60;
+  
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "System Uptime: ");
+  if (days > 0) {
+    print_u64(days);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " days ");
+  }
+  print_u64_padded(hours, 2);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, ":");
+  print_u64_padded(mins, 2);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, ":");
+  print_u64_padded(secs, 2);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  
+  return 1;
+}
+
+static int cmd_ping_handler(const char *arg)
+{
+  arg = skip_spaces(arg);
+  if (*arg == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: ping <ip>\n");
+    return 1;
+  }
+  
+  uint32_t ip = brights_ip_parse(arg);
+  if (ip == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid IP address\n");
+    return 1;
+  }
+  
+  char ip_str[32];
+  brights_ip_to_str(ip, ip_str);
+  
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "PING ");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, ip_str);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  
+  for (int i = 0; i < 4; i++) {
+    uint64_t start = brights_clock_ms();
+    int ret = brights_icmp_echo_request(ip);
+    uint64_t elapsed = brights_clock_ms() - start;
+    
+    if (ret == 0) {
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "64 bytes from ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, ip_str);
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, ": seq=");
+      print_u64(i + 1);
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, " time=");
+      print_u64(elapsed);
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "ms\n");
+    } else {
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Request timeout\n");
+    }
+    
+    for (volatile int j = 0; j < 1000000; j++);
+  }
+  
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "--- ping statistics ---\n");
+  
+  return 1;
+}
+
+static int cmd_history_handler(const char *arg)
+{
+  (void)arg;
+  for (int i = 0; i < history_count; i++) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+    print_u64_padded(i + 1, 4);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  ");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, history[i]);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  }
+  return 1;
+}
+
+static int cmd_sleep_handler(const char *arg)
+{
+  arg = skip_spaces(arg);
+  uint32_t seconds = 0;
+  while (*arg >= '0' && *arg <= '9') {
+    seconds = seconds * 10 + (*arg - '0');
+    arg++;
+  }
+  
+  if (seconds == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: sleep <seconds>\n");
+    return 1;
+  }
+  
+  brights_sleep_ms(seconds * 1000);
+  return 1;
+}
+
+static int cmd_env_handler(const char *arg)
+{
+  (void)arg;
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "PATH=/bin:/usr/bin\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "HOME=/usr/home\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "SHELL=/bin/sh\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "USER=guest\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "HOSTNAME=brights\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "PWD=/\n");
+  return 1;
 }

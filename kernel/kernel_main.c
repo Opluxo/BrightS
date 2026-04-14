@@ -52,6 +52,7 @@
 #include "../arch/x86_64/hpet.h"
 #include "../arch/x86_64/mtrr.h"
 #include "../net/net.h"
+#include "../net/virtionet.h"
 #include "kernel_main.h"
 
 /* Helper to print a uint64_t as decimal */
@@ -211,9 +212,9 @@ void brights_kernel_main(void *gop)
   brights_print(&con, u" entries, pat configured\r\n");
 
   /* ---- SMP ---- */
-  // if (brights_apic_available()) {
-  //   brights_smp_init();
-  // }
+  if (brights_apic_available()) {
+    brights_smp_init();
+  }
 
   /* ---- Memory ---- */
   brights_kmalloc_init();
@@ -314,14 +315,15 @@ void brights_kernel_main(void *gop)
   brights_print(&con, u"DEBUG: userinit() returned\r\n");
 
   /* ---- Network ---- */
-  // brights_net_init();
-  // {
-  //   uint8_t mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
-  //   brights_netif_add("eth0", mac);
-  //   brights_netif_set_ip("eth0", 0xC0A80164, 0xFFFFFF00, 0xC0A80101);
-  //   brights_netif_up("eth0");
-  //   brights_print(&con, u"net: eth0 up 192.168.1.100/24 gw=192.168.1.1\r\n");
-  // }
+  brights_net_init();
+  brights_virtionet_init();
+  {
+    uint8_t mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+    brights_netif_add("eth0", mac);
+    brights_netif_set_ip("eth0", 0xC0A80164, 0xFFFFFF00, 0xC0A80101);
+    brights_netif_up("eth0");
+    brights_print(&con, u"net: eth0 up 192.168.1.100/24 gw=192.168.1.1\r\n");
+  }
 
   /* ---- Enable interrupts ---- */
   __asm__ __volatile__("sti");

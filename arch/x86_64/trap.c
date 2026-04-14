@@ -59,8 +59,8 @@ void brights_trap_handler(brights_trap_frame_t *tf)
 
   /* Timer interrupt (IRQ0 → vector 32) */
   if (tf->vec == 32) {
-    // brights_clock_tick();
-    // brights_sched_tick();
+    brights_clock_tick();
+    brights_sched_tick();
     if (brights_apic_available()) {
       brights_apic_eoi();
     } else {
@@ -68,14 +68,14 @@ void brights_trap_handler(brights_trap_frame_t *tf)
     }
 
     /* Preemptive scheduling: every N ticks, yield */
-    // ++sched_quantum;
-    // if (sched_quantum >= SCHED_QUANTUM_TICKS) {
-    //   sched_quantum = 0;
-    //   uint32_t cur = brights_sched_current_pid();
-    //   if (cur > 0) {
-    //     brights_sched_yield();
-    //   }
-    // }
+    ++sched_quantum;
+    if (sched_quantum >= SCHED_QUANTUM_TICKS) {
+      sched_quantum = 0;
+      uint32_t cur = brights_sched_current_pid();
+      if (cur > 0) {
+        brights_sched_yield();
+      }
+    }
     return;
   }
 

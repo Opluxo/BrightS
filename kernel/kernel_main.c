@@ -36,7 +36,7 @@
 #include "clock.h"
 #include "hwinfo.h"
 #include "kmalloc.h"
-/* #include "../../../include/kernel/cache.h" */  /* TODO: Enable when cache system is complete */
+#include "../../../include/kernel/cache.h"
 #include "pmem.h"
 #include "proc.h"
 #include "sched.h"
@@ -217,7 +217,7 @@ void brights_kernel_main(void *gop)
 
   /* ---- Memory ---- */
   brights_kmalloc_init();
-  /* brights_cache_init(); */  /* TODO: Implement cache system */
+  brights_cache_init();
   brights_proc_init();
   brights_sched_init();
   brights_signal_init();
@@ -243,12 +243,12 @@ void brights_kernel_main(void *gop)
 
   /* ---- Scheduler timer ---- */
   /* Use APIC timer if available, otherwise PIT handles it via IDT */
-  // if (brights_apic_available()) {
-  //   brights_apic_timer_init(100); /* 100 Hz scheduling tick */
-  //   brights_print(&con, u"sched: APIC timer @ 100Hz\r\n");
-  // } else {
-  //   brights_print(&con, u"sched: PIT timer @ 100Hz\r\n");
-  // }
+  if (brights_apic_available()) {
+    brights_apic_timer_init(100); /* 100 Hz scheduling tick */
+    brights_print(&con, u"sched: APIC timer @ 100Hz\r\n");
+  } else {
+    brights_print(&con, u"sched: PIT timer @ 100Hz\r\n");
+  }
 
   /* ---- Process system ---- */
   int dev_count = brights_devfs_init();

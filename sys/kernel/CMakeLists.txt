@@ -42,6 +42,7 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/kernel/acpi.c
     ${CMAKE_SOURCE_DIR}/kernel/hwinfo.c
     ${CMAKE_SOURCE_DIR}/kernel/kmalloc.c
+    ${CMAKE_SOURCE_DIR}/kernel/cache.c
     ${CMAKE_SOURCE_DIR}/kernel/lightshell.c
     ${CMAKE_SOURCE_DIR}/kernel/lightshell_cmds/netget.c
     ${CMAKE_SOURCE_DIR}/kernel/proc.c
@@ -69,6 +70,7 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/kernel/fs/devfs.c
     ${CMAKE_SOURCE_DIR}/kernel/fs/devfs_vfs.c
     ${CMAKE_SOURCE_DIR}/kernel/net/net.c
+    ${CMAKE_SOURCE_DIR}/kernel/net/virtionet.c
     ${CMAKE_SOURCE_DIR}/kernel/net/wifi.c
     ${CMAKE_SOURCE_DIR}/kernel/net/dhcp/dhcp.c
     ${CMAKE_SOURCE_DIR}/kernel/net/dns/dns.c
@@ -102,9 +104,10 @@ set(KERNEL_SOURCES
         -I${CMAKE_SOURCE_DIR}/kernel/net/dhcp
         -I${CMAKE_SOURCE_DIR}/kernel/net/dns
         -I${CMAKE_SOURCE_DIR}/kernel/net/http
-        -I${CMAKE_SOURCE_DIR}/drivers
-        -I${CMAKE_SOURCE_DIR}/include
-       ${KERNEL_SOURCES}
+         -I${CMAKE_SOURCE_DIR}/drivers
+         -I${CMAKE_SOURCE_DIR}/include
+         -I${CMAKE_SOURCE_DIR}/include/kernel
+        ${KERNEL_SOURCES}
       -o ${KERNEL_EFI}
     DEPENDS ${KERNEL_SOURCES}
     VERBATIM

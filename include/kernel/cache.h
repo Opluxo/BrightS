@@ -97,4 +97,8 @@ uint64_t cache_hash_data(const void *data, size_t size);
 #define CACHE_TYPE_FONT     4  /* Font cache */
 #define CACHE_TYPE_LOCALE   5  /* Locale data cache */
 
+/* Cache system management */
+void brights_cache_init(void);
+void brights_cache_cleanup(void);
+
 #endif /* BRIGHTS_CACHE_H */

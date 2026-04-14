@@ -116,6 +116,30 @@ typedef struct {
 brights_netif_t netifs[BRIGHTS_NET_MAX_IF];
 static int netif_count = 0;
 
+/* ===== Network drivers ===== */
+static brights_net_driver_t *net_drivers[BRIGHTS_NET_MAX_DRIVERS];
+static int net_driver_count = 0;
+
+int brights_net_register_driver(brights_net_driver_t *driver)
+{
+  if (net_driver_count >= BRIGHTS_NET_MAX_DRIVERS) return -1;
+  if (!driver || !driver->ops.init || !driver->ops.send) return -1;
+  
+  if (driver->ops.init() != 0) return -1;
+  
+  net_drivers[net_driver_count++] = driver;
+  driver->initialized = 1;
+  return 0;
+}
+
+brights_net_driver_t *brights_net_get_driver(int if_idx)
+{
+  if (if_idx < 0 || if_idx >= netif_count) return NULL;
+  if (netifs[if_idx].driver_idx < 0) return NULL;
+  if (netifs[if_idx].driver_idx >= net_driver_count) return NULL;
+  return net_drivers[netifs[if_idx].driver_idx];
+}
+
 /* ===== ARP cache ===== */
 typedef struct {
   uint32_t ip;
@@ -126,21 +150,6 @@ typedef struct {
 static arp_entry_t arp_cache[BRIGHTS_ARP_CACHE_SIZE];
 
 /* ===== Sockets ===== */
-typedef struct {
-  int in_use;
-  int domain;
-  int type;
-  uint32_t local_ip;
-  uint16_t local_port;
-  uint32_t remote_ip;
-  uint16_t remote_port;
-  uint8_t recv_buf[4096];
-  uint32_t recv_len;
-  uint32_t tcp_state; /* 0=closed, 1=syn_sent, 2=established, 3=fin_wait */
-  uint32_t tcp_seq;
-  uint32_t tcp_ack;
-} brights_socket_t;
-
 static brights_socket_t sockets[BRIGHTS_NET_MAX_SOCKETS];
 
 /* ===== Forward declarations ===== */
@@ -750,22 +759,31 @@ void brights_net_recv(const uint8_t *frame, uint32_t len)
 
 int brights_net_send(const uint8_t *frame, uint32_t len)
 {
-  /* TODO: Call actual network driver (e.g., e1000, virtio-net) */
-  /* For now, just print that we're sending */
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "net: sending frame len=");
-
-  /* Print length */
-  char buf[16];
-  int i = 0;
-  uint32_t v = len;
-  if (v == 0) { buf[i++] = '0'; }
-  else { while (v > 0) { buf[i++] = '0' + (v % 10); v /= 10; } }
-  buf[i] = 0;
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, buf);
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
-
-  (void)frame;
-  return 0;
+  if (!frame || len == 0 || len > BRIGHTS_NET_BUF_SIZE) return -1;
+  
+  /* Find active interface */
+  int if_idx = -1;
+  for (int i = 0; i < netif_count; i++) {
+    if (netifs[i].up) {
+      if_idx = i;
+      break;
+    }
+  }
+  
+  if (if_idx < 0) {
+    /* No active interface - silent drop */
+    return -1;
+  }
+  
+  /* Get driver for this interface */
+  brights_net_driver_t *driver = brights_net_get_driver(if_idx);
+  if (!driver) {
+    /* No driver registered - silent drop */
+    return -1;
+  }
+  
+  /* Use driver to send frame */
+  return driver->ops.send(frame, len);
 }
 
 /* ===== Interface management ===== */
@@ -784,9 +802,10 @@ int brights_netif_add(const char *name, const uint8_t *mac)
   iface->netmask = 0;
   iface->gateway = 0;
   iface->up = 0;
+  iface->driver_idx = netif_count; // Use self as driver for now
 
   ++netif_count;
-  return 0;
+  return netif_count - 1;
 }
 
 int brights_netif_set_ip(const char *name, uint32_t ip, uint32_t netmask, uint32_t gateway)

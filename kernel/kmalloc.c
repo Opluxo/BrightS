@@ -279,8 +279,8 @@ void brights_kfree(void *ptr)
         }
 
         /* Poison freed memory to detect use-after-free */
-        for (size_t i = 0; i < block_size; ++i) {
-            block_ptr[i] = 0xCC;
+        for (size_t j = 0; j < block_size; ++j) {
+            block_ptr[j] = 0xCC;
         }
 
         block->next = sp->free_list;

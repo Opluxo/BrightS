@@ -6,12 +6,6 @@
 #define VIRTIO_NET_HDR_SIZE 10
 
 static int virtionet_initialized = 0;
-static int virtionet_tx_queue;
-static int virtionet_rx_queue;
-static volatile uint8_t *virtionet_base;
-
-#define VIRTIO_PCI_CAP_VNDR 0
-#define VIRTIO_PCI_CAP_NOSTD 1
 
 #define VIRTIO_NET_S_LINKUP 1
 
@@ -73,6 +67,8 @@ static int virtionet_send_frame(const uint8_t *frame, uint32_t len)
 
 static int virtionet_recv_frame(uint8_t *frame, uint32_t *len)
 {
+    (void)frame;
+    (void)len;
     return -1;
 }
 
@@ -80,13 +76,6 @@ static int virtionet_poll_IRQ(void)
 {
     return 0;
 }
-
-static brights_net_driver_ops_t virtionet_ops = {
-    .init = virtionet_init_hw,
-    .send = virtionet_send_frame,
-    .recv = virtionet_recv_frame,
-    .poll = virtionet_poll_IRQ
-};
 
 static brights_net_driver_t virtionet_driver;
 

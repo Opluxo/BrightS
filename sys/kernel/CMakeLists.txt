@@ -84,7 +84,7 @@ set(KERNEL_SOURCES
        -ffreestanding -fno-stack-protector -fno-pic
         -Os -fomit-frame-pointer -mno-red-zone
         -march=bonnell -mtune=bonnell -mssse3 -mno-sse4 -mno-avx
-        -falign-functions=16 -falign-loops=16 -falign-jumps=16
+        -falign-functions=16 -falign-loops=16
         -ffunction-sections -fdata-sections -flto
         -fno-tree-vectorize
        -Wl,/subsystem:efi_application

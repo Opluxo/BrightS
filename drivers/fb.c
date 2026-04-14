@@ -50,7 +50,7 @@ int brights_fb_init(void *gop_ptr)
       if (fb_info.red_mask) fb_info.bpp = fb_info.red_shift + 8;
       if (fb_info.green_mask) fb_info.bpp = fb_info.green_shift + 8;
       if (fb_info.blue_mask) {
-        int shift = fb_info.blue_shift + 8;
+        uint32_t shift = fb_info.blue_shift + 8;
         if (shift > fb_info.bpp) fb_info.bpp = shift;
       }
       fb_info.bytes_per_pixel = (fb_info.bpp + 7) / 8;
@@ -83,6 +83,7 @@ brights_fb_info_t *brights_fb_get_info(void)
   return &fb_info;
 }
 
+__attribute__((unused))
 static uint32_t color_to_pixel(brights_color_t color)
 {
   uint32_t r = color.r;

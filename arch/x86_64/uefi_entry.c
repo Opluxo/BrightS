@@ -3,11 +3,11 @@
 #include "../../kernel/printf.h"
 #include "../../kernel/acpi.h"
 #include "../../kernel/vm.h"
+#include "../../kernel/kernel_main.h"
 #include "../../drivers/serial.h"
 #include "idt.h"
 #include "syscall_abi.h"
-#include "../../fs/vfs.h"
-#include "../../kernel/kernel_main.h"
+#include "../../kernel/fs/vfs.h"
 
 static void uefi_puts(brights_console_t *con, const uint16_t *msg)
 {
@@ -126,6 +126,19 @@ static uint64_t uefi_find_rsdp(EFI_SYSTEM_TABLE *st)
   return 0;
 }
 
+static void *uefi_find_gop(EFI_SYSTEM_TABLE *st)
+{
+  static const EFI_GUID gop_guid = { 0x8BE4DF61, 0x93CA, 0x11D2, { 0xAA, 0x0D, 0x00, 0xE0, 0x98, 0x03, 0x2B, 0x8C } };
+  
+  for (uint64_t i = 0; i < st->NumberOfTableEntries; ++i) {
+    if (guid_eq(&st->ConfigurationTable[i].VendorGuid, &gop_guid)) {
+      return st->ConfigurationTable[i].VendorTable;
+    }
+  }
+  
+  return 0;
+}
+
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 {
   (void)ImageHandle;
@@ -136,6 +149,13 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 
   uefi_print_str(&con, u"BrightS kernel: UEFI entry ok\r\n");
   uefi_print_str(&serial_con, u"BrightS kernel: serial ok\r\n");
+
+  void *gop = uefi_find_gop(SystemTable);
+  if (gop) {
+    uefi_print_str(&serial_con, u"gop: found\r\n");
+  } else {
+    uefi_print_str(&serial_con, u"gop: not found\r\n");
+  }
 
   uint64_t rsdp_addr = uefi_find_rsdp(SystemTable);
   if (rsdp_addr != 0) {
@@ -160,7 +180,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   if (mem_ok == 0) {
     status = SystemTable->BootServices->ExitBootServices(ImageHandle, meminfo.map_key);
     if (status != 0) {
-      // Retry once with a fresh memory map key.
       mem_ok = brights_uefi_parse_memmap(SystemTable, &meminfo);
       if (mem_ok == 0) {
         status = SystemTable->BootServices->ExitBootServices(ImageHandle, meminfo.map_key);
@@ -177,16 +196,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   brights_vm_init();
   uefi_print_str(&serial_con, u"BrightS kernel: vm ok\r\n");
 
-  /* Enable basic CR4 features only (disable advanced features that may not be supported in QEMU) */
   {
     uint64_t cr4;
     __asm__ __volatile__("mov %%cr4, %0" : "=r"(cr4));
 
-    // cr4 |= (1ULL << 16); /* FSGSBASE */
-    // cr4 |= (1ULL << 17); /* PCIDE */
-    cr4 |= (1ULL << 20); /* SMEP - Supervisor Mode Execution Prevention */
-    cr4 |= (1ULL << 21); /* SMAP - Supervisor Mode Access Prevention */
-    // cr4 |= (1ULL << 11); /* UMIP */
+    cr4 |= (1ULL << 20); /* SMEP */
+    cr4 |= (1ULL << 21); /* SMAP */
     __asm__ __volatile__("mov %0, %%cr4" :: "r"(cr4) : "memory");
     uefi_print_str(&serial_con, u"cr4: basic features enabled\r\n");
   }
@@ -200,7 +215,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
    brights_vfs_init();
    uefi_print_str(&serial_con, u"BrightS kernel: syscall/vfs ok\r\n");
    uefi_print_str(&serial_con, u"DEBUG: About to call kernel_main\r\n");
-   brights_kernel_main();
+   brights_kernel_main(gop);
 
   for (;;) {
     __asm__ __volatile__("hlt");

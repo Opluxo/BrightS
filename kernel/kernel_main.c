@@ -31,6 +31,8 @@
 #include "../drivers/tty.h"
 #include "../drivers/rtc.h"
 #include "../drivers/ps2kbd.h"
+#include "../drivers/fb.h"
+#include "../drivers/font.h"
 #include "clock.h"
 #include "hwinfo.h"
 #include "kmalloc.h"
@@ -64,12 +66,22 @@ static void print_u64(brights_console_t *con, uint64_t val)
   for (int j = 0; buf[j]; ++j) { char cs[2] = {buf[j], 0}; brights_serial_write_ascii(BRIGHTS_COM1_PORT, cs); }
 }
 
-void brights_kernel_main(void)
+void brights_kernel_main(void *gop)
 {
   brights_console_t con;
   brights_serial_console_init(&con, BRIGHTS_COM1_PORT);
   brights_print(&con, u"DEBUG: Kernel main started\r\n");
   brights_tty_init();
+
+  if (gop && brights_fb_init(gop) == 0) {
+    brights_print(&con, u"fb: initialized\r\n");
+    brights_fb_clear((brights_color_t){0, 0, 40, 255});
+    brights_font_draw_string(10, 10, "BrightS OS", 
+      (255 << 16) | (200 << 8) | 50,
+      0xFFFFFFFF);
+  } else {
+    brights_print(&con, u"fb: not available\r\n");
+  }
 
   brights_clock_init();
   brights_ps2kbd_init();

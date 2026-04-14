@@ -205,6 +205,9 @@ void *brights_kmalloc(size_t size)
   }
 
   /* Fallback heap allocator for large allocations (best-fit algorithm) */
+  if (size > SIZE_MAX - sizeof(kmalloc_block_t)) {
+    return NULL; /* Integer overflow protection */
+  }
   size_t total_size = align_up(size + sizeof(kmalloc_block_t), KMALLOC_ALIGN);
   if (total_size < KMALLOC_MIN_BLOCK) total_size = KMALLOC_MIN_BLOCK;
 
@@ -262,6 +265,24 @@ void brights_kfree(void *ptr)
       if ((uint8_t *)ptr >= page_start && (uint8_t *)ptr < page_end) {
         /* It's in this slab page */
         slab_free_t *block = (slab_free_t *)ptr;
+        /* Validate block is correctly aligned and inside slab page bounds */
+        uint8_t *header_start = (uint8_t *)sp + align_up(sizeof(slab_page_t), 16);
+        uint8_t *block_ptr = (uint8_t *)block;
+        
+        if (block_ptr < header_start || block_ptr >= (uint8_t *)sp + 4096) {
+            return; /* Invalid pointer, abort free */
+        }
+        
+        size_t block_offset = block_ptr - header_start;
+        if (block_offset % block_size != 0) {
+            return; /* Unaligned pointer, not valid block */
+        }
+
+        /* Poison freed memory to detect use-after-free */
+        for (size_t i = 0; i < block_size; ++i) {
+            block_ptr[i] = 0xCC;
+        }
+
         block->next = sp->free_list;
         sp->free_list = block;
         sp->free_count++;

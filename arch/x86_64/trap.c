@@ -2,6 +2,7 @@
 #include "trap_console.h"
 #include "syscall_abi.h"
 #include "pic.h"
+#include "apic.h"
 #include "../../kernel/printf.h"
 #include "../../kernel/clock.h"
 #include "../../kernel/sched.h"
@@ -60,7 +61,11 @@ void brights_trap_handler(brights_trap_frame_t *tf)
   if (tf->vec == 32) {
     // brights_clock_tick();
     // brights_sched_tick();
-    brights_pic_eoi(0);
+    if (brights_apic_available()) {
+      brights_apic_eoi();
+    } else {
+      brights_pic_eoi(0);
+    }
 
     /* Preemptive scheduling: every N ticks, yield */
     // ++sched_quantum;
@@ -77,7 +82,11 @@ void brights_trap_handler(brights_trap_frame_t *tf)
   /* Keyboard interrupt (IRQ1 → vector 33) */
   if (tf->vec == 33) {
     brights_ps2kbd_irq_handler();
-    brights_pic_eoi(1);
+    if (brights_apic_available()) {
+      brights_apic_eoi();
+    } else {
+      brights_pic_eoi(1);
+    }
     return;
   }
 

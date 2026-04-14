@@ -13,8 +13,35 @@ static volatile uint32_t kbd_head = 0;
 static volatile uint32_t kbd_tail = 0;
 
 static int ps2_shift;
+static int ps2_ctrl;
+static int ps2_alt;
 static int ps2_caps_lock;
 static int ps2_extended;
+static int ps2_extended2;
+
+/* Special key codes for non-ASCII keys */
+#define KBD_KEY_UP      0x80
+#define KBD_KEY_DOWN    0x81
+#define KBD_KEY_LEFT    0x82
+#define KBD_KEY_RIGHT   0x83
+#define KBD_KEY_HOME    0x84
+#define KBD_KEY_END     0x85
+#define KBD_KEY_PGUP    0x86
+#define KBD_KEY_PGDN    0x87
+#define KBD_KEY_INSERT  0x88
+#define KBD_KEY_DELETE  0x89
+#define KBD_KEY_F1      0x8A
+#define KBD_KEY_F2      0x8B
+#define KBD_KEY_F3      0x8C
+#define KBD_KEY_F4      0x8D
+#define KBD_KEY_F5      0x8E
+#define KBD_KEY_F6      0x8F
+#define KBD_KEY_F7      0x90
+#define KBD_KEY_F8      0x91
+#define KBD_KEY_F9      0x92
+#define KBD_KEY_F10     0x93
+#define KBD_KEY_F11     0x94
+#define KBD_KEY_F12     0x95
 
 static char letter_with_case(char base)
 {
@@ -22,6 +49,15 @@ static char letter_with_case(char base)
     return (char)(base - ('a' - 'A'));
   }
   return base;
+}
+
+static void kbd_buf_put(char ch)
+{
+  uint32_t next = (kbd_head + 1) % KBD_BUF_SIZE;
+  if (next != kbd_tail) {
+    kbd_buf[kbd_head] = ch;
+    kbd_head = next;
+  }
 }
 
 static int ps2_scancode_to_ascii(uint8_t sc, char *out)
@@ -83,40 +119,81 @@ static int ps2_scancode_to_ascii(uint8_t sc, char *out)
   }
 }
 
-static void kbd_buf_put(char ch)
-{
-  uint32_t next = (kbd_head + 1) % KBD_BUF_SIZE;
-  if (next != kbd_tail) {
-    kbd_buf[kbd_head] = ch;
-    kbd_head = next;
-  }
-}
-
 void brights_ps2kbd_irq_handler(void)
 {
   uint8_t sc = inb(PS2_DATA_PORT);
 
+  /* Extended scancode prefix */
   if (sc == 0xE0u) {
     ps2_extended = 1;
+    return;
+  }
+
+  /* Extended scancode prefix for some keys (like Pause/Break) */
+  if (sc == 0xE1u) {
+    ps2_extended2 = 1;
     return;
   }
 
   /* Key release (break code) */
   if (sc & 0x80u) {
     uint8_t make = sc & 0x7Fu;
+    /* Release modifiers */
     if (make == 0x2A || make == 0x36) ps2_shift = 0;
+    if (make == 0x1D) ps2_ctrl = 0;
+    if (make == 0x38) ps2_alt = 0;
+    ps2_extended = 0;
+    ps2_extended2 = 0;
     return;
   }
 
-  /* Modifier keys */
+  /* Modifier keys - press */
   if (sc == 0x2A || sc == 0x36) { ps2_shift = 1; return; }
+  if (sc == 0x1D) { ps2_ctrl = 1; return; }
+  if (sc == 0x38) { ps2_alt = 1; return; }
   if (sc == 0x3A) { ps2_caps_lock = !ps2_caps_lock; return; }
 
-  /* Extended key */
+  /* Handle extended keys (E1 prefix - Pause/Break) */
+  if (ps2_extended2) {
+    ps2_extended2 = 0;
+    return;
+  }
+
+  /* Extended key (E0 prefix) */
   if (ps2_extended) {
     ps2_extended = 0;
-    if (sc == 0x53) { kbd_buf_put(0x7F); } /* Delete */
+    switch (sc) {
+      case 0x1C: kbd_buf_put('\n'); break;  /* Numpad Enter */
+      case 0x48: kbd_buf_put(KBD_KEY_UP); break;
+      case 0x4B: kbd_buf_put(KBD_KEY_LEFT); break;
+      case 0x4D: kbd_buf_put(KBD_KEY_RIGHT); break;
+      case 0x50: kbd_buf_put(KBD_KEY_DOWN); break;
+      case 0x52: kbd_buf_put(KBD_KEY_INSERT); break;
+      case 0x53: kbd_buf_put(KBD_KEY_DELETE); break;
+      case 0x47: kbd_buf_put(KBD_KEY_HOME); break;
+      case 0x4F: kbd_buf_put(KBD_KEY_END); break;
+      case 0x49: kbd_buf_put(KBD_KEY_PGUP); break;
+      case 0x51: kbd_buf_put(KBD_KEY_PGDN); break;
+      case 0x5A: kbd_buf_put('\n'); break; /* Numpad Enter */
+      default: break;
+    }
     return;
+  }
+
+  /* Function keys */
+  switch (sc) {
+    case 0x3B: kbd_buf_put(KBD_KEY_F1); return;
+    case 0x3C: kbd_buf_put(KBD_KEY_F2); return;
+    case 0x3D: kbd_buf_put(KBD_KEY_F3); return;
+    case 0x3E: kbd_buf_put(KBD_KEY_F4); return;
+    case 0x3F: kbd_buf_put(KBD_KEY_F5); return;
+    case 0x40: kbd_buf_put(KBD_KEY_F6); return;
+    case 0x41: kbd_buf_put(KBD_KEY_F7); return;
+    case 0x42: kbd_buf_put(KBD_KEY_F8); return;
+    case 0x43: kbd_buf_put(KBD_KEY_F9); return;
+    case 0x44: kbd_buf_put(KBD_KEY_F10); return;
+    case 0x57: kbd_buf_put(KBD_KEY_F11); return;
+    case 0x58: kbd_buf_put(KBD_KEY_F12); return;
   }
 
   /* Convert scancode to ASCII and buffer it */
@@ -129,8 +206,11 @@ void brights_ps2kbd_irq_handler(void)
 int brights_ps2kbd_init(void)
 {
   ps2_shift = 0;
+  ps2_ctrl = 0;
+  ps2_alt = 0;
   ps2_caps_lock = 0;
   ps2_extended = 0;
+  ps2_extended2 = 0;
   kbd_head = 0;
   kbd_tail = 0;
   /* Drain any pending data */

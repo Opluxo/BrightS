@@ -181,12 +181,11 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   {
     uint64_t cr4;
     __asm__ __volatile__("mov %%cr4, %0" : "=r"(cr4));
-    /* Only enable basic features that are widely supported */
-    /* Comment out advanced features that may not be supported in QEMU */
+
     // cr4 |= (1ULL << 16); /* FSGSBASE */
     // cr4 |= (1ULL << 17); /* PCIDE */
-    // cr4 |= (1ULL << 20); /* SMEP */
-    // cr4 |= (1ULL << 21); /* SMAP */
+    cr4 |= (1ULL << 20); /* SMEP - Supervisor Mode Execution Prevention */
+    cr4 |= (1ULL << 21); /* SMAP - Supervisor Mode Access Prevention */
     // cr4 |= (1ULL << 11); /* UMIP */
     __asm__ __volatile__("mov %0, %%cr4" :: "r"(cr4) : "memory");
     uefi_print_str(&serial_con, u"cr4: basic features enabled\r\n");

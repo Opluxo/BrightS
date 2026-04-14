@@ -2,6 +2,7 @@
 #include "msr.h"
 #include "gdt.h"
 #include "../../kernel/syscall.h"
+#include "../../kernel/sysent.h"
 
 #define IA32_EFER   0xC0000080u
 #define IA32_STAR   0xC0000081u
@@ -33,6 +34,12 @@ int64_t brights_syscall_handle(brights_trap_frame_t *tf)
   if (!tf) {
     return -1;
   }
+
+  /* Validate syscall number range */
+  if (tf->rax < 0 || tf->rax >= brights_sysent_count) {
+    return -38; // ENOSYS
+  }
+
   return brights_syscall_dispatch(
     tf->rax, // syscall number
     tf->rdi,

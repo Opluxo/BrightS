@@ -272,6 +272,21 @@ void brights_ps2kbd_irq_handler(void)
         /* Number keys 1-9 (without shift) - pass to IM as pinyin */
         brights_im_handle_char(ch);
         brights_im_draw_candidates();
+      } else if (ch == '.' || ch == ',' || ch == ':' || ch == ';' || 
+                 ch == '\'' || ch == '\"' || ch == '<' || ch == '>' ||
+                 ch == '?' || ch == '!' || ch == '(' || ch == ')' ||
+                 ch == '[' || ch == ']' || ch == '-' || ch == '_' || ch == '/') {
+        /* Convert punctuation to Chinese when IM is active */
+        brights_im_commit();
+        const char *cn_punc = brights_im_convert_punc(ch);
+        if (cn_punc && cn_punc[0]) {
+          kbd_buf_put(cn_punc[0]);
+          if (cn_punc[1]) {
+            kbd_buf_put(cn_punc[1]);
+          }
+        } else {
+          kbd_buf_put(ch);
+        }
       } else {
         /* Other characters commit current input and pass through */
         brights_im_commit();

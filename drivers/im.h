@@ -35,4 +35,6 @@ void brights_im_draw_candidates(void);
 
 int brights_im_cursor_pos(void);
 
+const char* brights_im_convert_punc(char en_punc);
+
 #endif

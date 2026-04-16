@@ -1,25 +1,31 @@
-# BrightS Documentation | BrightS 文档
+# BrightS Documentation | BrightS 文档 | BrightS ドキュメント
 
 Welcome to the BrightS operating system documentation! This comprehensive documentation is organized into clear sections for users and developers.
+BrightSオペレーティングシステムのドキュメントへようこそ！
 
-## 📚 Documentation Structure | 文档结构
+## 📚 Documentation Structure | 文档结构 | ドキュメント構造
 
 ```
 docs/
-├── user-guide/           # 🚀 用户指南
-│   ├── COMMAND_REFERENCE.md      # 命令参考手册
+├── user-guide/           # 🚀 用户指南 | ユーザーガイド
+│   ├── COMMAND_REFERENCE.md      # Command Reference (English)
+│   ├── COMMAND_REFERENCE_ja.md   # コマンドリファレンス (日本語)
 │   └── COMMAND_REFERENCE_CN.md   # 命令参考手册 (中文)
-├── developer-guide/     # 🛠️ 开发者指南
-│   ├── DEVELOPMENT.md           # 开发环境设置
-│   ├── CONTRIBUTING.md          # 贡献指南 (英文)
-│   ├── CONTRIBUTING_zh_CN.md    # 贡献指南 (中文)
-│   ├── PROJECT_STRUCTURE.md     # 项目架构
-│   └── PERFORMANCE.md           # 性能优化
-├── api-reference/       # 📋 API参考
-│   └── API.md                    # 内核API文档
-├── runtime/            # 🎯 运行时文档
-│   └── README.md                # 多语言运行时
-└── README.md           # 📖 文档首页 (本文件)
+├── developer-guide/     # 🛠️ 开发者指南 | 開発者ガイド
+│   ├── README.md              # Developer Guide (English)
+│   ├── README_ja.md           # 開発者ガイド (日本語)
+│   ├── README_zh_CN.md        # 开发者指南 (中文)
+│   ├── DEVELOPMENT.md          # Development Setup
+│   ├── CONTRIBUTING.md         # Contributing Guide (English)
+│   ├── CONTRIBUTING_ja.md      # 貢献ガイド (日本語)
+│   ├── CONTRIBUTING_zh_CN.md   # 贡献指南 (中文)
+│   ├── PROJECT_STRUCTURE.md     # Project Architecture
+│   └── PERFORMANCE.md          # Performance Optimization
+├── api-reference/       # 📋 API Reference | API参考 | APIリファレンス
+│   └── API.md                    # Kernel API Documentation
+├── runtime/            # 🎯 Runtime Documentation | 运行时文档 | ランタイムドキュメント
+│   └── README.md                # Multi-language Runtime
+└── README.md           # 📖 Documentation Home (This file) | 文档首页
 ```
 
 ## 🚀 Quick Start | 快速开始

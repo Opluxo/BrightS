@@ -1,41 +1,96 @@
-# BrightS Operating System Kernel / BrightS オペレーティングシステムカーネル
+# <samp>██████╗ ██████╗ ██╗ ██████╗ ██╗  ██╗████████╗███████╗</samp>
+# <samp>██╔══██╗██╔══██╗██║██╔════╝ ██║  ██║╚══██╔══╝██╔════╝</samp>
+# <samp>██████╔╝██████╔╝██║██║  ███╗███████║   ██║   ███████╗</samp>
+# <samp>██╔══██╗██╔══██╗██║██║   ██║██╔══██║   ██║   ╚════██║</samp>
+# <samp>██████╔╝██║  ██║██║╚██████╔╝██║  ██║   ██║   ███████║</samp>
+# <samp>╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝</samp>
 
-## 项目状态 / プロジェクト状態 / Project Status
-✅ 内核正常引导 / カーネルが正常に起動 / Kernel boots successfully
-✅ 支持 UEFI 启动 / UEFI起動をサポート / UEFI boot support
-✅ x86_64 架构 / x86_64アーキテクチャ / x86_64 architecture
-✅ 虚拟内存管理 / 仮想メモリ管理 / Virtual memory management
-✅ 进程调度 / プロセススケジューリング / Process scheduling
-✅ 终端 Shell / ターミナルシェル / Terminal Shell
-✅ PS/2 键盘驱动 / PS/2キーボードドライバ / PS/2 keyboard driver
-✅ AHCI 硬盘驱动 / AHCIハードディスクドライバ / AHCI hard drive driver
-✅ NVMe 支持 / NVMeサポート / NVMe support
-✅ TCP/IP 网络栈 / TCP/IPネットワークスタック / TCP/IP network stack
+### A lightweight x86_64 operating system kernel
 
-## 编译构建 / ビルド / Building
+<p align="center">
+  <img src="https://img.shields.io/badge/Arch-x86__64-1793D1?style=flat-square&logo=arch-linux" alt="Arch">
+  <img src="https://img.shields.io/badge/License-GPL%20v2-6CC644?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/UEFI-Boot-FF6C2C?style=flat-square" alt="UEFI">
+  <img src="https://img.shields.io/badge/Version-0.1.2.2-4FC08D?style=flat-square" alt="Version">
+</p>
+
+---
+
+## ✨ Features
+
+| Category | Features |
+|----------|----------|
+| **Boot** | UEFI boot, x86_64 architecture |
+| **Memory** | Virtual memory management, Slab allocator (8MB heap) |
+| **Process** | Round-robin scheduling, Time-slice preemption (10 tick quantum) |
+| **Filesystem** | VFS2 abstraction, RAMFS, DevFS, Btrfs support |
+| **Network** | TCP/IP stack, VirtIO-Net |
+| **Storage** | AHCI, NVMe, block device interface |
+| **Shell** | Built-in shell with pipes, redirection, history, tab completion |
+| **Multi-lang** | Rust, Python, C++ runtime support |
+
+---
+
+## 📦 Build
+
 ```bash
+# Build kernel
 mkdir build && cd build
 cmake ..
-make -j8
+make -j$(nproc)
+
+# Run in QEMU
+make run
 ```
 
-## 运行测试 / テスト実行 / Running Tests
-```bash
-./scripts/run-qemu.sh
+---
+
+## 🌍 Documentation
+
+| Language | Links |
+|----------|-------|
+| 🇺🇸 English | [docs/README.md](docs/README.md) |
+| 🇨🇳 简体中文 | [docs/README_zh_CN.md](docs/README_zh_CN.md) |
+| 🇯🇵 日本語 | [docs/README_ja.md](docs/README_ja.md) |
+
+### Quick Links
+| User Guide | Developer Guide |
+|------------|-----------------|
+| [Commands (EN)](docs/user-guide/COMMAND_REFERENCE.md) | [Development (EN)](docs/developer-guide/DEVELOPMENT.md) |
+| [命令参考 (中)](docs/user-guide/COMMAND_REFERENCE_CN.md) | [开发指南 (中)](docs/developer-guide/DEVELOPMENT_zh_CN.md) |
+| [コマンド (日)](docs/user-guide/COMMAND_REFERENCE_ja.md) | [開発ガイド (日)](docs/developer-guide/DEVELOPMENT_ja.md) |
+
+---
+
+## 📊 Performance Optimizations
+
+| Component | Optimization |
+|-----------|-------------|
+| **kmalloc** | Slab allocator with 10 size classes, 8MB heap |
+| **sched** | O(1) runqueue with `__builtin_ctzll`, 10-tick quantum |
+| **runtime** | ERMS for ≥256B, 64-byte cache-line copy, SSE2 memset |
+| **proc** | O(1) PID allocation via bitmap, inline helpers |
+
+---
+
+## 📁 Project Structure
+
+```
+BrightS/
+├── kernel/           # Core kernel
+│   ├── arch/         # Architecture (x86_64)
+│   ├── fs/           # Filesystems (VFS2, RAMFS, DevFS, Btrfs)
+│   ├── net/          # Network stack
+│   ├── kmalloc.c     # Memory allocator
+│   ├── sched.c       # Process scheduler
+│   └── proc.c        # Process management
+├── drivers/         # Device drivers
+├── docs/            # Documentation
+└── scripts/         # Build scripts
 ```
 
-## 文档 / ドキュメント / Documentation
+---
 
-- **[English](docs/README.md)** - Full documentation
-- **[日本語](docs/README_ja.md)** - 完全なドキュメント
-- **[中文](docs/README_zh_CN.md)** - 完整文档
-
-## 用户指南 / ユーザーガイド / User Guide
-- [Command Reference (EN)](docs/user-guide/COMMAND_REFERENCE.md)
-- [コマンドリファレンス (JA)](docs/user-guide/COMMAND_REFERENCE_ja.md)
-- [命令参考手册 (CN)](docs/user-guide/COMMAND_REFERENCE_CN.md)
-
-## 开发者指南 / 開発者ガイド / Developer Guide
-- [Developer Guide (EN)](docs/developer-guide/README.md)
-- [開発者ガイド (JA)](docs/developer-guide/README_ja.md)
-- [开发者指南 (CN)](docs/developer-guide/README_zh_CN.md)
+<p align="center">
+  <strong>BrightS v0.1.2.2</strong> · GPL v2 License
+</p>

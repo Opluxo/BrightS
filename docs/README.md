@@ -33,6 +33,7 @@ docs/
 ### For Users | 面向用户
 - **[📖 Command Reference](user-guide/COMMAND_REFERENCE.md)** - Complete command reference
 - **[📖 命令参考手册](user-guide/COMMAND_REFERENCE_CN.md)** - 中文命令参考
+- **[📖 コマンドリファレンス](user-guide/COMMAND_REFERENCE_ja.md)** - 日本語
 - **[🏠 Main README](../README.md)** - Project overview and setup
 
 ### For Developers | 面向开发者
@@ -52,6 +53,7 @@ Everything you need to know about using BrightS:
   - Network: `ping`
   - Package management: `bspm install`, `bspm search`, etc.
 - **[📚 完整命令参考](user-guide/COMMAND_REFERENCE_CN.md)** - 中文版
+- **[📚 完全なコマンドリファレンス](user-guide/COMMAND_REFERENCE_ja.md)** - 日本語版
 
 ### Advanced Features | 高级功能
 - **Pipes & Redirection**: `cmd1 | cmd2`, `cmd > file`, `cmd < input`

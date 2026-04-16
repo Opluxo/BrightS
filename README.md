@@ -52,8 +52,8 @@ make run
 | User Guide | Developer Guide |
 |------------|-----------------|
 | [Commands (EN)](docs/user-guide/COMMAND_REFERENCE.md) | [Development (EN)](docs/developer-guide/DEVELOPMENT.md) |
-| [命令参考 (中)](docs/user-guide/COMMAND_REFERENCE_CN.md) | [开发指南 (中)](docs/developer-guide/DEVELOPMENT_zh_CN.md) |
-| [コマンド (日)](docs/user-guide/COMMAND_REFERENCE_ja.md) | [開発ガイド (日)](docs/developer-guide/DEVELOPMENT_ja.md) |
+| [命令参考 (中)](docs/user-guide/COMMAND_REFERENCE_CN.md) | [开发指南 (中)](docs/developer-guide/DEVELOPMENT.md) |
+| [コマンド (日)](docs/user-guide/COMMAND_REFERENCE_ja.md) | [開発ガイド (日)](docs/developer-guide/DEVELOPMENT.md) |
 
 ---
 

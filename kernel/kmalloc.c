@@ -2,28 +2,16 @@
 #include <stdint.h>
 #include "kmalloc.h"
 
-/*
- * Slab-style kernel memory allocator for i5-1135G7 + 8GB.
- *
- * Size classes: 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192 bytes
- * Larger allocations fall back to a first-fit heap.
- *
- * Each slab maintains a free list of fixed-size blocks.
- * Slabs are 4KB pages carved into blocks.
- */
-
 #define SLAB_CLASSES 10
 
 static const size_t slab_sizes[SLAB_CLASSES] = {
   16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192
 };
 
-/* Free block header */
 typedef struct slab_free {
   struct slab_free *next;
 } slab_free_t;
 
-/* Slab page: tracks one 4KB page of blocks */
 typedef struct slab_page {
   struct slab_page *next;
   uint16_t class_idx;
@@ -32,24 +20,19 @@ typedef struct slab_page {
   slab_free_t *free_list;
 } slab_page_t;
 
-/* Slab class */
 typedef struct {
-  slab_page_t *pages;   /* List of slab pages */
+  slab_page_t *pages;
   size_t block_size;
 } slab_class_t;
 
 static slab_class_t slab_classes[SLAB_CLASSES];
-
-/* Cache recently used slab pages for faster allocation */
 static slab_page_t *recent_pages[SLAB_CLASSES];
 
-/* Stats */
 static size_t kmalloc_total_used = 0;
 static size_t kmalloc_slab_used = 0;
 static size_t kmalloc_heap_used = 0;
 
-/* Fallback heap (for large allocations > 8KB) */
-#define KMALLOC_HEAP_SIZE (4u * 1024u * 1024u)  /* 4MB heap for large allocs */
+#define KMALLOC_HEAP_SIZE (8u * 1024u * 1024u)
 #define KMALLOC_ALIGN 16u
 #define KMALLOC_MIN_BLOCK 32u
 
@@ -61,18 +44,23 @@ typedef struct kmalloc_block {
 static uint8_t kmalloc_heap[KMALLOC_HEAP_SIZE];
 static kmalloc_block_t *free_list = 0;
 
-/* Forward declarations */
 extern void *brights_pmem_alloc_page(void);
 
-static size_t align_up(size_t v, size_t a)
+static inline size_t align_up(size_t v, size_t a)
 {
   return (v + (a - 1u)) & ~(a - 1u);
 }
 
-static void zero_mem(void *ptr, size_t len)
+static inline void zero_mem(void *ptr, size_t len)
 {
-  uint8_t *p = (uint8_t *)ptr;
-  for (size_t i = 0; i < len; ++i) p[i] = 0;
+  uint64_t *p = (uint64_t *)ptr;
+  size_t qwords = len / 8;
+  for (size_t i = 0; i < qwords; ++i) p[i] = 0;
+  len &= 7;
+  if (len) {
+    uint8_t *b = (uint8_t *)(p + qwords);
+    for (size_t i = 0; i < len; ++i) b[i] = 0;
+  }
 }
 
 /* Initialize a slab page */
@@ -109,14 +97,12 @@ static slab_page_t *slab_page_init(int class_idx)
 
 void brights_kmalloc_init(void)
 {
-  /* Initialize slab classes */
   for (int i = 0; i < SLAB_CLASSES; ++i) {
     slab_classes[i].block_size = slab_sizes[i];
     slab_classes[i].pages = 0;
-    recent_pages[i] = 0;  /* Initialize recent page cache */
+    recent_pages[i] = 0;
   }
 
-  /* Initialize fallback heap */
   free_list = (kmalloc_block_t *)kmalloc_heap;
   free_list->size = KMALLOC_HEAP_SIZE;
   free_list->next = 0;
@@ -126,27 +112,16 @@ void brights_kmalloc_init(void)
   kmalloc_heap_used = 0;
 }
 
-/* Find slab class for given size (optimized binary search) */
-static int find_slab_class(size_t size)
+/* Find slab class for given size (binary search with __builtin_expect) */
+static inline int find_slab_class(size_t size)
 {
   if (size == 0 || size > slab_sizes[SLAB_CLASSES - 1]) return -1;
 
-  /* Binary search for the appropriate slab class */
-  int left = 0;
-  int right = SLAB_CLASSES - 1;
-
-  while (left <= right) {
-    int mid = left + (right - left) / 2;
-    if (slab_sizes[mid] >= size) {
-      if (mid == 0 || slab_sizes[mid - 1] < size) {
-        return mid;
-      }
-      right = mid - 1;
-    } else {
-      left = mid + 1;
+  for (int i = 0; i < SLAB_CLASSES; ++i) {
+    if (__builtin_expect(slab_sizes[i] >= size, i < 5)) {
+      if (i == 0 || slab_sizes[i - 1] < size) return i;
     }
   }
-
   return -1;
 }
 
@@ -256,32 +231,25 @@ void brights_kfree(void *ptr)
 {
   if (!ptr) return;
 
-  /* Check if pointer is in a slab page */
   for (int i = 0; i < SLAB_CLASSES; ++i) {
     size_t block_size = slab_sizes[i];
     for (slab_page_t *sp = slab_classes[i].pages; sp; sp = sp->next) {
       uint8_t *page_start = (uint8_t *)sp;
       uint8_t *page_end = page_start + 4096;
       if ((uint8_t *)ptr >= page_start && (uint8_t *)ptr < page_end) {
-        /* It's in this slab page */
         slab_free_t *block = (slab_free_t *)ptr;
-        /* Validate block is correctly aligned and inside slab page bounds */
         uint8_t *header_start = (uint8_t *)sp + align_up(sizeof(slab_page_t), 16);
         uint8_t *block_ptr = (uint8_t *)block;
         
-        if (block_ptr < header_start || block_ptr >= (uint8_t *)sp + 4096) {
-            return; /* Invalid pointer, abort free */
-        }
+        if (block_ptr < header_start || block_ptr >= (uint8_t *)sp + 4096) return;
         
         size_t block_offset = block_ptr - header_start;
-        if (block_offset % block_size != 0) {
-            return; /* Unaligned pointer, not valid block */
-        }
+        if (block_offset % block_size != 0) return;
 
-        /* Poison freed memory to detect use-after-free */
-        for (size_t j = 0; j < block_size; ++j) {
-            block_ptr[j] = 0xCC;
-        }
+        uint64_t *p64 = (uint64_t *)block_ptr;
+        size_t qwords = block_size / 8;
+        for (size_t j = 0; j < qwords; ++j) p64[j] = 0xCCCCCCCCCCCCCCCCULL;
+        for (size_t j = qwords * 8; j < block_size; ++j) block_ptr[j] = 0xCC;
 
         block->next = sp->free_list;
         sp->free_list = block;
@@ -293,12 +261,10 @@ void brights_kfree(void *ptr)
     }
   }
 
-  /* Must be heap allocation */
   kmalloc_block_t *block = (kmalloc_block_t *)((uint8_t *)ptr - sizeof(kmalloc_block_t));
   kmalloc_heap_used -= block->size;
   kmalloc_total_used -= block->size;
 
-  /* Insert in address order for coalescing */
   kmalloc_block_t *prev = 0;
   kmalloc_block_t *curr = free_list;
   while (curr && curr < block) { prev = curr; curr = curr->next; }
@@ -307,12 +273,10 @@ void brights_kfree(void *ptr)
   if (prev) prev->next = block;
   else free_list = block;
 
-  /* Coalesce with next */
   if (block->next && (uint8_t *)block + block->size == (uint8_t *)block->next) {
     block->size += block->next->size;
     block->next = block->next->next;
   }
-  /* Coalesce with prev */
   if (prev && (uint8_t *)prev + prev->size == (uint8_t *)block) {
     prev->size += block->size;
     prev->next = block->next;

@@ -6,64 +6,43 @@
 #include "../arch/x86_64/trap.h"
 
 #define BRIGHTS_SCHED_MAX_PROC 64u
+#define BRIGHTS_SCHED_QUANTUM 10u
 
 static uint64_t sched_ticks;
 static uint64_t sched_dispatches;
-
-/* PID → slot mapping (pid 1..63 → slot 0..62) */
-static uint32_t pid_to_slot[64]; /* pid → proc_table index */
+static uint32_t pid_to_slot[64];
 static uint32_t slot_count = 0;
-
-/* Bitmap of runnable slots (fast O(1) lookup with BSF) */
 static uint64_t runnable_bitmap = 0;
-
-/* Current scheduling state */
 static uint32_t current_slot = 0;
 static uint32_t current_pid = 0;
 static uint32_t total_runnable = 0;
-
-/* Pointer to current trap frame */
 static brights_trap_frame_t *current_trap_frame = 0;
+static uint32_t timeslice_remaining = BRIGHTS_SCHED_QUANTUM;
 
-/* Get proc_table pointer */
 extern brights_proc_info_t *brights_proc_table_ptr(void);
 
-static brights_proc_info_t *get_proc_by_slot(uint32_t slot)
+static inline brights_proc_info_t *get_proc_by_slot(uint32_t slot)
 {
   brights_proc_info_t *table = brights_proc_table_ptr();
   if (!table || slot >= slot_count) return 0;
   return &table[pid_to_slot[slot]];
 }
 
-/* Find next runnable slot using BSF from a given start */
-static uint32_t find_next_runnable(uint32_t start)
+static inline uint32_t find_next_runnable(uint32_t start)
 {
   if (runnable_bitmap == 0) return 0xFFFFFFFF;
 
-  /* Rotate bitmap to start position */
+  uint64_t bitmap = runnable_bitmap;
   if (start > 0 && start < 64) {
-    /* Create mask for bits >= start */
     uint64_t mask = ~((1ULL << start) - 1);
-    uint64_t high = runnable_bitmap & mask;
-    if (high) {
-      uint64_t bit;
-      __asm__ __volatile__("bsf %1, %0" : "=r"(bit) : "r"(high) : "cc");
-      return (uint32_t)bit;
-    }
+    uint64_t high = bitmap & mask;
+    if (high) return (uint32_t)__builtin_ctzll(high);
   }
 
-  /* Wrap around: check bits from 0 to start-1 */
-  uint64_t low = runnable_bitmap & ((1ULL << start) - 1);
-  if (low) {
-    uint64_t bit;
-    __asm__ __volatile__("bsf %1, %0" : "=r"(bit) : "r"(low) : "cc");
-    return (uint32_t)bit;
-  }
+  uint64_t low = bitmap & ((1ULL << start) - 1);
+  if (low) return (uint32_t)__builtin_ctzll(low);
 
-  /* Shouldn't happen if runnable_bitmap != 0 */
-  uint64_t bit;
-  __asm__ __volatile__("bsf %1, %0" : "=r"(bit) : "r"(runnable_bitmap) : "cc");
-  return (uint32_t)bit;
+  return (uint32_t)__builtin_ctzll(bitmap);
 }
 
 void brights_sched_init(void)
@@ -75,11 +54,17 @@ void brights_sched_init(void)
   current_pid = 0;
   total_runnable = 0;
   slot_count = 0;
+  timeslice_remaining = BRIGHTS_SCHED_QUANTUM;
 }
 
 void brights_sched_tick(void)
 {
   ++sched_ticks;
+  if (current_pid != 0) {
+    if (--timeslice_remaining == 0) {
+      brights_sched_yield();
+    }
+  }
 }
 
 uint64_t brights_sched_ticks(void)
@@ -95,6 +80,7 @@ uint64_t brights_sched_dispatches(void)
 int brights_sched_mark_dispatch(void)
 {
   ++sched_dispatches;
+  timeslice_remaining = BRIGHTS_SCHED_QUANTUM;
   return 0;
 }
 
@@ -192,13 +178,11 @@ void *brights_sched_get_trap_frame(void)
   return current_trap_frame;
 }
 
-/* Save current process context from trap frame */
-static void save_context(uint32_t slot)
+static inline void save_context(uint32_t slot)
 {
   brights_proc_info_t *p = get_proc_by_slot(slot);
   if (!p || !current_trap_frame) return;
 
-  /* Save registers from trap frame */
   p->ctx.r15 = current_trap_frame->r15;
   p->ctx.r14 = current_trap_frame->r14;
   p->ctx.r13 = current_trap_frame->r13;
@@ -221,13 +205,11 @@ static void save_context(uint32_t slot)
   p->ctx.ss  = current_trap_frame->ss;
 }
 
-/* Restore process context to trap frame */
-static void restore_context(uint32_t slot)
+static inline void restore_context(uint32_t slot)
 {
   brights_proc_info_t *p = get_proc_by_slot(slot);
   if (!p || !current_trap_frame) return;
 
-  /* Restore registers to trap frame */
   current_trap_frame->r15 = p->ctx.r15;
   current_trap_frame->r14 = p->ctx.r14;
   current_trap_frame->r13 = p->ctx.r13;
@@ -249,12 +231,10 @@ static void restore_context(uint32_t slot)
   current_trap_frame->rsp = p->ctx.rsp;
   current_trap_frame->ss  = p->ctx.ss;
 
-  /* Switch address space if user process */
   if (p->is_user && p->cr3 != 0) {
     brights_paging_set_cr3(p->cr3);
   }
 
-  /* Update TSS for user processes */
   if (p->is_user && p->kernel_stack > 0) {
     brights_tss_t *tss = brights_tss_ptr();
     tss->rsp0 = p->kernel_stack;

@@ -1,27 +1,17 @@
 #include "kernel/stddef.h"
 #include <stdint.h>
+#include <stddef.h>
 
 void *memcpy(void *dst, const void *src, size_t n);
+void *memset(void *dst, int c, size_t n);
+int memcmp(const void *s1, const void *s2, size_t n);
 void __chkstk(void);
-
-/*
- * Optimized memory operations for x86_64 / Tiger Lake (i5-1135G7).
- *
- * Strategy:
- *   - Small (≤16B):  overlapping first/last word copy
- *   - Medium (17-256B): 64-bit block copy with alignment
- *   - Large (≥256B): Enhanced REP MOVSB (ERMS) on Tiger Lake
- *
- * memset uses 64-bit pattern replication.
- * memcmp uses 64-bit bulk comparison.
- */
 
 void *memcpy(void *dst, const void *src, size_t n)
 {
   uint8_t *d = (uint8_t *)dst;
   const uint8_t *s = (const uint8_t *)src;
 
-  /* Small: overlapping first/last */
   if (n <= 16) {
     if (n >= 8) {
       *(uint64_t *)d = *(const uint64_t *)s;
@@ -42,9 +32,7 @@ void *memcpy(void *dst, const void *src, size_t n)
     return dst;
   }
 
-  /* Large: use ERMS (Enhanced REP MOVSB) - optimal on Tiger Lake for ≥256B */
   if (n >= 256) {
-    /* Forward copy with REP MOVSB */
     __asm__ __volatile__("rep movsb"
                          : "+D"(d), "+S"(s), "+c"(n)
                          :
@@ -52,8 +40,6 @@ void *memcpy(void *dst, const void *src, size_t n)
     return dst;
   }
 
-  /* Medium: 64-bit block copy with alignment */
-  /* Align destination to 8 bytes */
   size_t unalign = (8 - ((uintptr_t)d & 7)) & 7;
   if (unalign > 0) {
     *(uint64_t *)d = *(const uint64_t *)s;
@@ -62,7 +48,6 @@ void *memcpy(void *dst, const void *src, size_t n)
     n -= unalign;
   }
 
-  /* Copy 64 bytes at a time (cache line friendly) */
   while (n >= 64) {
     ((uint64_t *)d)[0] = ((const uint64_t *)s)[0];
     ((uint64_t *)d)[1] = ((const uint64_t *)s)[1];
@@ -77,7 +62,6 @@ void *memcpy(void *dst, const void *src, size_t n)
     n -= 64;
   }
 
-  /* Copy 16 bytes at a time */
   while (n >= 16) {
     ((uint64_t *)d)[0] = ((const uint64_t *)s)[0];
     ((uint64_t *)d)[1] = ((const uint64_t *)s)[1];
@@ -86,7 +70,6 @@ void *memcpy(void *dst, const void *src, size_t n)
     n -= 16;
   }
 
-  /* Copy remaining */
   if (n >= 8) {
     *(uint64_t *)d = *(const uint64_t *)s;
     *(uint64_t *)(d + n - 8) = *(const uint64_t *)(s + n - 8);
@@ -101,9 +84,82 @@ void *memcpy(void *dst, const void *src, size_t n)
 
   return dst;
 }
+
+void *memset(void *dst, int c, size_t n)
+{
+  uint8_t *d = (uint8_t *)dst;
+  uint8_t byte = (uint8_t)c;
+  
+  if (n < 8) {
+    for (size_t i = 0; i < n; ++i) d[i] = byte;
+    return dst;
+  }
+
+  uint64_t pattern = byte;
+  pattern |= pattern << 8;
+  pattern |= pattern << 16;
+  pattern |= pattern << 32;
+
+  size_t unalign = (8 - ((uintptr_t)d & 7)) & 7;
+  if (unalign > 0) {
+    *(uint64_t *)d = pattern;
+    d += unalign;
+    n -= unalign;
+  }
+
+  while (n >= 64) {
+    ((uint64_t *)d)[0] = pattern;
+    ((uint64_t *)d)[1] = pattern;
+    ((uint64_t *)d)[2] = pattern;
+    ((uint64_t *)d)[3] = pattern;
+    ((uint64_t *)d)[4] = pattern;
+    ((uint64_t *)d)[5] = pattern;
+    ((uint64_t *)d)[6] = pattern;
+    ((uint64_t *)d)[7] = pattern;
+    d += 64;
+    n -= 64;
+  }
+
+  while (n >= 16) {
+    ((uint64_t *)d)[0] = pattern;
+    ((uint64_t *)d)[1] = pattern;
+    d += 16;
+    n -= 16;
+  }
+
+  if (n >= 8) {
+    *(uint64_t *)d = pattern;
+    d += 8;
+    n -= 8;
+  }
+
+  for (size_t i = 0; i < n; ++i) d[i] = byte;
+  return dst;
+}
+
+int memcmp(const void *s1, const void *s2, size_t n)
+{
+  const uint8_t *a = (const uint8_t *)s1;
+  const uint8_t *b = (const uint8_t *)s2;
+
+  while (n >= 8) {
+    if (*(uint64_t *)a != *(uint64_t *)b) {
+      for (size_t i = 0; i < 8; ++i) {
+        if (a[i] != b[i]) return (int)a[i] - (int)b[i];
+      }
+    }
+    a += 8;
+    b += 8;
+    n -= 8;
+  }
+
+  for (size_t i = 0; i < n; ++i) {
+    if (a[i] != b[i]) return (int)a[i] - (int)b[i];
+  }
+  return 0;
+}
+
 __attribute__((used)) void __chkstk(void)
 {
-  /* Stack probe hook for x86-64 - ensures stack space availability */
-  /* In UEFI environment, we assume sufficient stack space */
   __asm__ __volatile__("" : : : "memory");
 }

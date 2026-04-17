@@ -797,9 +797,136 @@ static int seed_user_config_dir(const char *user)
   return 0;
 }
 
+static void print_tui_banner(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  ██████╗ ██╗   ██╗███████╗███╗   ███╗██╗    ██╗ █████╗ ██████╗ ████████╗\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ██╔════╝ ██║   ██║██╔════╝████╗ ████║██║    ██║██╔══██╗██╔══██╗╚══██╔══╝\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ██║  ███╗██║   ██║███████╗██╔████╔██║██║ █╗ ██║███████║██████╔╝   ██║   \r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ██║   ██║██║   ██║╚════██║██║╚██╔╝██║██║███╗██║██╔══██║██╔══██╗   ██║   \r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ╚██████╔╝╚██████╔╝███████║██║ ╚═╝ ██║╚███╔███╔╝██║  ██║██║  ██║   ██║   \r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  ╚═════╝  ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   \r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "                   Lightweight x86_64 OS Kernel\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "                   Version 0.1.2.2 | Build " __DATE__ "\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  [✓] UEFI Boot\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  [✓] Memory Management\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  [✓] Process Scheduler\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  [✓] VFS Layer\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  [✓] Network Stack\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Type 'help' for available commands\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+}
+
+static void print_system_info(void)
+{
+  uint64_t uptime = brights_sched_ticks() / 100;
+  uint64_t days = uptime / 86400;
+  uint64_t hours = (uptime % 86400) / 3600;
+  uint64_t mins = (uptime % 3600) / 60;
+  uint64_t secs = uptime % 60;
+  
+  uint64_t total_mem = brights_pmem_total_bytes() / (1024 * 1024);
+  uint64_t free_mem = brights_pmem_free_bytes() / (1024 * 1024);
+  uint32_t proc_count = brights_proc_total();
+  
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  System: BrightS Linux 0.1.2.2\r\n");
+  
+  char buf[32];
+  int pos = 0;
+  buf[pos++] = ' ';
+  buf[pos++] = 'U';
+  buf[pos++] = 'p';
+  buf[pos++] = 't';
+  buf[pos++] = 'i';
+  buf[pos++] = 'm';
+  buf[pos++] = 'e';
+  buf[pos++] = ':';
+  buf[pos++] = ' ';
+  if (days > 0) {
+    buf[pos++] = '0' + (days / 10);
+    buf[pos++] = '0' + (days % 10);
+    buf[pos++] = 'd';
+    buf[pos++] = ' ';
+  }
+  if (hours > 0 || days > 0) {
+    buf[pos++] = '0' + (hours / 10);
+    buf[pos++] = '0' + (hours % 10);
+    buf[pos++] = 'h';
+    buf[pos++] = ' ';
+  }
+  buf[pos++] = '0' + (mins / 10);
+  buf[pos++] = '0' + (mins % 10);
+  buf[pos++] = 'm';
+  buf[pos++] = ' ';
+  buf[pos++] = '0' + (secs / 10);
+  buf[pos++] = '0' + (secs % 10);
+  buf[pos++] = 's';
+  buf[pos++] = 0;
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, buf);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+  
+  pos = 0;
+  buf[pos++] = ' ';
+  buf[pos++] = 'M';
+  buf[pos++] = 'e';
+  buf[pos++] = 'm';
+  buf[pos++] = ':';
+  buf[pos++] = ' ';
+  char numbuf[16];
+  int nlen = 0;
+  uint64_t n = free_mem;
+  if (n == 0) numbuf[nlen++] = '0';
+  else { while (n > 0) { numbuf[nlen++] = '0' + (n % 10); n /= 10; } }
+  for (int k = nlen - 1; k >= 0; k--) buf[pos++] = numbuf[k];
+  buf[pos++] = '/';
+  nlen = 0;
+  n = total_mem;
+  if (n == 0) numbuf[nlen++] = '0';
+  else { while (n > 0) { numbuf[nlen++] = '0' + (n % 10); n /= 10; } }
+  for (int k = nlen - 1; k >= 0; k--) buf[pos++] = numbuf[k];
+  buf[pos++] = 'M';
+  buf[pos++] = 'B';
+  buf[pos++] = 0;
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, buf);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+  
+  pos = 0;
+  buf[pos++] = ' ';
+  buf[pos++] = 'P';
+  buf[pos++] = 'r';
+  buf[pos++] = 'o';
+  buf[pos++] = 'c';
+  buf[pos++] = 'e';
+  buf[pos++] = 's';
+  buf[pos++] = 's';
+  buf[pos++] = 'e';
+  buf[pos++] = 's';
+  buf[pos++] = ':';
+  buf[pos++] = ' ';
+  nlen = 0;
+  n = proc_count;
+  if (n == 0) numbuf[nlen++] = '0';
+  else { while (n > 0) { numbuf[nlen++] = '0' + (n % 10); n /= 10; } }
+  for (int k = nlen - 1; k >= 0; k--) buf[pos++] = numbuf[k];
+  buf[pos++] = 0;
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, buf);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+}
+
 static void print_prompt(void)
 {
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;34m");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, current_user);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "@brights");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, ":");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;32m");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, current_dir);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, is_root ? "# " : "$ ");
 }
 
@@ -2690,8 +2817,8 @@ void brights_lightshell_run(void)
   int len = 0;
   int escape_state = 0;
 
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "brights shell ready\n");
-  cmd_help();
+  print_tui_banner();
+  print_system_info();
   print_prompt();
 
   for (;;) {

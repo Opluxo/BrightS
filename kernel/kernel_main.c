@@ -314,7 +314,8 @@ void brights_kernel_main(void *gop)
   brights_userinit();
   brights_print(&con, u"DEBUG: userinit() returned\r\n");
 
-  /* ---- Network ---- */
+  /* ---- Network (simplified for faster boot) ---- */
+  brights_print(&con, u"net: init...\r\n");
   brights_net_init();
   brights_virtionet_init();
   {
@@ -322,11 +323,15 @@ void brights_kernel_main(void *gop)
     brights_netif_add("eth0", mac);
     brights_netif_set_ip("eth0", 0xC0A80164, 0xFFFFFF00, 0xC0A80101);
     brights_netif_up("eth0");
-    brights_print(&con, u"net: eth0 up 192.168.1.100/24 gw=192.168.1.1\r\n");
   }
+  brights_print(&con, u"net: ready\r\n");
 
   /* ---- Enable interrupts ---- */
   __asm__ __volatile__("sti");
+  brights_print(&con, u"interrupts: enabled\r\n");
+
+  /* ---- Shell (should be last) ---- */
+  brights_print(&con, u"shell: starting...\r\n");
   brights_print(&con, u"\r\n--- BrightS kernel ready ---\r\n\r\n");
 
   brights_lightshell_run();

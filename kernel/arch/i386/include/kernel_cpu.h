@@ -6,7 +6,6 @@
 #define CR0_PG (1 << 31)
 #define CR0_WP (1 << 16)
 #define CR0_NE (1 << 5)
-#define CR0_ET (1 << 4)
 #define CR0_TS (1 << 3)
 #define CR0_EM (1 << 2)
 #define CR0_MP (1 << 1)
@@ -65,10 +64,9 @@ typedef struct {
 
 void brights_i386_gdt_init(void);
 void brights_i386_idt_init(void);
-void brights_i386_paging_init(uint32_t kernel_cr3);
+void brights_i386_paging_init(uint32_t kernel_start, uint32_t kernel_end);
 void brights_i386_enable_paging(void);
-uint32_t brights_i386_get_cr3(void);
-void brights_i386_set_cr3(uint32_t cr3);
+void brights_i386_disable_paging(void);
 
 static inline uint32_t brights_i386_read_cr0(void)
 {

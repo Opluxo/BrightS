@@ -48,6 +48,7 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/kernel/lightshell_cmds/netget.c
     ${CMAKE_SOURCE_DIR}/kernel/proc.c
     ${CMAKE_SOURCE_DIR}/kernel/runtime.c
+    ${CMAKE_SOURCE_DIR}/kernel/vmware.c
     ${CMAKE_SOURCE_DIR}/kernel/sched.c
     ${CMAKE_SOURCE_DIR}/kernel/signal.c
     ${CMAKE_SOURCE_DIR}/kernel/syshook.c

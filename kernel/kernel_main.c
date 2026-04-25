@@ -25,6 +25,7 @@
 #include "../drivers/serial.h"
 #include "printf.h"
 #include "acpi.h"
+#include "vmware.h"
 #include "../drivers/ramdisk.h"
 #include "fs/vfs.h"
 #include "fs/devfs.h"
@@ -285,6 +286,7 @@ void brights_kernel_main(void *gop)
   }
 
   /* ---- RTC ---- */
+  brights_vmware_backdoor_init();
   brights_print(&con, u"rtc: checking...\r\n");
   brights_rtc_time_t rt;
   brights_print(&con, u"DEBUG: About to call rtc_read\r\n");

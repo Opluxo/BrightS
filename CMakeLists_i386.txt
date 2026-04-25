@@ -1,0 +1,41 @@
+# BrightS i386 Build Configuration
+
+set(TARGET_ARCH "i386")
+set(CMAKE_C_FLAGS "-m32 -march=i686 -mtune=i686 -msse3 -fno-stack-protector -fno-pie")
+set(CMAKE_ASM_FLAGS "-m32 -f elf")
+
+# Source files for i386 port
+set(I386_SOURCES
+    ${CMAKE_SOURCE_DIR}/kernel/arch/i386/cpu/gdt.c
+    ${CMAKE_SOURCE_DIR}/kernel/arch/i386/cpu/idt.c
+    ${CMAKE_SOURCE_DIR}/kernel/arch/i386/paging/paging.c
+)
+
+# Assembly sources
+set(I386_ASM_SOURCES
+    ${CMAKE_SOURCE_DIR}/kernel/arch/i386/interrupts/isr.asm
+    ${CMAKE_SOURCE_DIR}/kernel/arch/i386/entry.asm
+)
+
+# Add i386 executable
+add_executable(brights_kernel_i386.elf
+    ${CMAKE_SOURCE_DIR}/kernel/arch/i386/boot/bootloader.asm
+    ${I386_SOURCES}
+    ${I386_ASM_SOURCES}
+)
+
+set_target_properties(brights_kernel_i386.elf PROPERTIES
+    LINK_FLAGS "-Ttext=0x10000"
+)
+
+# Create bootable image
+add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/brights-i386.img
+    COMMAND ${CMAKE_AS} ${CMAKE_ASM_FLAGS} -o ${CMAKE_BINARY_DIR}/bootloader.o 
+        ${CMAKE_SOURCE_DIR}/kernel/arch/i386/boot/bootloader.asm
+    COMMAND ${CMAKE_BINARY_DIR}/brights_kernel_i386.elf
+    COMMAND dd if=${CMAKE_BINARY_DIR}/bootloader.o of=${CMAKE_BINARY_DIR}/brights-i386.img bs=512 count=1 2>/dev/null
+    COMMAND cat ${CMAKE_BINARY_DIR}/brights_kernel_i386.elf >> ${CMAKE_BINARY_DIR}/brights-i386.img
+    DEPENDS brights_kernel_i386.elf
+)
+
+add_custom_target(i386 ALL DEPENDS ${CMAKE_BINARY_DIR}/brights-i386.img)

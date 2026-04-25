@@ -285,7 +285,7 @@ void brights_kernel_main(void *gop)
     brights_print(&con, u"DEBUG: About to init RTC\r\n");
   }
 
-  /* ---- RTC ---- */
+/* ---- RTC ---- */
   brights_vmware_backdoor_init();
   brights_print(&con, u"rtc: checking...\r\n");
   brights_rtc_time_t rt;

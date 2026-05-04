@@ -1,5 +1,4 @@
 #include "../include/paging.h"
-#include "../include/kernel_cpu.h"
 
 #define MAX_PAGE_TABLES 32
 
@@ -9,6 +8,7 @@ static brights_i386_page_table_t page_tables[MAX_PAGE_TABLES] __attribute__((ali
 
 void brights_i386_paging_init(uint32_t kernel_start, uint32_t kernel_end)
 {
+    // Initialize page structures to zero
     for (int i = 0; i < 4; i++) {
         pdpt.entries[i] = 0;
     }
@@ -23,29 +23,39 @@ void brights_i386_paging_init(uint32_t kernel_start, uint32_t kernel_end)
         }
     }
     
-    uint32_t num_page_tables = ((kernel_end - kernel_start + 0x1000000) + 0x3FFFFF) / 0x400000;
-    if (num_page_tables > MAX_PAGE_TABLES) num_page_tables = MAX_PAGE_TABLES;
+    // Calculate number of page tables needed
+    uint32_t kernel_size = kernel_end - kernel_start;
+    uint32_t num_page_tables = ((kernel_size + 0x1000000) + 0x3FFFFF) / 0x400000;
+    if (num_page_tables > MAX_PAGE_TABLES) {
+        num_page_tables = MAX_PAGE_TABLES;
+    }
     
+    // Map kernel pages
     for (uint32_t i = 0; i < num_page_tables; i++) {
         uint32_t phys_addr = 0x100000 + i * 0x400000;
         
         page_dir.entries[i] = (uint32_t)&page_tables[i] | PDE_PRESENT | PDE_WRITABLE | PDE_ACCESSED;
         
-        for (uint32_t j = 0; j < BRIGHTS_I386_PAGE_TABLE_ENTRIES; j++) {
+        // Map 4MB of memory starting from 1MB
+        for (uint32_t j = 0; j < BRIGHTS_I386_PAGE_TABLE_ENTRIES && phys_addr < 0x200000; j++) {
             uint32_t page_phys = phys_addr + j * 4096;
             page_tables[i].entries[j] = page_phys | PTE_PRESENT | PTE_WRITABLE | PTE_ACCESSED;
         }
     }
     
+    // Set up PDPT
     pdpt.entries[0] = (uint32_t)&page_dir | 1;
     
-    brights_i386_write_cr3((uint32_t)&pdpt);
-    
+    // Enable PAE and paging
     uint32_t cr4 = brights_i386_read_cr4();
     cr4 |= CR4_PAE;
     brights_i386_write_cr4(cr4);
     
-    brights_i386_paging_enable();
+    brights_i386_write_cr3((uint32_t)&pdpt);
+    
+    uint32_t cr0 = brights_i386_read_cr0();
+    cr0 |= CR0_PG;
+    brights_i386_write_cr0(cr0);
 }
 
 void brights_i386_paging_enable(void)
@@ -71,6 +81,7 @@ int brights_i386_paging_map(uint32_t virt, uint32_t phys, uint32_t flags)
         return -1;
     }
     
+    // Allocate page table if needed
     if (page_dir.entries[pde_idx] == 0) {
         for (int t = 0; t < MAX_PAGE_TABLES; t++) {
             int unused = 1;
@@ -124,6 +135,10 @@ uint32_t brights_i386_paging_virt_to_phys(uint32_t virt)
 {
     uint32_t pde_idx = (virt >> 22) & 0x3FF;
     uint32_t pte_idx = (virt >> 12) & 0x3FF;
+    
+    if (pde_idx >= BRIGHTS_I386_PAGE_DIR_ENTRIES) {
+        return 0;
+    }
     
     if (page_dir.entries[pde_idx] == 0) {
         return 0;

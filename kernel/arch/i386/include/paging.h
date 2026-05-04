@@ -2,6 +2,7 @@
 #define BRIGHTS_KERNEL_ARCH_I386_PAGING_H
 
 #include <stdint.h>
+#include "kernel_cpu.h"
 
 #define BRIGHTS_I386_PAGE_SIZE    4096
 #define BRIGHTS_I386_PAGE_DIR_ENTRIES 1024
@@ -48,12 +49,5 @@ void brights_i386_paging_disable(void);
 int brights_i386_paging_map(uint32_t virt, uint32_t phys, uint32_t flags);
 int brights_i386_paging_unmap(uint32_t virt);
 uint32_t brights_i386_paging_virt_to_phys(uint32_t virt);
-
-static inline int brights_i386_paging_enabled(void)
-{
-    uint32_t cr0;
-    __asm__ __volatile__("mov %%cr0, %0" : "=r"(cr0));
-    return (cr0 & 0x80000000) != 0;
-}
 
 #endif

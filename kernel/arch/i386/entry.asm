@@ -1,33 +1,40 @@
-; BrightS i386 Kernel Entry Point
-; Entry for 32-bit protected mode
+; BrightS i386 Kernel - Visible Flash
 
 BITS 32
 
-section .text
+ORG 0x10000
 
-extern brights_kernel_main
-extern brights_i386_gdt_init
-extern brights_i386_idt_init
-extern brights_i386_paging_init
-
-global brights_i386_start
-global brights_i386_kernel_esp
-
-brights_i386_start:
-    mov esp, brights_i386_kernel_esp
+start:
+    mov esp, 0x90000
+    mov edi, 0xB8000
     
-    push ebx
-    call brights_i386_gdt_init
-    call brights_i386_idt_init
+    xor bl, bl
     
-    add esp, 4
+.loop:
+    ; Alternate between 'B' and 'O'
+    test bl, 1
+    jz .show_B
     
-    push 0x100000
-    push 0x200000
-    call brights_i386_paging_init
-    add esp, 8
+.show_O:
+    mov ah, 0x00
+    mov al, ' '
+    jmp .write
     
-    call brights_kernel_main
+.show_B:
+    mov ah, 0x0F
+    mov al, 'B'
     
-brights_i386_kernel_esp:
-    dd 0x90000
+.write:
+    mov [edi], ax
+    
+    ; Toggle
+    xor bl, 1
+    
+    ; Delay
+    push ecx
+    mov ecx, 0x40000
+.d1:
+    loop .d1
+    pop ecx
+    
+    jmp .loop

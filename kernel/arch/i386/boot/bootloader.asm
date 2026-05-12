@@ -1,5 +1,4 @@
-; BrightS i386 BIOS Bootloader v2
-; Enhanced bootloader with memory detection and kernel loading
+; BrightS i386 BIOS Bootloader - Debug Version
 
 BITS 16
 
@@ -12,109 +11,69 @@ start:
     mov ss, ax
     mov sp, 0x7C00
     
-    mov si, msg_banner
-    call print_string
+    mov si, msg1
+    call puts
     
-    call detect_memory
+    mov bx, 0x1000
+    mov ah, 0x02
+    mov al, 18
+    mov ch, 0
+    mov cl, 2
+    mov dh, 0
+    mov dl, 0
+    int 0x13
     
-    mov si, msg_memory
-    call print_string
-    call print_hex16
+    jnc .loaded
+    mov si, msg_err
+    call puts
+    jmp $
+
+.loaded:
+    mov si, msg2
+    call puts
     
-    call load_kernel
+    ; Copy to 0x10000
+    mov si, 0x1000
+    mov di, 0x10000
+    mov cx, 9*512
+    rep movsb
     
-    jc boot_error
-    
-    mov si, msg_loaded
-    call print_string
+    mov si, msg3
+    call puts
     
     cli
-    lgdt [gdtr]
+    lgdt [gdt_desc]
     
     mov eax, cr0
     or eax, 1
     mov cr0, eax
-    
-    jmp 0x08:protected_mode
+    jmp 0x08:pmode
 
-detect_memory:
-    mov eax, 0xE820
-    xor ebx, ebx
-    mov edx, 0x534D4150
-    mov esi, mem_map
-    int 0x15
-    jc .done
-    mov [mem_count], bx
-    .done:
-    ret
-
-print_string:
+puts:
     mov ah, 0x0E
-    .loop:
     lodsb
-    or al, al
-    jz .ret
+    test al, al
+    jz .done
     int 0x10
-    jmp .loop
-    .ret:
+    jmp puts
+.done:
     ret
 
-print_hex16:
-    mov cx, 4
-    .loop:
-    rol ax, 4
-    mov dl, al
-    and dl, 0x0F
-    cmp dl, 0x0A
-    jb .digit
-    add dl, 'A' - 10
-    jmp .show
-    .digit:
-    add dl, '0'
-    .show:
-    mov ah, 0x0E
-    int 0x10
-    loop .loop
-    ret
+msg1 db '1', 10, 0
+msg2 db '2', 10, 0
+msg3 db '3', 10, 0
+msg_err db 'E', 10, 0
 
-boot_error:
-    mov si, msg_error
-    call print_string
-    jmp $
-
-load_kernel:
-    mov ah, 0x02
-    mov al, 32
-    mov bx, 0x1000
-    mov ch, 0
-    mov cl, 2
-    mov dh, 0
-    mov dl, 0x80
-    int 0x13
-    jc .fail
-    .fail:
-    ret
-
-msg_banner db 'BrightS Bootloader v2', 13, 10, 0
-msg_memory db 'Memory: ', 0
-msg_loaded db 'Kernel loaded at 0x10000', 13, 10, 0
-msg_error db 'Error!', 13, 10, 0
-
-mem_map times 256 db 0
-mem_count dw 0
-
-gdtr:
+gdt_desc:
     dw gdt_end - gdt - 1
-    dd 0x1000 + (gdt - 0x7C00)
+    dw gdt
+    dd 0
 
 gdt:
-    dw 0, 0, 0, 0
-    
-    dw 0xFFFF, 0x0000, 0x9200, 0x00CF
-    dw 0xFFFF, 0x0000, 0x9A00, 0x00CF
-    
-    dw 0xFFFF, 0x0000, 0x9200, 0x00CF
-    dw 0xFFFF, 0x0000, 0x9A00, 0x00CF
+    db 0, 0, 0, 0
+    db 0, 0, 0, 0
+    db 0xFF, 0xFF, 0, 0, 0, 0x9A, 0xCF, 0
+    db 0xFF, 0xFF, 0, 0, 0, 0x92, 0xCF, 0
 gdt_end:
 
 times 510-($-start) db 0
@@ -122,16 +81,20 @@ dw 0xAA55
 
 BITS 32
 
-protected_mode:
+pmode:
     mov ax, 0x10
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    
     mov esp, 0x90000
     
-    call 0x10000
+    mov edi, 0xB8000
+    mov ah, 0x0F
+    mov al, 'P'
+    mov [edi], ax
     
-    jmp $
+    ; Print via BIOS - this won't work in protected mode
+    ; Just jump to kernel
+    jmp 0x10000

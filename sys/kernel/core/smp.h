@@ -15,4 +15,10 @@ uint32_t brights_smp_apic_id(uint32_t core_idx);
 /* AP entry point (called by each AP during boot) */
 void brights_smp_ap_entry(uint32_t apic_id);
 
+/* Request scheduling on a specific AP */
+void brights_smp_schedule_ap(uint32_t apic_id);
+
+/* Broadcast scheduler IPI to all APs */
+void brights_smp_broadcast_sched(void);
+
 #endif

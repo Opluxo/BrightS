@@ -1,6 +1,7 @@
 #include "cache.h"
 #include "kmalloc.h"
 #include "kernel_util.h"
+#include "clock.h"
 
 /* Global cache registry */
 cache_t *global_caches[CACHE_MAX_TYPES] = {0};
@@ -86,10 +87,10 @@ int cache_create(const cache_config_t *config, cache_t **cache_out)
     if (!cache) return -1;
 
     /* Copy configuration */
-    kernel_memcpy(&cache->config, config, sizeof(cache_config_t));
+    kutil_memcpy(&cache->config, config, sizeof(cache_config_t));
 
     /* Initialize statistics */
-    kernel_memset(&cache->stats, 0, sizeof(cache_stats_t));
+    kutil_memset(&cache->stats, 0, sizeof(cache_stats_t));
     cache->stats.size_max = config->max_size;
     cache->stats.entries_max = config->max_entries;
 
@@ -102,7 +103,7 @@ int cache_create(const cache_config_t *config, cache_t **cache_out)
         brights_kfree(cache);
         return -1;
     }
-    kernel_memset(cache->table, 0, cache->table_size * sizeof(cache_entry_t *));
+    kutil_memset(cache->table, 0, cache->table_size * sizeof(cache_entry_t *));
 
     /* Initialize LRU list */
     cache->lru_head = NULL;
@@ -305,7 +306,7 @@ int cache_put(cache_t *cache, uint64_t key, const void *data, size_t size)
             existing->size = size;
         }
 
-        kernel_memcpy(existing->data, data, size);
+        kutil_memcpy(existing->data, data, size);
         existing->access_time = brights_clock_ms();
         cache_add_to_lru(cache, existing);
 
@@ -338,7 +339,7 @@ int cache_put(cache_t *cache, uint64_t key, const void *data, size_t size)
     entry->size = size;
     entry->create_time = brights_clock_ms();
     entry->access_time = entry->create_time;
-    kernel_memcpy(entry->data, data, size);
+    kutil_memcpy(entry->data, data, size);
 
     /* Add to hash table */
     uint32_t index = cache_hash(key, cache->table_size);

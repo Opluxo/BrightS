@@ -2,30 +2,59 @@
 #include "pmem.h"
 #include "syshook.h"
 #include "kernel_util.h"
-#include "../platform/x86_64/paging.h"
-#include "../dev/serial.h"
+#include "elf.h"
+#include "../arch/x86_64/paging.h"
+#include "../drivers/serial.h"
 
 #define BRIGHTS_PROC_MAX 64u
 
 static brights_proc_info_t proc_table[BRIGHTS_PROC_MAX];
-static uint32_t pid_to_index[256];  /* PID → table index (O(1) lookup) */
-static uint64_t free_slots_bitmap;  /* Bit 0=free, 1=used */
+static uint32_t pid_to_index[256];
+static uint64_t free_slots_bitmap;
 static uint32_t next_pid = 1;
 static uint32_t current_pid = 0;
 
-/* Allow scheduler to access the proc table directly */
 brights_proc_info_t *brights_proc_table_ptr(void)
 {
   return proc_table;
 }
 
-/* Forward declarations */
-static void proc_str_copy(char *dst, int cap, const char *src);
-static brights_proc_info_t *proc_get_by_pid(uint32_t pid);
-static brights_proc_info_t *proc_get_current(void);
-static int proc_find_free_slot(void);
-static void proc_mark_slot_used(int slot);
+static inline void proc_str_copy(char *dst, int cap, const char *src)
+{
+  if (!dst || cap <= 0) return;
+  int i = 0;
+  while (src && src[i] && i < cap - 1) {
+    dst[i] = src[i];
+    ++i;
+  }
+  dst[i] = 0;
+}
 
+static inline brights_proc_info_t *proc_get_by_pid(uint32_t pid)
+{
+  if (pid == 0 || pid >= 256) return 0;
+  uint32_t idx = pid_to_index[pid];
+  if (idx >= BRIGHTS_PROC_MAX) return 0;
+  if (proc_table[idx].pid != pid || proc_table[idx].state == BRIGHTS_PROC_UNUSED) return 0;
+  return &proc_table[idx];
+}
+
+static inline brights_proc_info_t *proc_get_current(void)
+{
+  return proc_get_by_pid(current_pid);
+}
+
+static inline int proc_find_free_slot(void)
+{
+  uint64_t bitmap = ~free_slots_bitmap;
+  if (bitmap == 0) return -1;
+  return (int)__builtin_ctzll(bitmap);
+}
+
+static inline void proc_mark_slot_used(int slot)
+{
+  free_slots_bitmap |= (1ULL << slot);
+}
 
 void brights_proc_init(void)
 {
@@ -99,46 +128,6 @@ int brights_proc_set_state(uint32_t pid, brights_proc_state_t state)
   return 0;
 }
 
-/* String helpers */
-static void proc_str_copy(char *dst, int cap, const char *src)
-{
-  if (!dst || cap <= 0) return;
-  int i = 0;
-  while (src && src[i] && i < cap - 1) {
-    dst[i] = src[i];
-    ++i;
-  }
-  dst[i] = 0;
-}
-/* O(1) PID lookup using direct mapping */
-static brights_proc_info_t *proc_get_by_pid(uint32_t pid)
-{
-  if (pid == 0 || pid >= 256) return 0;
-  uint32_t idx = pid_to_index[pid];
-  if (idx >= BRIGHTS_PROC_MAX) return 0;
-  if (proc_table[idx].pid != pid || proc_table[idx].state == BRIGHTS_PROC_UNUSED) return 0;
-  return &proc_table[idx];
-}
-
-/* Find current process slot - O(1) */
-static brights_proc_info_t *proc_get_current(void)
-{
-  return proc_get_by_pid(current_pid);
-}
-
-/* Find free slot using bitmap - O(log n) */
-static int proc_find_free_slot(void)
-{
-  for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-    if (!(free_slots_bitmap & (1ULL << i))) return (int)i;
-  }
-  return -1;
-}
-
-static void proc_mark_slot_used(int slot)
-{
-  free_slots_bitmap |= (1ULL << slot);
-}
 uint32_t brights_proc_count(brights_proc_state_t state)
 {
   uint32_t count = 0;
@@ -417,8 +406,8 @@ int brights_proc_spawn_user(const char *name, uint64_t entry, uint64_t stack_top
       /* Initialize saved context */
       proc_table[i].ctx.rip = entry;
       proc_table[i].ctx.rsp = stack_top;
-      proc_table[i].ctx.cs = 0x23;   /* User CS */
-      proc_table[i].ctx.ss = 0x2B;   /* User DS */
+      proc_table[i].ctx.cs = 0x2B;   /* User CS */
+      proc_table[i].ctx.ss = 0x23;   /* User DS */
       proc_table[i].ctx.rflags = 0x202; /* IF set */
       proc_table[i].ctx.rax = 0;
       proc_table[i].ctx.rbx = 0;
@@ -481,6 +470,67 @@ uint64_t brights_proc_kernel_stack(void)
   brights_proc_info_t *p = proc_get_current();
   if (!p) return 0;
   return p->kernel_stack;
+}
+
+int brights_proc_exec(const void *elf_data, uint64_t elf_size, elf64_load_info_t *info_out)
+{
+  brights_proc_info_t *p = proc_get_current();
+  if (!p || !p->is_user) return -1;
+
+  brights_paging_destroy_address_space(p->cr3);
+
+  p->cr3 = brights_paging_create_address_space();
+  if (p->cr3 == 0) return -1;
+
+  if (brights_elf_load(elf_data, elf_size, info_out) != 0) {
+    brights_paging_destroy_address_space(p->cr3);
+    p->cr3 = brights_paging_get_cr3();
+    return -1;
+  }
+
+  p->user_entry = info_out->entry;
+  p->user_stack_top = info_out->stack_top;
+
+  p->brk = 0;
+  p->brk_start = 0;
+
+  p->ctx.rip = info_out->entry;
+  p->ctx.rsp = info_out->stack_top;
+  p->ctx.cs = 0x2B;
+  p->ctx.ss = 0x23;
+  p->ctx.rflags = 0x202;
+  p->ctx.rax = 0;
+  p->ctx.rbx = 0;
+  p->ctx.rcx = 0;
+  p->ctx.rdx = 0;
+  p->ctx.rsi = 0;
+  p->ctx.rdi = 0;
+  p->ctx.rbp = 0;
+  p->ctx.r8 = 0;
+  p->ctx.r9 = 0;
+  p->ctx.r10 = 0;
+  p->ctx.r11 = 0;
+  p->ctx.r12 = 0;
+  p->ctx.r13 = 0;
+  p->ctx.r14 = 0;
+  p->ctx.r15 = 0;
+
+  return 0;
+}
+
+int brights_proc_exec_continue(void)
+{
+  brights_proc_info_t *p = proc_get_current();
+  if (!p || !p->is_user) return -1;
+
+  extern void brights_enter_user_from_syscall(void *rip, void *rsp, uint64_t cr3);
+  brights_enter_user_from_syscall(
+    (void *)(uintptr_t)p->user_entry,
+    (void *)(uintptr_t)p->user_stack_top,
+    p->cr3
+  );
+
+  return 0;
 }
 
 /* Fork: create a child process that is a copy of the parent */

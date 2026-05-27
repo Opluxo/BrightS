@@ -15,13 +15,13 @@ const char *brights_storage_backend(void);
 #endif
 
 #include "storage.h"
-#include "../platform/x86_64/pci.h"
-#include "../dev/nvme.h"
-#include "../dev/ahci.h"
-#include "../dev/ramdisk.h"
-#include "../dev/block.h"
-#include "../dev/serial.h"
-#include "../fs/vfs.h"
+#include "../arch/x86_64/pci.h"
+#include "../drivers/nvme.h"
+#include "../drivers/ahci.h"
+#include "../drivers/ramdisk.h"
+#include "../drivers/block.h"
+#include "../drivers/serial.h"
+#include "fs/vfs.h"
 #include <stdint.h>
 
 static uint8_t ramdisk_storage[64 * 4096];

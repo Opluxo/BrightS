@@ -5,8 +5,31 @@
 
 /* Network constants */
 #define BRIGHTS_NET_MAX_IF 4
+#define BRIGHTS_NET_MAX_DRIVERS 4
+#define BRIGHTS_NET_BUF_SIZE 1518
 
-/* Network interface */
+/* Network driver operations */
+typedef struct {
+  int (*init)(void);
+  int (*send)(const uint8_t *frame, uint32_t len);
+  int (*recv)(uint8_t *frame, uint32_t *len);
+  int (*poll)(void);
+} brights_net_driver_ops_t;
+
+/* Network driver */
+typedef struct {
+  const char *name;
+  int initialized;
+  brights_net_driver_ops_t ops;
+} brights_net_driver_t;
+
+/* Register a network driver */
+int brights_net_register_driver(brights_net_driver_t *driver);
+
+/* Get network driver for interface */
+brights_net_driver_t *brights_net_get_driver(int if_idx);
+
+/* Network interface extended */
 typedef struct {
   char name[16];
   uint8_t mac[6];
@@ -14,10 +37,31 @@ typedef struct {
   uint32_t netmask;
   uint32_t gateway;
   int up;
+  int driver_idx;
 } brights_netif_t;
 
 /* External network interfaces array */
 extern brights_netif_t netifs[BRIGHTS_NET_MAX_IF];
+
+/* Socket API internals (for syscall use) */
+#define BRIGHTS_NET_MAX_SOCKETS 32
+
+typedef struct {
+  int in_use;
+  int domain;
+  int type;
+  uint32_t local_ip;
+  uint16_t local_port;
+  uint32_t remote_ip;
+  uint16_t remote_port;
+  uint8_t recv_buf[4096];
+  uint32_t recv_len;
+  uint32_t tcp_state;
+  uint32_t tcp_seq;
+  uint32_t tcp_ack;
+} brights_socket_t;
+
+extern brights_socket_t sockets[BRIGHTS_NET_MAX_SOCKETS];
 
 /* Initialize network subsystem */
 void brights_net_init(void);

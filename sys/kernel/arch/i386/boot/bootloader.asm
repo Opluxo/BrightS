@@ -1,4 +1,4 @@
-; BrightS i386 BIOS Bootloader - Debug Version
+; BrightS i386 BIOS Bootloader
 
 BITS 16
 
@@ -11,7 +11,7 @@ start:
     mov ss, ax
     mov sp, 0x7C00
     
-    mov si, msg1
+    mov si, msg_boot
     call puts
     
     mov bx, 0x1000
@@ -29,17 +29,13 @@ start:
     jmp $
 
 .loaded:
-    mov si, msg2
+    mov si, msg_ok
     call puts
     
-    ; Copy to 0x10000
     mov si, 0x1000
     mov di, 0x10000
     mov cx, 9*512
     rep movsb
-    
-    mov si, msg3
-    call puts
     
     cli
     lgdt [gdt_desc]
@@ -59,10 +55,9 @@ puts:
 .done:
     ret
 
-msg1 db '1', 10, 0
-msg2 db '2', 10, 0
-msg3 db '3', 10, 0
-msg_err db 'E', 10, 0
+msg_boot db 'BrightS i386', 10, 0
+msg_ok db 'OK', 10, 0
+msg_err db '!', 10, 0
 
 gdt_desc:
     dw gdt_end - gdt - 1
@@ -92,9 +87,7 @@ pmode:
     
     mov edi, 0xB8000
     mov ah, 0x0F
-    mov al, 'P'
+    mov al, 'B'
     mov [edi], ax
     
-    ; Print via BIOS - this won't work in protected mode
-    ; Just jump to kernel
     jmp 0x10000

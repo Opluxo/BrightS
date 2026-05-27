@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "vm.h"
-#include "../../../include/kernel/stddef.h"
+#include "../arch/x86_64/paging.h"
 
 /* Initialize physical memory manager */
 void brights_pmem_init(const brights_mem_region_t *regions, uint32_t count);

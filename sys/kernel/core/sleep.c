@@ -1,6 +1,6 @@
 #include "sleep.h"
 #include "hwinfo.h"
-#include "../platform/x86_64/hpet.h"
+#include "../arch/x86_64/hpet.h"
 #include <stdint.h>
 
 static volatile uint64_t sleep_spin_counter;

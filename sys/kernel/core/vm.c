@@ -1,6 +1,6 @@
 #include "vm.h"
 #include "pmem.h"
-#include "../platform/x86_64/paging.h"
+#include "../arch/x86_64/paging.h"
 
 static brights_mem_region_t brights_mem_regions[BRIGHTS_MAX_MEM_REGIONS];
 static uint32_t brights_mem_region_count;

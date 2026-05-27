@@ -1,5 +1,5 @@
 #include "pf.h"
-#include "../dev/serial.h"
+#include "../drivers/serial.h"
 #include "proc.h"
 #include "printf.h"
 

@@ -1,5 +1,5 @@
 #include "ramfs.h"
-#include "../core/kernel_util.h"
+#include "kernel_util.h"
 #include <stdint.h>
 
 static brights_ramfs_file_t ramfs_files[BRIGHTS_RAMFS_MAX_FILES];

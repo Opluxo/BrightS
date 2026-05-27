@@ -1,8 +1,8 @@
-#include "../core/kernel_util.h"
+#include "kernel_util.h"
 #include "wifi.h"
 #include "net.h"
-#include "../dev/serial.h"
-#include "../core/printf.h"
+#include "../drivers/serial.h"
+#include "printf.h"
 #include <stdint.h>
 
 /* ===== WiFi interfaces ===== */

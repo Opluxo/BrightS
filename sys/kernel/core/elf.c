@@ -1,8 +1,8 @@
-#include "../core/kernel_util.h"
+#include "kernel_util.h"
 #include "elf.h"
 #include "pmem.h"
-#include "../platform/x86_64/paging.h"
-#include "../dev/serial.h"
+#include "../arch/x86_64/paging.h"
+#include "../drivers/serial.h"
 
 /* User stack: 16 pages = 64KB */
 #define USER_STACK_PAGES 16

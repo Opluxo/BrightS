@@ -11,10 +11,10 @@ echo "=== BrightS i386 Build ==="
 mkdir -p build
 
 echo "[1/4] Building bootloader..."
-nasm -f bin -o build/bootloader.bin kernel/arch/i386/boot/bootloader.asm
+nasm -f bin -o build/bootloader.bin sys/kernel/arch/i386/boot/bootloader.asm
 
 echo "[2/4] Building kernel..."
-nasm -f bin -o build/kernel.bin kernel/arch/i386/entry.asm
+nasm -f bin -o build/kernel.bin sys/kernel/arch/i386/entry.asm
 
 echo "[3/4] Creating floppy image..."
 dd if=/dev/zero of=build/floppy.img bs=1024 count=1440 2>/dev/null

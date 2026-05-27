@@ -1,7 +1,7 @@
 #ifndef BRIGHTS_KMALLOC_H
 #define BRIGHTS_KMALLOC_H
 
-#include "kernel/stddef.h"
+#include "../include/kernel/stddef.h"
 
 void brights_kmalloc_init(void);
 void *brights_kmalloc(size_t size);

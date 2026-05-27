@@ -22,7 +22,7 @@ int brights_pipe_vfs_create(vfs_file_t **out_read, vfs_file_t **out_write);
 
 #endif
 #include "pipe_vfs.h"
-#include "../fs/vfs2.h"
+#include "fs/vfs2.h"
 #include <stdint.h>
 
 static brights_pipe_t pipe_pool[BRIGHTS_MAX_PIPES];

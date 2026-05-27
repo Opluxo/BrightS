@@ -1,5 +1,5 @@
 #include "simd.h"
-#include "../core/kernel_util.h"
+#include "kernel_util.h"
 #include <stdint.h>
 
 simd_caps_t brights_simd_caps = {0};

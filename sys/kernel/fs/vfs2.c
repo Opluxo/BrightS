@@ -1,6 +1,6 @@
 #include "vfs2.h"
-#include "../core/kmalloc.h"
-#include "../core/kernel_util.h"
+#include "kmalloc.h"
+#include "kernel_util.h"
 #include "kernel/stddef.h"
 
 /* ---- Global file pool ---- */

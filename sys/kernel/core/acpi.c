@@ -1,6 +1,6 @@
 #include "acpi.h"
-#include "../platform/x86_64/io.h"
-#include "../dev/serial.h"
+#include "../arch/x86_64/io.h"
+#include "../drivers/serial.h"
 #include <stdint.h>
 
 #define ACPI_SIG_FADT 0x50434146u

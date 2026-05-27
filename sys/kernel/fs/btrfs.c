@@ -1,8 +1,8 @@
-#include "../core/kernel_util.h"
+#include "kernel_util.h"
 #include "btrfs.h"
-#include "../dev/block.h"
-#include "../core/printf.h"
-#include "../dev/serial.h"
+#include "../drivers/block.h"
+#include "printf.h"
+#include "../drivers/serial.h"
 #include <stdint.h>
 
 #define BTRFS_SUPER_MAGIC "_BHRfS_M"

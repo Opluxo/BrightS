@@ -1,6 +1,6 @@
 #include "hwinfo.h"
-#include "../platform/x86_64/io.h"
-#include "../platform/x86_64/msr.h"
+#include "../arch/x86_64/io.h"
+#include "../arch/x86_64/msr.h"
 #include <stdint.h>
 
 static brights_cpu_info_t cpu_info;
@@ -79,6 +79,27 @@ void brights_hwinfo_init(void)
   cpu_info.has_f16c  = (ecx >> 29) & 1;
   cpu_info.has_rdrand= (ecx >> 30) & 1;
 
+  /* Intel Atom N270 special case: family 0x6, model 0x1C */
+  if (cpu_info.family == 0x6 && cpu_info.model == 0x1C) {
+    /* Force disable features not supported on Diamondville */
+    cpu_info.has_sse41 = 0;
+    cpu_info.has_sse42 = 0;
+    cpu_info.has_x2apic = 0;
+    cpu_info.has_avx = 0;
+    cpu_info.has_f16c = 0;
+    cpu_info.has_rdrand = 0;
+    cpu_info.tsc_invariant = 0;
+    /* Exact N270 hardware configuration */
+    cpu_info.l1d_size = 24 * 1024;
+    cpu_info.l1i_size = 32 * 1024;
+    cpu_info.l2_size = 512 * 1024;
+    cpu_info.l3_size = 0;
+    cpu_info.l1d_line = 64;
+    cpu_info.cores_per_pkg = 1;
+    cpu_info.logical_cores = 2;
+    cpu_info.threads_per_core = 2;
+  }
+
   /* Logical core count from leaf 1 EBX */
   cpu_info.logical_cores = (ebx >> 16) & 0xFF;
 
@@ -135,13 +156,14 @@ void brights_hwinfo_init(void)
     }
   }
 
-  /* Fallback cache sizes for Tiger Lake (i5-1135G7) if not detected */
-  if (cpu_info.l1d_size == 0) cpu_info.l1d_size = 48 * 1024;
+  /* Fallback cache sizes if not detected */
+  if (cpu_info.l1d_size == 0) cpu_info.l1d_size = 32 * 1024;
   if (cpu_info.l1i_size == 0) cpu_info.l1i_size = 32 * 1024;
-  if (cpu_info.l2_size == 0)  cpu_info.l2_size  = 1280 * 1024;  /* 1.25 MB */
-  if (cpu_info.l3_size == 0)  cpu_info.l3_size  = 8 * 1024 * 1024;
-  if (cpu_info.cores_per_pkg <= 1) cpu_info.cores_per_pkg = 4;
-  if (cpu_info.logical_cores <= 1) cpu_info.logical_cores = 8;
+  if (cpu_info.l2_size == 0)  cpu_info.l2_size  = 512 * 1024;
+  if (cpu_info.l3_size == 0)  cpu_info.l3_size  = 0;
+  if (cpu_info.cores_per_pkg <= 1) cpu_info.cores_per_pkg = 1;
+  if (cpu_info.logical_cores <= 1) cpu_info.logical_cores = 2;
+  if (cpu_info.threads_per_core <= 1) cpu_info.threads_per_core = 1;
 
   /* Check invariant TSC */
   if (cpu_info.has_tsc && cpu_info.max_ext_leaf >= 0x80000007) {
@@ -196,6 +218,11 @@ void brights_hwinfo_calibrate_tsc(void)
 
   /* Sanity check */
   if (cpu_info.tsc_freq < 500000000ULL || cpu_info.tsc_freq > 6000000000ULL) {
-    cpu_info.tsc_freq = 2400000000ULL; /* Fallback: 2.4 GHz */
+    /* Use 1.6GHz fallback for Intel Atom N270 */
+    if (cpu_info.family == 0x6 && cpu_info.model == 0x1C) {
+      cpu_info.tsc_freq = 1600000000ULL;
+    } else {
+      cpu_info.tsc_freq = 2400000000ULL; /* Default fallback: 2.4 GHz */
+    }
   }
 }

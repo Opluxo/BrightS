@@ -1,12 +1,12 @@
 #include "netget.h"
-#include "../../core/lightshell.h"
-#include "../../core/printf.h"
-#include "../../core/kmalloc.h"
-#include "../../core/kernel_util.h"
-#include "../../fs/ramfs.h"
+#include "../lightshell.h"
+#include "../printf.h"
+#include "../kmalloc.h"
+#include "../kernel_util.h"
+#include "../fs/ramfs.h"
 #include "../../net/http/http.h"
 #include "../../net/dns/dns.h"
-#include "../../dev/serial.h"
+#include "../../drivers/serial.h"
 
 int cmd_netget_handler(const char *arg)
 {

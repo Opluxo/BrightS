@@ -1,9 +1,9 @@
 #include "fileops.h"
 #include "../lightshell.h"
 #include "../printf.h"
-#include "../fs/ramfs.h"
-#include "../dev/serial.h"
-#include "../core/string.h"
+#include "fs/ramfs.h"
+#include "../drivers/serial.h"
+#include "string.h"
 
 int cmd_ls_handler(const char *arg)
 {

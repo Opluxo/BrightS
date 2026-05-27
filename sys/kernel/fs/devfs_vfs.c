@@ -11,11 +11,11 @@ void brights_devfs_vfs_init(void);
 
 #endif
 #include "vfs2.h"
-#include "../dev/tty.h"
-#include "../dev/serial.h"
-#include "../dev/rtc.h"
-#include "../dev/ps2kbd.h"
-#include "../dev/block.h"
+#include "../drivers/tty.h"
+#include "../drivers/serial.h"
+#include "../drivers/rtc.h"
+#include "../drivers/ps2kbd.h"
+#include "../drivers/block.h"
 #include <stdint.h>
 
 /* ---- Device nodes ---- */

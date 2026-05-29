@@ -3,7 +3,6 @@
 ### A lightweight x86_64 operating system kernel
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Arch-x86__64-1793D1?style=flat-square&logo=arch-linux" alt="Arch">
   <img src="https://img.shields.io/badge/License-GPL%20v2-6CC644?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/UEFI-Boot-FF6C2C?style=flat-square" alt="UEFI">
   <img src="https://img.shields.io/badge/Version-0.1.2.2-4FC08D?style=flat-square" alt="Version">

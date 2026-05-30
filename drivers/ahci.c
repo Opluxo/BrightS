@@ -1,18 +1,31 @@
 #ifndef BRIGHTS_AHCI_H
 #define BRIGHTS_AHCI_H
 
+#ifdef __i386__
+#include "../arch/i386/pci.h"
+#else
+#include "../arch/x86_64/pci.h"
+#endif
 #include <stdint.h>
 #include "block.h"
+#ifdef __i386__
+#include "../arch/i386/pci.h"
+#else
 #include "../arch/x86_64/pci.h"
+#endif
 
 int brights_ahci_init(const brights_pci_device_t *dev);
 brights_block_dev_t *brights_ahci_block(void);
 
 #endif
 #include "ahci.h"
-#include "../kernel/printf.h"
+#include "../kernel/core/printf.h"
 #include "serial.h"
+#ifdef __i386__
+#include "../arch/i386/pci.h"
+#else
 #include "../arch/x86_64/pci.h"
+#endif
 
 #define AHCI_HBA_CAP  0x00
 #define AHCI_HBA_GHC  0x04
@@ -213,8 +226,19 @@ static int ahci_exec(uint64_t lba, uint32_t count, void *buf, int write)
   fis->count = (uint16_t)count;
 
   mmio_write32(port_off(ahci_port, AHCI_PORT_IS), 0xFFFFFFFF);
+
+  /* Wait for slot 0 to be free before issuing command */
+  uint64_t ahci_timeout = 10000000;
+  while ((mmio_read32(port_off(ahci_port, AHCI_PORT_CI)) & 1) && ahci_timeout > 0) {
+    __asm__ __volatile__("pause");
+    --ahci_timeout;
+  }
+  if (ahci_timeout == 0) return -1;
+
   mmio_write32(port_off(ahci_port, AHCI_PORT_CI), 1);
-  while (mmio_read32(port_off(ahci_port, AHCI_PORT_CI)) & 1) {
+
+  ahci_timeout = 10000000;
+  while ((mmio_read32(port_off(ahci_port, AHCI_PORT_CI)) & 1) && ahci_timeout > 0) {
     uint32_t tfd = mmio_read32(port_off(ahci_port, AHCI_PORT_TFD));
     if (tfd & 0x01) {
       return -1;

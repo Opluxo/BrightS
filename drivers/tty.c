@@ -1,6 +1,7 @@
 #include "tty.h"
 #include "serial.h"
 #include "ps2kbd.h"
+#include "usb.h"
 #include "../kernel/printf.h"
 
 static brights_console_t tty_console;
@@ -106,6 +107,12 @@ int brights_tty_read_char(char *out_ch)
     char raw_ch;
     if (brights_ps2kbd_read_char(&raw_ch) > 0) cooked_process_char(raw_ch);
 
+    brights_usb_hid_poll_all();
+    uint8_t usb_ch;
+    if (brights_usb_hid_read_key(&usb_ch) == 0) {
+      cooked_process_char((char)usb_ch);
+    }
+
     uint8_t serial_ch;
     if (brights_serial_read_byte(BRIGHTS_COM1_PORT, &serial_ch) > 0) {
       cooked_process_char((char)serial_ch);
@@ -122,6 +129,14 @@ int brights_tty_read_char(char *out_ch)
   }
 
   if (brights_ps2kbd_read_char(out_ch) > 0) return 1;
+
+  brights_usb_hid_poll_all();
+  uint8_t usb_ch;
+  if (brights_usb_hid_read_key(&usb_ch) == 0) {
+    *out_ch = (char)usb_ch;
+    return 1;
+  }
+
   uint8_t serial_ch;
   if (brights_serial_read_byte(BRIGHTS_COM1_PORT, &serial_ch) > 0) {
     *out_ch = (char)serial_ch;

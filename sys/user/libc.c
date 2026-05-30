@@ -537,6 +537,23 @@ static inline int64_t syscall3(uint64_t num, uint64_t a0, uint64_t a1, uint64_t 
   return ret;
 }
 
+static inline int64_t syscall5(uint64_t num, uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4)
+{
+  int64_t ret;
+  __asm__ __volatile__("int $0x80" : "=a"(ret) : "a"(num), "D"(a0), "S"(a1), "d"(a2), "c"(a3), "b"(a4) : "memory");
+  return ret;
+}
+
+static inline int64_t syscall6(uint64_t num, uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
+{
+  int64_t ret;
+  __asm__ __volatile__("int $0x80" : "=a"(ret)
+    : "a"(num), "D"(a0), "S"(a1), "d"(a2), "c"(a3), "b"(a4)
+    : "memory");
+  (void)a5;
+  return ret;
+}
+
 int64_t sys_read(int fd, void *buf, uint64_t count)
 {
   return syscall3(1, (uint64_t)fd, (uint64_t)buf, count);
@@ -624,127 +641,269 @@ int64_t sys_stat(const char *path, uint64_t *size, uint32_t *mode)
 
 int64_t sys_getcwd(char *buf, uint64_t size)
 {
-  return syscall2(30, (uint64_t)buf, size);
+  return syscall2(32, (uint64_t)buf, size);
 }
 
 int64_t sys_chdir(const char *path)
 {
-  return syscall1(31, (uint64_t)path);
+  return syscall1(33, (uint64_t)path);
 }
 
 int64_t sys_readdir(int fd, char *buf, uint64_t count)
 {
-  return syscall3(32, (uint64_t)fd, (uint64_t)buf, count);
+  return syscall3(34, (uint64_t)fd, (uint64_t)buf, count);
 }
 
 int64_t sys_yield(void)
 {
-  return syscall0(25);
+  return syscall0(27);
 }
 
 int64_t sys_dup(int fd)
 {
-  return syscall1(27, (uint64_t)fd);
+  return syscall1(29, (uint64_t)fd);
 }
 
 int64_t sys_dup2(int oldfd, int newfd)
 {
-  return syscall2(28, (uint64_t)oldfd, (uint64_t)newfd);
+  return syscall2(30, (uint64_t)oldfd, (uint64_t)newfd);
 }
 
 int64_t sys_pipe(int *fds)
 {
-  return syscall1(26, (uint64_t)fds);
+  return syscall1(28, (uint64_t)fds);
 }
 
 int64_t sys_chmod(const char *path, uint32_t mode)
 {
-  return syscall2(48, (uint64_t)path, (uint64_t)mode);
+  return syscall2(50, (uint64_t)path, (uint64_t)mode);
 }
 
 int64_t sys_chown(const char *path, uint32_t uid, uint32_t gid)
 {
-  return syscall3(49, (uint64_t)path, (uint64_t)uid, (uint64_t)gid);
+  return syscall3(51, (uint64_t)path, (uint64_t)uid, (uint64_t)gid);
 }
 
 int64_t sys_symlink(const char *target, const char *linkpath)
 {
-  return syscall2(50, (uint64_t)target, (uint64_t)linkpath);
+  return syscall2(52, (uint64_t)target, (uint64_t)linkpath);
 }
 
 int64_t sys_readlink(const char *path, char *buf, uint64_t bufsize)
 {
-  return syscall3(51, (uint64_t)path, (uint64_t)buf, bufsize);
+  return syscall3(53, (uint64_t)path, (uint64_t)buf, bufsize);
 }
 
 int64_t sys_uname(void *buf)
 {
-  return syscall1(38, (uint64_t)buf);
+  return syscall1(40, (uint64_t)buf);
 }
 
 int64_t sys_sysinfo(void *buf)
 {
-  return syscall1(37, (uint64_t)buf);
+  return syscall1(39, (uint64_t)buf);
 }
 
 int64_t sys_socket(int domain, int type, int protocol)
 {
-  return syscall3(52, (uint64_t)domain, (uint64_t)type, (uint64_t)protocol);
+  return syscall3(54, (uint64_t)domain, (uint64_t)type, (uint64_t)protocol);
 }
 
 int64_t sys_bind(int sockfd, uint32_t addr, uint16_t port)
 {
-  return syscall3(53, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)port);
+  return syscall3(55, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)port);
 }
 
 int64_t sys_listen(int sockfd, int backlog)
 {
-  return syscall2(54, (uint64_t)sockfd, (uint64_t)backlog);
+  return syscall2(56, (uint64_t)sockfd, (uint64_t)backlog);
 }
 
 int64_t sys_accept(int sockfd, uint32_t *addr, uint16_t *port)
 {
-  return syscall3(55, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)port);
+  return syscall3(57, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)port);
 }
 
 int64_t sys_connect(int sockfd, uint32_t addr, uint16_t port)
 {
-  return syscall3(56, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)port);
+  return syscall3(58, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)port);
 }
 
 int64_t sys_send(int sockfd, const void *buf, uint64_t len)
 {
-  return syscall3(57, (uint64_t)sockfd, (uint64_t)buf, len);
+  return syscall3(59, (uint64_t)sockfd, (uint64_t)buf, len);
 }
 
 int64_t sys_recv(int sockfd, void *buf, uint64_t len)
 {
-  return syscall3(58, (uint64_t)sockfd, (uint64_t)buf, len);
+  return syscall3(60, (uint64_t)sockfd, (uint64_t)buf, len);
 }
 
 int64_t sys_close_socket(int sockfd)
 {
-  return syscall1(59, (uint64_t)sockfd);
+  return syscall1(61, (uint64_t)sockfd);
 }
 
 int64_t sys_icmp_echo(uint32_t dst_ip)
 {
-  return syscall1(62, (uint64_t)dst_ip);
+  return syscall1(64, (uint64_t)dst_ip);
 }
 
 int64_t sys_ifconfig(int cmd)
 {
-  return syscall1(61, (uint64_t)cmd);
+  return syscall1(63, (uint64_t)cmd);
 }
 
 int64_t sys_ip_parse(const char *str)
 {
-  return syscall1(63, (uint64_t)str);
+  return syscall1(65, (uint64_t)str);
 }
 
 void sys_ip_to_str(uint32_t ip, char *buf)
 {
-  syscall2(64, (uint64_t)ip, (uint64_t)buf);
+  syscall2(66, (uint64_t)ip, (uint64_t)buf);
+}
+
+int64_t sys_setsid(void)
+{
+  return syscall0(67);
+}
+
+int64_t sys_getuid(void)
+{
+  return syscall0(68);
+}
+
+int64_t sys_geteuid(void)
+{
+  return syscall0(69);
+}
+
+int64_t sys_getgid(void)
+{
+  return syscall0(70);
+}
+
+int64_t sys_getegid(void)
+{
+  return syscall0(71);
+}
+
+int64_t sys_umask(int mask)
+{
+  return syscall1(72, (uint64_t)mask);
+}
+
+int64_t sys_gettimeofday(void *tv, void *tz)
+{
+  return syscall2(73, (uint64_t)tv, (uint64_t)tz);
+}
+
+int64_t sys_clock_gettime(int clk_id, void *tp)
+{
+  return syscall2(74, (uint64_t)clk_id, (uint64_t)tp);
+}
+
+int64_t sys_nanosleep(const void *req, void *rem)
+{
+  return syscall2(75, (uint64_t)req, (uint64_t)rem);
+}
+
+int64_t sys_time(uint64_t *tloc)
+{
+  return syscall1(76, (uint64_t)tloc);
+}
+
+int64_t sys_access(const char *path, int mode)
+{
+  return syscall2(77, (uint64_t)path, (uint64_t)mode);
+}
+
+int64_t sys_fstat(int fd, void *statbuf)
+{
+  return syscall2(78, (uint64_t)fd, (uint64_t)statbuf);
+}
+
+int64_t sys_rename(const char *oldpath, const char *newpath)
+{
+  return syscall2(79, (uint64_t)oldpath, (uint64_t)newpath);
+}
+
+int64_t sys_readv(int fd, const void *iov, int iovcnt)
+{
+  return syscall3(80, (uint64_t)fd, (uint64_t)iov, (uint64_t)iovcnt);
+}
+
+int64_t sys_writev(int fd, const void *iov, int iovcnt)
+{
+  return syscall3(81, (uint64_t)fd, (uint64_t)iov, (uint64_t)iovcnt);
+}
+
+int64_t sys_fcntl(int fd, int cmd, uint64_t arg)
+{
+  return syscall3(82, (uint64_t)fd, (uint64_t)cmd, arg);
+}
+
+int64_t sys_getsockname(int sockfd, void *addr, void *port)
+{
+  return syscall3(83, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)port);
+}
+
+int64_t sys_getpeername(int sockfd, void *addr, void *port)
+{
+  return syscall3(84, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)port);
+}
+
+int64_t sys_getsockopt(int sockfd, int level, int optname, void *optval, void *optlen)
+{
+  return syscall5(85, (uint64_t)sockfd, (uint64_t)level, (uint64_t)optname, (uint64_t)optval, (uint64_t)optlen);
+}
+
+int64_t sys_link(const char *oldpath, const char *newpath)
+{
+  return syscall2(86, (uint64_t)oldpath, (uint64_t)newpath);
+}
+
+int64_t sys_brk(uint64_t addr)
+{
+  return syscall1(21, addr);
+}
+
+/* missing syscall wrappers for completeness */
+
+int64_t sys_mmap(uint64_t addr, uint64_t length, uint64_t prot, uint64_t flags, uint64_t fd, uint64_t offset)
+{
+  return syscall6(19, addr, length, prot, flags, fd, offset);
+}
+
+int64_t sys_munmap(uint64_t addr, uint64_t length)
+{
+  return syscall2(20, addr, length);
+}
+
+int64_t sys_kill(int64_t pid, int sig)
+{
+  return syscall2(26, (uint64_t)pid, (uint64_t)sig);
+}
+
+int64_t sys_sigaction(int signo, const void *act, void *oldact)
+{
+  return syscall3(25, (uint64_t)signo, (uint64_t)act, (uint64_t)oldact);
+}
+
+int64_t sys_mount(const char *source, const char *target, const char *fstype, uint64_t flags, const void *data)
+{
+  return syscall5(35, (uint64_t)source, (uint64_t)target, (uint64_t)fstype, flags, (uint64_t)data);
+}
+
+int64_t sys_reboot(uint64_t cmd)
+{
+  return syscall1(37, cmd);
+}
+
+int64_t sys_setsockopt(int sockfd, int level, int optname, const void *optval, uint32_t optlen)
+{
+  return syscall5(62, (uint64_t)sockfd, (uint64_t)level, (uint64_t)optname, (uint64_t)optval, (uint64_t)optlen);
 }
 
 void abort(void)

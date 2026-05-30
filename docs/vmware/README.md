@@ -1,40 +1,40 @@
-# VMware Support Added to BrightS
+# VMware Support in BrightS
 
-## What's New
+## Overview
 
-- Added VMware backdoor support for VMware virtual machines
-- VMware detection and initialization during kernel boot
-- VMware-specific I/O port communication
-- VMware time synchronization support
+BrightS includes VMware backdoor support for running inside VMware virtual machines.
 
-## Files Added
+## Status
 
-- `kernel/vmware.h` - VMware backdoor interface definitions
-- `kernel/vmware.c` - VMware backdoor implementation
-- Modified `kernel/kernel_main.c` to initialize VMware support
+- ✅ VMware detection during kernel boot
+- ✅ VMware backdoor I/O port communication
+- ✅ VMware time synchronization
+- ⏳ VMware drag-and-drop / shared folders (planned)
 
 ## How It Works
 
-1. During boot, the kernel checks for VMware backdoor availability
+1. During boot, the kernel checks for VMware backdoor availability via I/O port magic
 2. If VMware is detected, it initializes the backdoor interface
-3. VMware-specific features like time synchronization can be used
+3. VMware-specific features like time synchronization are enabled
 
-## Build Information
+## Files
 
-- ISO size: 4.7MB
-- Kernel size: 156KB
-- Supports both QEMU and VMware virtualization
+- `kernel/core/vmware.c` — backdoor implementation
+- `kernel/core/vmware.h` — interface definitions
+- `kernel/core/kernel_main.c` — initialization call
 
 ## Testing
 
-To test in VMware:
+Run in VMware Workstation/Player:
 1. Create a new VM
-2. Attach the ISO file
+2. Attach the built ISO
 3. Boot the VM
-4. Check serial output for "vmware: backdoor initialized" message
+4. Check serial output for "vmware: backdoor initialized"
 
 ## Notes
 
-- VMware backdoor is only active in VMware environments
-- In other environments (QEMU, physical hardware), it will show "vmware: backdoor not available"
-- This provides better integration with VMware tools and features
+- Backdoor only active in VMware environments
+- In QEMU or physical hardware: "vmware: backdoor not available"
+- The ISO image supports both QEMU and VMware
+
+*Last updated: 2026-05-29*

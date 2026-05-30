@@ -1,11 +1,11 @@
 # BrightS
 
-### A lightweight x86_64 operating system kernel
+### A lightweight x86_64 / i386 operating system kernel
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL%20v2-6CC644?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/UEFI-Boot-FF6C2C?style=flat-square" alt="UEFI">
-  <img src="https://img.shields.io/badge/Version-0.1.2.2-4FC08D?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/UEFI+BIOS-Boot-FF6C2C?style=flat-square" alt="Boot">
+  <img src="https://img.shields.io/badge/Version-2.0.0-4FC08D?style=flat-square" alt="Version">
 </p>
 
 ---
@@ -14,27 +14,53 @@
 
 | Category | Features |
 |----------|----------|
-| **Boot** | UEFI boot, x86_64 architecture |
-| **Memory** | Virtual memory management, Slab allocator (8MB heap) |
-| **Process** | Round-robin scheduling, Time-slice preemption (10 tick quantum) |
-| **Filesystem** | VFS2 abstraction, RAMFS, DevFS, Btrfs support |
-| **Network** | TCP/IP stack, VirtIO-Net |
-| **Storage** | AHCI, NVMe, block device interface |
-| **Shell** | Built-in shell with pipes, redirection, history, tab completion |
-| **Multi-lang** | Rust, Python, C++ runtime support |
+| **Boot** | UEFI (x86_64) + Legacy BIOS (i386) |
+| **Memory** | 4-level / PAE paging, Slab allocator (8MB heap), PMEM |
+| **Process** | O(1) round-robin scheduling, 10-tick preemption, SMP |
+| **Filesystem** | VFS2 abstraction, RAMFS, DevFS, Btrfs |
+| **Network** | TCP/IP, VirtIO-Net, DHCP, DNS, HTTP |
+| **Storage** | AHCI, NVMe, ramdisk, block device interface |
+| **Shell** | LightShell: history, tab completion, pipes, redirection, jobs |
+| **Multi-lang** | Rust, Python, C++ inline runtime |
+| **Security** | SMEP/SMAP, heap hardening, syscall boundary checking |
+| **Performance** | SIMD-accelerated memcpy/memset, LRU cache, LTO |
+
+---
+
+## 📁 Project Structure
+
+```
+BrightS/
+├── arch/x86_64/          # x86_64 UEFI arch code
+├── arch/i386/            # i386 BIOS arch code
+├── kernel/               # Core kernel subsystems
+│   ├── core/            # Scheduler, memory, proc, syscalls
+│   ├── dev/             # Device drivers
+│   ├── fs/              # Filesystems
+│   ├── ipc/             # Pipes
+│   └── net/             # Network stack
+├── drivers/              # Display/GPU drivers
+├── user/                 # Userspace programs
+├── include/kernel/       # Kernel headers
+├── docs/                 # Documentation
+├── scripts/              # Build scripts
+├── tests/                # Test suites
+└── config/               # Configuration files
+```
 
 ---
 
 ## 📦 Build
 
 ```bash
-# Build kernel
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
+# Build kernel (x86_64 UEFI)
+make build
 
 # Run in QEMU
 make run
+
+# Run tests
+make test
 ```
 
 ---
@@ -47,44 +73,34 @@ make run
 | 🇨🇳 简体中文 | [docs/README_zh_CN.md](docs/README_zh_CN.md) |
 | 🇯🇵 日本語 | [docs/README_ja.md](docs/README_ja.md) |
 
-### Quick Links
-| User Guide | Developer Guide |
-|------------|-----------------|
-| [Commands (EN)](docs/user-guide/COMMAND_REFERENCE.md) | [Development (EN)](docs/developer-guide/DEVELOPMENT.md) |
-| [命令参考 (中)](docs/user-guide/COMMAND_REFERENCE_CN.md) | [开发指南 (中)](docs/developer-guide/DEVELOPMENT.md) |
-| [コマンド (日)](docs/user-guide/COMMAND_REFERENCE_ja.md) | [開発ガイド (日)](docs/developer-guide/DEVELOPMENT.md) |
-
 ---
 
-## 📊 Performance Optimizations
+## 📊 Performance
 
 | Component | Optimization |
 |-----------|-------------|
-| **kmalloc** | Slab allocator with 10 size classes, 8MB heap |
-| **sched** | O(1) runqueue with `__builtin_ctzll`, 10-tick quantum |
-| **runtime** | ERMS for ≥256B, 64-byte cache-line copy, SSE2 memset |
-| **proc** | O(1) PID allocation via bitmap, inline helpers |
+| **kmalloc** | Slab allocator, 10 size classes, best-fit, 8MB heap |
+| **sched** | O(1) runqueue via `__builtin_ctzll`, 10-tick quantum |
+| **runtime** | ERMS ≥256B, 64-byte cache-line copy, SSE2 memset |
+| **proc** | O(1) PID allocation via bitmap |
+| **cache** | LRU: DNS, Path, Inode, Buffer caches |
 
 ---
 
-## 📁 Project Structure
+## 🧪 Tests
 
-```
-BrightS/
-├── kernel/           # Core kernel
-│   ├── arch/        # Architecture (x86_64)
-│   ├── fs/          # Filesystems (VFS2, RAMFS, DevFS, Btrfs)
-│   ├── net/         # Network stack
-│   ├── kmalloc.c    # Memory allocator
-│   ├── sched.c      # Process scheduler
-│   └── proc.c       # Process management
-├── drivers/         # Device drivers
-├── docs/            # Documentation
-└── scripts/         # Build scripts
-```
+- `test_ramfs` — RAM filesystem (7 test cases)
+- `test_benchmark` — Performance benchmarks
+- `test_extended` — SIMD, cache, monitoring
+
+---
+
+## 📄 License
+
+GNU General Public License v2. See [LICENSE](LICENSE).
 
 ---
 
 <p align="center">
-  <strong>BrightS v0.1.2.2</strong> · GPL v2 License
+  <strong>BrightS v2.0.0</strong> · GPL v2 License
 </p>

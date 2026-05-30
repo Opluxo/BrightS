@@ -12,6 +12,7 @@ typedef enum {
   BRIGHTS_BLOCK_DEV_NVME = 1,
   BRIGHTS_BLOCK_DEV_AHCI = 2,
   BRIGHTS_BLOCK_DEV_RAMDISK = 3,
+  BRIGHTS_BLOCK_DEV_USB = 4,
 } brights_block_dev_type_t;
 
 /* Block device structure */

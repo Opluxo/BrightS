@@ -1,24 +1,3 @@
-#ifndef BRIGHTS_X86_64_CPU_LOCAL_H
-#define BRIGHTS_X86_64_CPU_LOCAL_H
-
-#include <stdint.h>
-
-/* Initialize per-CPU data for BSP */
-void brights_cpu_local_init(uint64_t kernel_rsp);
-
-/* Initialize per-CPU data for an AP */
-void brights_cpu_local_init_ap(uint32_t apic_id, uint64_t kernel_rsp);
-
-/* Get current CPU's APIC ID */
-uint32_t brights_cpu_local_id(void);
-
-/* Get current process PID on this CPU */
-uint32_t brights_cpu_local_current_pid(void);
-
-/* Set current process PID on this CPU */
-void brights_cpu_local_set_pid(uint32_t pid);
-
-#endif
 #include "cpu_local.h"
 #include "msr.h"
 

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #define MAX_SHADER_CODE_SIZE 65536
 #define MAX_SHADER_CONSTANTS 256

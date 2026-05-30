@@ -1,13 +1,13 @@
 #include "uefi.h"
 #include "uefi_memmap.h"
-#include "../../kernel/printf.h"
-#include "../../kernel/acpi.h"
-#include "../../kernel/vm.h"
-#include "../../kernel/kernel_main.h"
+#include "../../kernel/core/printf.h"
+#include "../../kernel/core/acpi.h"
+#include "../../kernel/core/vm.h"
+#include "../../kernel/core/kernel_main.h"
 #include "../../drivers/serial.h"
 #include "idt.h"
 #include "syscall_abi.h"
-#include "../../kernel/fs/vfs.h"
+#include "../../kernel/fs/boot_fs.h"
 
 static void uefi_puts(brights_console_t *con, const uint16_t *msg)
 {
@@ -212,7 +212,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
    brights_syscall_abi_init();
    uefi_print_str(&serial_con, u"DEBUG: syscall_abi_init done\r\n");
    uefi_print_str(&serial_con, u"DEBUG: About to init VFS\r\n");
-   brights_vfs_init();
+   brights_boot_fs_init();
    uefi_print_str(&serial_con, u"BrightS kernel: syscall/vfs ok\r\n");
    uefi_print_str(&serial_con, u"DEBUG: About to call kernel_main\r\n");
    brights_kernel_main(gop);

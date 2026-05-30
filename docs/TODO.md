@@ -1,44 +1,98 @@
-1.完善内核优化（优化对象：i5 1135G7 + 8GB RAM）
-  - [x] 优化kmalloc：增加heap大小到8MB，实现真正的free功能
-  - [x] 完善调度器：添加进程队列管理和轮转调度
-2.完善kshell
-  - [x] 添加命令历史功能（支持上下箭头键导航）
-  - [x] 添加tab补全功能
-3.根据File_Struct_Define修改目录结构
-  - [x] 更新vfs.c以创建新的目录结构
-  - [x] 更新kshell.c中的路径引用
-  - [x] 更新kernel_main.c中的挂载路径
-  - [x] 更新userinit.c中的系统配置路径
-4.补全代码实现
-  - [x] 优化runtime.c：添加64位优化的memcpy/memset/memmove/memcmp
-  - [x] 完善sleep.c：添加sleep_us/sleep_ms/halt函数
-  - [x] 完善clock.c：添加纳秒级时间支持（TSC）
-  - [x] 扩展sysent.c：添加42个系统调用
-  - [x] 完善paging.c：实现页表管理
-  - [x] 完善proc.c：添加进程名、退出、父进程ID、僵尸进程状态
-5.精简项目目录
-  - [x] 删除v6fs相关文件
-  - [x] 项目统一使用btrfs作为主文件系统
-6.用户态补全
-  - [x] ELF64加载器（elf.c/elf.h）
-  - [x] 扩展proc结构支持用户态上下文（CR3、brk、kernel_stack、ctx）
-  - [x] userinit支持加载ELF进入用户模式
-  - [x] 系统调用全部改用VFS2
-  - [x] 嵌入式shell ELF程序（支持help/echo/exit命令）
-  - [x] sys_fork/sys_exec完善
-7.中断与时钟
-  - [x] PIC重映射（IRQ0-7→INT32-39, IRQ8-15→INT40-47）
-  - [x] PIT定时器（100Hz周期中断）
-  - [x] 时钟中断驱动的抢占式调度（10 tick量子）
-  - [x] 键盘中断（IRQ1→INT33）
-8.设备驱动
-  - [x] PS/2键盘中断驱动输入缓冲（ring buffer）
-  - [x] TTY行规程（cooked mode、echo、退格、tab）
-  - [x] DevFS扩展（/dev/null, /dev/zero, /dev/rtc, /dev/kbd, /dev/disk0）
-  - [x] 块设备接口扩展（name、type、total_blocks、block_size、ready、注册表）
-  - [x] 管道IPC（pipe.c ring buffer + VFS集成）
-9.文件系统
-  - [x] VFS2抽象层（mount、resolve、open/close/read/write/stat/readdir）
-  - [x] RAMFS VFS适配器
-  - [x] DevFS VFS适配器
-  - [x] Btrfs btree split/merge/insert_node/delete_leaf/search
+# BrightS Development Roadmap
+
+## ✅ Completed (v1.0.0)
+
+### Kernel Core
+- [x] kmalloc: Slab allocator with 10 size classes, 8MB heap, real free
+- [x] Scheduler: O(1) runqueue with `__builtin_ctzll`, round-robin, 10-tick quantum
+- [x] Runtime: ERMS memcpy/memset/memmove/memcmp, SSE2 optimized
+- [x] Sleep: sleep_us/sleep_ms/halt, TSC-based ns timing
+- [x] Clock: nanosecond time support via TSC
+- [x] Syscalls: 42 syscalls via sysent dispatch table
+- [x] Paging: 4-level page table management
+- [x] Proc: PID bitmap O(1) alloc, process name, exit status, parent PID, zombie states
+- [x] Signal: signal handling framework
+- [x] SMP: multi-processor bootstrap
+- [x] PMEM: physical memory manager
+- [x] VMware: VMware backdoor detection
+
+### Shell (kshell/lightshell)
+- [x] Command history (arrow key navigation)
+- [x] Tab completion
+- [x] Pipes and redirection
+- [x] Background jobs
+- [x] Multi-language: Rust/Python/C++ inline execution
+
+### Filesystem & VFS
+- [x] VFS2 abstraction: mount, resolve, open/close/read/write/stat/readdir
+- [x] RAMFS VFS adapter
+- [x] DevFS VFS adapter
+- [x] Btrfs: btree split/merge/insert_node/delete_leaf/search
+- [x] Directory structure per File_Struct_Define
+- [x] Pipe IPC: ring buffer + VFS integration
+- [x] Block device interface: name, type, blocks, register table
+
+### Interrupts & Timers
+- [x] PIC remap: IRQ0-7→INT32-39, IRQ8-15→INT40-47
+- [x] PIT: 100Hz periodic interrupt
+- [x] Preemptive scheduling via timer interrupt (10 tick quantum)
+- [x] PS/2 keyboard interrupt (IRQ1→INT33)
+- [x] APIC + I/O APIC
+- [x] HPET high-precision timer
+
+### Device Drivers
+- [x] PS/2 keyboard: ring buffer interrupt driver
+- [x] TTY line discipline: cooked mode, echo, backspace, tab
+- [x] Framebuffer display
+- [x] Font rendering
+- [x] Serial port
+- [x] RTC
+- [x] AHCI storage driver
+- [x] NVMe storage driver
+- [x] GPU HAL framework
+- [x] Vulkan shader support
+
+### Networking
+- [x] TCP/IP stack
+- [x] VirtIO-Net driver
+- [x] DHCP client
+- [x] DNS resolver
+- [x] HTTP client
+
+### Userspace
+- [x] ELF64 loader (elf.c/elf.h)
+- [x] User process context: CR3, brk, kernel_stack, ctx
+- [x] sys_fork/sys_exec
+- [x] userinit: load ELF, enter user mode
+- [x] Embedded shell ELF: help/echo/exit/ls/cat/cp/mv/rm/mkdir/chmod/grep/find/ping/ps/jobs
+- [x] Service management (daemon framework)
+- [x] Init system
+- [x] Syslog daemon (syslogd)
+- [x] DHCP daemon (dhcpd)
+- [x] Sysinfo tool
+
+### Performance Optimizations
+- [x] Shell auto-completion: O(n²)→O(n)
+- [x] String search: fast-path + boundary check
+- [x] Slab allocator: linear→binary search, best-fit
+- [x] VFS path resolution cache (16 entries)
+- [x] SIMD acceleration: vector ops, memcpy/memset/memcmp, CRC32
+- [x] LTO: kernel binary 96KB→93KB
+- [x] Global cache system: LRU, DNS/Path/Inode/Buffer caches
+
+### Security
+- [x] SMEP kernel execution protection
+- [x] SMAP kernel access protection
+- [x] Syscall boundary checking
+- [x] Heap integer overflow protection
+- [x] Double-free attack protection
+- [x] Use-after-free memory poisoning
+
+### Architecture Support
+- [x] x86_64 UEFI boot
+- [x] i386 BIOS boot (bootloader + protected mode)
+- [x] i386 page table (PAE paging)
+- [x] i386 interrupt handling
+
+---
+*Last updated: 2026-05-29 — All planned features are complete.*

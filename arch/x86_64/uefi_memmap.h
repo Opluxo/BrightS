@@ -2,7 +2,7 @@
 #define BRIGHTS_UEFI_MEMMAP_H
 #include <stdint.h>
 #include "uefi.h"
-#include "../../kernel/vm.h"
+#include "../../kernel/core/vm.h"
 
 typedef struct {
   brights_mem_region_t regions[BRIGHTS_MAX_MEM_REGIONS];

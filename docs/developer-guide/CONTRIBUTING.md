@@ -34,7 +34,7 @@ See [docs/build/build.md](docs/build/build.md) for instructions on setting up th
 
 ## Development Workflow
 
-1. **选择任务**: 查看 [docs/TODO](docs/TODO) 文件选择开发任务
+1. **选择任务**: 查看 [docs/TODO.md](docs/TODO.md) 文件选择开发任务
 2. **创建分支**: `git checkout -b feature/your-feature-name`
 3. **编写代码**: 遵循项目编码规范
 4. **运行测试**: `make test` 确保所有测试通过

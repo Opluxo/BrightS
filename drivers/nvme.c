@@ -1,18 +1,31 @@
 #ifndef BRIGHTS_NVME_H
 #define BRIGHTS_NVME_H
 
+#ifdef __i386__
+#include "../arch/i386/pci.h"
+#else
+#include "../arch/x86_64/pci.h"
+#endif
 #include <stdint.h>
 #include "block.h"
+#ifdef __i386__
+#include "../arch/i386/pci.h"
+#else
 #include "../arch/x86_64/pci.h"
+#endif
 
 int brights_nvme_init(const brights_pci_device_t *dev);
 brights_block_dev_t *brights_nvme_block(void);
 
 #endif
 #include "nvme.h"
-#include "../kernel/printf.h"
+#include "../kernel/core/printf.h"
 #include "serial.h"
+#ifdef __i386__
+#include "../arch/i386/pci.h"
+#else
 #include "../arch/x86_64/pci.h"
+#endif
 
 #define NVME_REG_CAP   0x0000
 #define NVME_REG_VS    0x0008
@@ -130,10 +143,12 @@ static void nvme_submit_admin(const nvme_cmd_t *cmd)
 
 static int nvme_poll_admin(uint16_t cid)
 {
+  uint64_t nvme_timeout = 50000000;
   for (;;) {
     nvme_cqe_t *cqe = &admin_cq[admin_cq_head];
     uint8_t phase = cqe->status & 1;
     if (phase != admin_phase) {
+      if (--nvme_timeout == 0) return -1;
       continue;
     }
     if (cqe->cid != cid) {
@@ -216,10 +231,12 @@ static int nvme_submit_io(uint8_t opc, uint64_t lba, uint16_t nblocks, void *buf
   io_sq_tail = (io_sq_tail + 1) % NVME_IO_Q_DEPTH;
   mmio_write32(nvme_db_offset(1, 0), io_sq_tail);
 
+  uint64_t nvme_timeout = 50000000;
   for (;;) {
     nvme_cqe_t *cqe = &io_cq[io_cq_head];
     uint8_t phase = cqe->status & 1;
     if (phase != io_phase) {
+      if (--nvme_timeout == 0) return -1;
       continue;
     }
     if (cqe->cid != cmd.cid) {

@@ -38,32 +38,36 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/drivers/im.c
     ${CMAKE_SOURCE_DIR}/drivers/ahci.c
     ${CMAKE_SOURCE_DIR}/drivers/nvme.c
-    ${CMAKE_SOURCE_DIR}/kernel/pipe.c
-    ${CMAKE_SOURCE_DIR}/kernel/clock.c
-    ${CMAKE_SOURCE_DIR}/kernel/acpi.c
-    ${CMAKE_SOURCE_DIR}/kernel/hwinfo.c
-    ${CMAKE_SOURCE_DIR}/kernel/kmalloc.c
-    ${CMAKE_SOURCE_DIR}/kernel/cache.c
-    ${CMAKE_SOURCE_DIR}/kernel/lightshell.c
-    ${CMAKE_SOURCE_DIR}/kernel/lightshell_cmds/netget.c
-    ${CMAKE_SOURCE_DIR}/kernel/proc.c
-    ${CMAKE_SOURCE_DIR}/kernel/runtime.c
-    ${CMAKE_SOURCE_DIR}/kernel/vmware.c
-    ${CMAKE_SOURCE_DIR}/kernel/sched.c
-    ${CMAKE_SOURCE_DIR}/kernel/signal.c
-    ${CMAKE_SOURCE_DIR}/kernel/syshook.c
-    ${CMAKE_SOURCE_DIR}/kernel/sleep.c
-    ${CMAKE_SOURCE_DIR}/kernel/storage.c
-    ${CMAKE_SOURCE_DIR}/kernel/syscall.c
-    ${CMAKE_SOURCE_DIR}/kernel/sysent.c
-    ${CMAKE_SOURCE_DIR}/kernel/kernel_main.c
-    ${CMAKE_SOURCE_DIR}/kernel/userinit.c
-    ${CMAKE_SOURCE_DIR}/kernel/elf.c
-    ${CMAKE_SOURCE_DIR}/kernel/smp.c
-    ${CMAKE_SOURCE_DIR}/kernel/pmem.c
-    ${CMAKE_SOURCE_DIR}/kernel/vm.c
-    ${CMAKE_SOURCE_DIR}/kernel/printf.c
-    ${CMAKE_SOURCE_DIR}/kernel/pf.c
+    ${CMAKE_SOURCE_DIR}/drivers/usb_core.c
+    ${CMAKE_SOURCE_DIR}/drivers/uhci.c
+    ${CMAKE_SOURCE_DIR}/drivers/usb_hid.c
+    ${CMAKE_SOURCE_DIR}/drivers/usb_msc.c
+    ${CMAKE_SOURCE_DIR}/kernel/ipc/pipe.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/clock.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/acpi.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/hwinfo.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/kmalloc.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/cache.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/lightshell.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/lightshell_cmds/netget.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/proc.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/runtime.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/vmware.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/sched.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/signal.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/syshook.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/sleep.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/storage.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/syscall.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/sysent.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/kernel_main.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/userinit.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/elf.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/smp.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/pmem.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/vm.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/printf.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/pf.c
     ${CMAKE_SOURCE_DIR}/kernel/fs/vfs.c
     ${CMAKE_SOURCE_DIR}/kernel/fs/vfs2.c
     ${CMAKE_SOURCE_DIR}/kernel/fs/ramfs.c
@@ -102,6 +106,10 @@ set(KERNEL_SOURCES
       -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-cast-qual
        -I${CMAKE_SOURCE_DIR}/arch/x86_64
         -I${CMAKE_SOURCE_DIR}/kernel
+        -I${CMAKE_SOURCE_DIR}/kernel/core
+        -I${CMAKE_SOURCE_DIR}/kernel/dev
+        -I${CMAKE_SOURCE_DIR}/kernel/fs
+        -I${CMAKE_SOURCE_DIR}/kernel/ipc
         -I${CMAKE_SOURCE_DIR}/kernel/net
         -I${CMAKE_SOURCE_DIR}/kernel/net/dhcp
         -I${CMAKE_SOURCE_DIR}/kernel/net/dns

@@ -107,7 +107,7 @@ make test
 # 在QEMU中运行
 qemu-system-x86_64 \
   -bios /usr/share/OVMF/OVMF_CODE.fd \
-  -drive file=fat:rw:sys/kernel,format=raw \
+  -drive file=fat:rw:build,format=raw \
   -serial stdio \
   -m 512
 ```
@@ -117,13 +117,13 @@ qemu-system-x86_64 \
 # 启用GDB调试
 qemu-system-x86_64 \
   -bios /usr/share/OVMF/OVMF_CODE.fd \
-  -drive file=fat:rw:sys/kernel,format=raw \
+  -drive file=fat:rw:build,format=raw \
   -serial stdio \
   -m 512 \
   -s -S
 
 # 在另一个终端中连接GDB
-gdb sys/kernel/kernel.elf
+gdb build/kernel.elf
 (gdb) target remote localhost:1234
 ```
 

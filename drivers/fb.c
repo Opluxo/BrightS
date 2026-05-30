@@ -460,7 +460,6 @@ void brights_fb_fill_rounded_rect(int x, int y, int width, int height, int radiu
   brights_fb_fill_rect(x, y + radius, width, height - 2 * radius, color);
   brights_fb_fill_rect(x + radius, y, width - 2 * radius, height, color);
   
-  uint32_t pixel = color_to_pixel_fast(color);
   int cx1 = x + radius, cy1 = y + radius;
   int cx2 = x + width - radius - 1, cy2 = y + height - radius - 1;
   int x0 = 0, y0 = radius, d = 3 - 2 * radius;

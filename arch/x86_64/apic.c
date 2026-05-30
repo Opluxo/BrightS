@@ -2,7 +2,7 @@
 #include "msr.h"
 #include "io.h"
 #include "../../drivers/serial.h"
-#include "../../kernel/printf.h"
+#include "../../kernel/core/printf.h"
 
 #define IA32_APIC_BASE_MSR  0x1B
 #define IA32_APIC_BSP_BIT   (1ULL << 8)

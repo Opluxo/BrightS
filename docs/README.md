@@ -113,7 +113,7 @@ Multi-language support and runtime systems:
 
 - **[📝 Changelog](CHANGELOG.md)** - Version history
 - **[🔧 Build Guide](build/build.md)** - Detailed build instructions
-- **[🎯 TODO List](TODO)** - Development roadmap
+- **[🎯 TODO List](TODO.md)** - Development roadmap
 
 ## 🧪 Testing | 测试
 

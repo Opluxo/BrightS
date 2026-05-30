@@ -1,7 +1,7 @@
 #include "idt.h"
 #include "pic.h"
 #include "pit.h"
-#include "../../kernel/printf.h"
+#include "../../kernel/core/printf.h"
 #include "../../drivers/serial.h"
 
 struct idt_entry {

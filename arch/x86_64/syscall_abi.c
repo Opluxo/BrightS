@@ -1,8 +1,8 @@
 #include "syscall_abi.h"
 #include "msr.h"
 #include "gdt.h"
-#include "../../kernel/syscall.h"
-#include "../../kernel/sysent.h"
+#include "../../kernel/core/syscall.h"
+#include "../../kernel/core/sysent.h"
 
 #define IA32_EFER   0xC0000080u
 #define IA32_STAR   0xC0000081u

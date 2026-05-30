@@ -3,7 +3,7 @@
 #include <assert.h>
 
 #include "../kernel/fs/ramfs.h"
-#include "../kernel/kernel_util.h"
+#include "../kernel/core/kernel_util.h"
 
 /* Simple timing utilities for host system */
 static inline uint64_t benchmark_start(void)

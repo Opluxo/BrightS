@@ -1,5 +1,5 @@
 #include "paging.h"
-#include "../../kernel/pmem.h"
+#include "../../kernel/core/pmem.h"
 #include <stdint.h>
 
 typedef uint64_t pte_t;

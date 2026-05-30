@@ -1,6 +1,6 @@
 # BrightS
 
-### A lightweight x86_64 / i386 operating system kernel
+### A x86_64 / i386 operating system kernel
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL%20v2-6CC644?style=flat-square" alt="License">

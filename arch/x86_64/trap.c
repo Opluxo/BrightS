@@ -3,11 +3,11 @@
 #include "syscall_abi.h"
 #include "pic.h"
 #include "apic.h"
-#include "../../kernel/printf.h"
-#include "../../kernel/clock.h"
-#include "../../kernel/sched.h"
-#include "../../kernel/proc.h"
-#include "../../kernel/pf.h"
+#include "../../kernel/core/printf.h"
+#include "../../kernel/core/clock.h"
+#include "../../kernel/core/sched.h"
+#include "../../kernel/core/proc.h"
+#include "../../kernel/core/pf.h"
 #include "../../drivers/serial.h"
 #include "../../drivers/ps2kbd.h"
 
@@ -42,10 +42,6 @@ static uint64_t read_cr2(void)
   return val;
 }
 
-/* Timer tick counter for scheduling quantum */
-static uint32_t sched_quantum = 0;
-#define SCHED_QUANTUM_TICKS 10  /* Reschedule every 10 timer ticks (100ms at 100Hz) */
-
 void brights_trap_handler(brights_trap_frame_t *tf)
 {
   /* Save trap frame for scheduler */
@@ -65,16 +61,6 @@ void brights_trap_handler(brights_trap_frame_t *tf)
       brights_apic_eoi();
     } else {
       brights_pic_eoi(0);
-    }
-
-    /* Preemptive scheduling: every N ticks, yield */
-    ++sched_quantum;
-    if (sched_quantum >= SCHED_QUANTUM_TICKS) {
-      sched_quantum = 0;
-      uint32_t cur = brights_sched_current_pid();
-      if (cur > 0) {
-        brights_sched_yield();
-      }
     }
     return;
   }

@@ -3044,13 +3044,6 @@ void brights_lightshell_run(void)
     if (ch == 0x1B) { escape_state = 1; continue; }
 
     // === Ctrl+letter shortcuts ===
-    if (ch == 0x15) {
-      if (len > 0) {
-        len = 0; pos = 0;
-        line_redraw_all(line, len, pos);
-      }
-      continue;
-    }
     if (ch == 0x03) {
       if (len > 0) {
         len = 0; pos = 0;

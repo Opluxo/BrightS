@@ -2773,20 +2773,27 @@ static void history_add(const char *line)
   history_nav_index = history_count;
 }
 
-static void clear_line(int len)
+static void line_update(const char *line, int len, int pos)
 {
-  for (int i = 0; i < len; ++i) {
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, line + pos);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[K");
+  for (int i = len; i > pos; --i) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b");
   }
 }
 
-static void redraw_line(char *line, int *len)
+static void line_redraw_all(const char *line, int len, int pos)
 {
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[K");
+  print_prompt();
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, line);
-  *len = strlen_s(line);
+  for (int i = len; i > pos; --i) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b");
+  }
 }
 
-static int tab_complete(char *line, int *len)
+static int tab_complete(char *line, int *len, int *pos)
 {
   if (*len == 0) {
     return 0;
@@ -2813,12 +2820,12 @@ static int tab_complete(char *line, int *len)
   
   if (match_count == 1) {
     // Single match - complete it
-    clear_line(*len);
     str_copy(line, LIGHTSHELL_MAX_LINE, match);
     line[match_len] = ' ';
     line[match_len + 1] = 0;
     *len = match_len + 1;
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, line);
+    *pos = *len;
+    line_redraw_all(line, *len, *pos);
     return 1;
   }
   
@@ -2842,15 +2849,14 @@ static int tab_complete(char *line, int *len)
   }
   
   if (common_len > *len) {
-    clear_line(*len);
     for (int i = 0; i < common_len; ++i) {
       line[i] = first[i];
     }
     line[common_len] = 0;
     *len = common_len;
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, line);
+    *pos = *len;
+    line_redraw_all(line, *len, *pos);
   } else {
-    // Show all matches
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
     for (int i = 0; commands[i]; ++i) {
       if (starts_with(commands[i], line)) {
@@ -2870,8 +2876,12 @@ void brights_lightshell_run(void)
 {
   char line[LIGHTSHELL_MAX_LINE];
   int len = 0;
+  int pos = 0;
   int escape_state = 0;
+  int escape_param = 0;
+  int old_tty = brights_tty_get_mode();
 
+  brights_tty_set_mode(TTY_MODE_RAW);
   print_tui_banner();
   print_system_info();
   print_prompt();
@@ -2879,7 +2889,64 @@ void brights_lightshell_run(void)
   for (;;) {
     uint8_t ch = (uint8_t)brights_tty_read_char_blocking();
 
-    // Handle escape sequences for arrow keys
+    // === PS/2 keyboard special key codes (0x80-0x89) ===
+    if (ch >= 0x80 && ch <= 0x89) {
+      switch (ch) {
+        case KBD_KEY_UP:
+          if (history_count > 0 && history_nav_index > 0) {
+            --history_nav_index;
+            str_copy(line, LIGHTSHELL_MAX_LINE, history[history_nav_index]);
+            len = strlen_s(line);
+            pos = len;
+            line_redraw_all(line, len, pos);
+          }
+          continue;
+        case KBD_KEY_DOWN:
+          if (history_count > 0 && history_nav_index < history_count) {
+            ++history_nav_index;
+            if (history_nav_index < history_count) {
+              str_copy(line, LIGHTSHELL_MAX_LINE, history[history_nav_index]);
+            } else {
+              line[0] = 0;
+            }
+            len = strlen_s(line);
+            pos = len;
+            line_redraw_all(line, len, pos);
+          }
+          continue;
+        case KBD_KEY_LEFT:
+          if (pos > 0) { --pos; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b"); }
+          continue;
+        case KBD_KEY_RIGHT:
+          if (pos < len) {
+            char echo[2] = {line[pos], 0};
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
+            ++pos;
+          }
+          continue;
+        case KBD_KEY_HOME:
+          while (pos > 0) { --pos; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b"); }
+          continue;
+        case KBD_KEY_END:
+          while (pos < len) {
+            char echo[2] = {line[pos], 0};
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
+            ++pos;
+          }
+          continue;
+        case KBD_KEY_DELETE:
+          if (pos < len) {
+            kutil_memmove(line + pos, line + pos + 1, (uint64_t)(len - pos - 1));
+            --len;
+            line_update(line, len, pos);
+          }
+          continue;
+        default:
+          continue;
+      }
+    }
+
+    // === ANSI escape sequences from serial terminal ===
     if (escape_state == 1) {
       if (ch == '[') {
         escape_state = 2;
@@ -2887,39 +2954,137 @@ void brights_lightshell_run(void)
       }
       escape_state = 0;
     }
-    
+
     if (escape_state == 2) {
-      escape_state = 0;
-      if (ch == 'A' && history_count > 0) {
-        // Up arrow - previous command
-        if (history_nav_index > 0) {
-          --history_nav_index;
-          clear_line(len);
-          str_copy(line, LIGHTSHELL_MAX_LINE, history[history_nav_index]);
-          redraw_line(line, &len);
-        }
-        continue;
-      } else if (ch == 'B' && history_count > 0) {
-        // Down arrow - next command
-        if (history_nav_index < history_count) {
-          ++history_nav_index;
-          clear_line(len);
-          if (history_nav_index < history_count) {
+      switch (ch) {
+        case 'A':
+          if (history_count > 0 && history_nav_index > 0) {
+            --history_nav_index;
             str_copy(line, LIGHTSHELL_MAX_LINE, history[history_nav_index]);
-          } else {
-            line[0] = 0;
+            len = strlen_s(line);
+            pos = len;
+            line_redraw_all(line, len, pos);
           }
-          redraw_line(line, &len);
-        }
-        continue;
+          escape_state = 0;
+          continue;
+        case 'B':
+          if (history_count > 0 && history_nav_index < history_count) {
+            ++history_nav_index;
+            if (history_nav_index < history_count) {
+              str_copy(line, LIGHTSHELL_MAX_LINE, history[history_nav_index]);
+            } else {
+              line[0] = 0;
+            }
+            len = strlen_s(line);
+            pos = len;
+            line_redraw_all(line, len, pos);
+          }
+          escape_state = 0;
+          continue;
+        case 'C':
+          if (pos < len) {
+            char echo[2] = {line[pos], 0};
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
+            ++pos;
+          }
+          escape_state = 0;
+          continue;
+        case 'D':
+          if (pos > 0) { --pos; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b"); }
+          escape_state = 0;
+          continue;
+        case 'H':
+          while (pos > 0) { --pos; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b"); }
+          escape_state = 0;
+          continue;
+        case 'F':
+          while (pos < len) {
+            char echo[2] = {line[pos], 0};
+            brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
+            ++pos;
+          }
+          escape_state = 0;
+          continue;
+        case '1': case '2': case '3': case '4':
+          escape_param = ch - '0';
+          escape_state = 3;
+          continue;
+        default:
+          escape_state = 0;
+          continue;
       }
     }
 
-    if (ch == 0x1B) { // ESC
-      escape_state = 1;
+    if (escape_state == 3) {
+      escape_state = 0;
+      if (ch == '~') {
+        switch (escape_param) {
+          case 1:
+            while (pos > 0) { --pos; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b"); }
+            break;
+          case 3:
+            if (pos < len) {
+              kutil_memmove(line + pos, line + pos + 1, (uint64_t)(len - pos - 1));
+              --len;
+              line_update(line, len, pos);
+            }
+            break;
+          case 4:
+            while (pos < len) {
+              char echo[2] = {line[pos], 0};
+              brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
+              ++pos;
+            }
+            break;
+        }
+      }
       continue;
     }
 
+    if (ch == 0x1B) { escape_state = 1; continue; }
+
+    // === Ctrl+letter shortcuts ===
+    if (ch == 0x01) {
+      while (pos > 0) { --pos; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b"); }
+      continue;
+    }
+    if (ch == 0x05) {
+      while (pos < len) {
+        char echo[2] = {line[pos], 0};
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
+        ++pos;
+      }
+      continue;
+    }
+    if (ch == 0x15) {
+      if (len > 0) {
+        len = 0; pos = 0;
+        line_redraw_all(line, len, pos);
+      }
+      continue;
+    }
+    if (ch == 0x0B) {
+      if (pos < len) {
+        len = pos;
+        line_update(line, len, pos);
+      }
+      continue;
+    }
+    if (ch == 0x04) {
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+      brights_tty_set_mode(old_tty);
+      return;
+    }
+    if (ch == 0x03) {
+      if (len > 0) {
+        len = 0; pos = 0;
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+        print_prompt();
+      }
+      continue;
+    }
+
+    // === Enter ===
     if (ch == '\r' || ch == '\n') {
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
       line[len] = 0;
@@ -2928,33 +3093,42 @@ void brights_lightshell_run(void)
       }
       if (!handle_line(line)) {
         brights_serial_write_ascii(BRIGHTS_COM1_PORT, "bye\n");
+        brights_tty_set_mode(old_tty);
+        cmd_clear();
         return;
       }
-      len = 0;
+      len = 0; pos = 0;
       escape_state = 0;
       print_prompt();
       continue;
     }
 
-    if ((ch == 0x08 || ch == 0x7F) && len > 0) {
-      --len;
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b");
+    // === Backspace ===
+    if ((ch == 0x08 || ch == 0x7F) && pos > 0) {
+      kutil_memmove(line + pos - 1, line + pos, (uint64_t)(len - pos));
+      --len; --pos;
+      line_update(line, len, pos);
       continue;
     }
 
-    if (ch == 0x09) { // Tab
+    // === Tab ===
+    if (ch == 0x09) {
       line[len] = 0;
-      tab_complete(line, &len);
+      tab_complete(line, &len, &pos);
       continue;
     }
 
+    // === Printable characters ===
     if (ch >= 32 && ch < 127 && len < LIGHTSHELL_MAX_LINE - 1) {
-      line[len++] = (char)ch;
-      char echo[2] = {(char)ch, 0};
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
+      if (pos < len) {
+        kutil_memmove(line + pos + 1, line + pos, (uint64_t)(len - pos));
+      }
+      line[pos] = (char)ch;
+      ++len; ++pos;
+      line_update(line, len, pos);
+      continue;
     }
   }
-  cmd_clear();
 }
 
 /* ===== New command implementations ===== */

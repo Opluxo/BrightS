@@ -3044,36 +3044,12 @@ void brights_lightshell_run(void)
     if (ch == 0x1B) { escape_state = 1; continue; }
 
     // === Ctrl+letter shortcuts ===
-    if (ch == 0x01) {
-      while (pos > 0) { --pos; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b"); }
-      continue;
-    }
-    if (ch == 0x05) {
-      while (pos < len) {
-        char echo[2] = {line[pos], 0};
-        brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
-        ++pos;
-      }
-      continue;
-    }
     if (ch == 0x15) {
       if (len > 0) {
         len = 0; pos = 0;
         line_redraw_all(line, len, pos);
       }
       continue;
-    }
-    if (ch == 0x0B) {
-      if (pos < len) {
-        len = pos;
-        line_update(line, len, pos);
-      }
-      continue;
-    }
-    if (ch == 0x04) {
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
-      brights_tty_set_mode(old_tty);
-      return;
     }
     if (ch == 0x03) {
       if (len > 0) {

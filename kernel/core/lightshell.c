@@ -814,7 +814,7 @@ static void print_tui_banner(void)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ╚██████╔╝╚██████╔╝███████║██║ ╚═╝ ██║╚███╔███╔╝██║  ██║██║  ██║   ██║   \r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  ╚═════╝  ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   \r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m\r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;37m                   Lightweight x86_64 OS Kernel\033[0m\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;37m                   x86_64 / i386 OS Kernel\033[0m\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;34m                   Version 0.1.2.2 | Build " __DATE__ "\033[0m\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;32m[✓]\033[0m \033[1;37mUEFI Boot\033[0m\r\n");

@@ -1,5 +1,5 @@
 # BrightS System Reference Manual
-# Version: 0.1.2.2
+# Version: 0.1.2.3
 
 ## Overview
 
@@ -200,4 +200,4 @@ package-name-version.bsp/
 
 ---
 
-*This reference manual covers BrightS version 0.1.2.2. For the latest information, check the official repository.*
+*This reference manual covers BrightS version 0.1.2.3. For the latest information, check the official repository.*

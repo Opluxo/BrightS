@@ -238,4 +238,4 @@ For development-related questions:
 
 ---
 
-*This developer guide covers BrightS version 0.1.2.2* | *本开发者指南涵盖 BrightS 版本 0.1.2.2*
+*This developer guide covers BrightS version 0.1.2.3* | *本开发者指南涵盖 BrightS 版本 0.1.2.3*

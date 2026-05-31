@@ -181,4 +181,4 @@ When adding new APIs:
 
 ---
 
-*This API reference covers BrightS version 0.1.2.2* | *本API参考涵盖 BrightS 版本 0.1.2.2*
+*This API reference covers BrightS version 0.1.2.3* | *本API参考涵盖 BrightS 版本 0.1.2.3*

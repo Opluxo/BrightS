@@ -104,4 +104,4 @@ bspm --help      # BSPM help | BSPM帮助
 
 ---
 
-*This user guide covers BrightS version 0.1.2.2* | *本用户指南涵盖 BrightS 版本 0.1.2.2*
+*This user guide covers BrightS version 0.1.2.3* | *本用户指南涵盖 BrightS 版本 0.1.2.3*

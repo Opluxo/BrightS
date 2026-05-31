@@ -1,6 +1,6 @@
 # BrightS Developer Guide
 
-> v0.1.2.3 | [GitHub](https://github.com/OpenLight-Studio/BrightS)
+> v0.1.2.4 | [GitHub](https://github.com/OpenLight-Studio/BrightS)
 
 [EN](README.md) · [JA](README_ja.md) · [ZH_CN](README_zh_CN.md)
 

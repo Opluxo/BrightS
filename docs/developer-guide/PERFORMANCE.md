@@ -1,6 +1,6 @@
 # 性能指标 | Performance Metrics
 
-> v0.1.2.3 · 目标硬件: Intel i5 1135G7 · 8GB RAM
+> v0.1.2.4 · 目标硬件: Intel i5 1135G7 · 8GB RAM
 
 ## 关键指标 | Key Metrics
 

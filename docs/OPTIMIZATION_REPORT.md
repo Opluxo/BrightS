@@ -1,6 +1,6 @@
 # O(n²) 算法分析与优化报告 | O(n²) Algorithm Analysis & Optimization Report
 
-v0.1.2.3
+v0.1.2.4
 
 ---
 

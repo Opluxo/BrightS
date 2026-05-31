@@ -829,7 +829,7 @@ static void print_system_info(void)
   uint64_t free_mem = brights_pmem_free_bytes() / (1024 * 1024);
   uint32_t proc_count = brights_proc_total();
 
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS OS 0.1.2.3\033[0m\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS OS 0.1.2.4\033[0m\r\n");
 
   char buf[64];
   char numbuf[16];
@@ -2962,7 +2962,7 @@ int brights_boot_login(void)
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "+---------------------------------------------+\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS OS 0.1.2.3              |\r\n");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS OS 0.1.2.4              |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              System Console Login            |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");

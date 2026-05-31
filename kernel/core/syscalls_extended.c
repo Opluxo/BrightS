@@ -85,7 +85,7 @@ int64_t sys_get_system_info(void *info_buf, size_t buf_size)
     buf += kernel_strlen(buf);
 
     /* Kernel info */
-    kernel_strcpy(buf, "Kernel: BrightS v0.1.2.3\n");
+    kernel_strcpy(buf, "Kernel: BrightS v0.1.2.4\n");
     buf += kernel_strlen(buf);
 
     return 0;

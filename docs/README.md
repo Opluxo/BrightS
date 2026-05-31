@@ -1,6 +1,6 @@
 # BrightS Documentation | BrightS 文档 | BrightS ドキュメント
 
-v0.1.2.3
+v0.1.2.4
 
 ---
 

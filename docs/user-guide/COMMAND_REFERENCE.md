@@ -1,6 +1,6 @@
 # BrightS Command Reference
 
-Version: 0.1.2.3
+Version: 0.1.2.4
 
 ## User Commands
 

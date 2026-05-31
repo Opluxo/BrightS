@@ -3,6 +3,8 @@
 
 void brights_lightshell_run(void);
 
+int brights_boot_login(void);
+
 const char *brights_lightshell_current_dir(void);
 void brights_lightshell_set_current_dir(const char *path);
 

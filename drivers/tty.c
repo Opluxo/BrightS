@@ -2,6 +2,7 @@
 #include "serial.h"
 #include "ps2kbd.h"
 #include "usb.h"
+#include "font.h"
 #include "../kernel/printf.h"
 
 static brights_console_t tty_console;
@@ -128,6 +129,12 @@ int brights_tty_read_char(char *out_ch)
     return 0;
   }
 
+  uint8_t serial_ch;
+  if (brights_serial_read_byte(BRIGHTS_COM1_PORT, &serial_ch) > 0) {
+    *out_ch = (char)serial_ch;
+    return 1;
+  }
+
   if (brights_ps2kbd_read_char(out_ch) > 0) return 1;
 
   brights_usb_hid_poll_all();
@@ -137,11 +144,6 @@ int brights_tty_read_char(char *out_ch)
     return 1;
   }
 
-  uint8_t serial_ch;
-  if (brights_serial_read_byte(BRIGHTS_COM1_PORT, &serial_ch) > 0) {
-    *out_ch = (char)serial_ch;
-    return 1;
-  }
   return 0;
 }
 
@@ -155,6 +157,26 @@ char brights_tty_read_char_blocking(void)
 static fb_console_t fb_con = {0};
 static int fb_con_initialized = 0;
 
+static void fb_console_write_strip_ansi(const char *s)
+{
+  if (!s) return;
+  while (*s) {
+    if (*s == '\033') {
+      ++s;
+      if (*s == '[') {
+        ++s;
+        while (*s && !((*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z'))) {
+          ++s;
+        }
+        if (*s) ++s;
+      }
+    } else {
+      fb_console_put_char(*s);
+      ++s;
+    }
+  }
+}
+
 void fb_console_init(void)
 {
   if (fb_con_initialized) return;
@@ -167,12 +189,13 @@ void fb_console_init(void)
   fb_con.cursor_x = fb_con.cursor_y = 0;
   fb_con.tab_width = 4;
   fb_con.fg_color = brights_rgb(255, 255, 255);
-  fb_con.bg_color = brights_rgb(0, 0, 0);
+  fb_con.bg_color = brights_rgb(0, 40, 80);
   fb_con.scroll_enabled = 1;
   fb_con.cursor_visible = 1;
   
   fb_con_initialized = 1;
   fb_console_clear();
+  brights_serial_output_hook = fb_console_write_strip_ansi;
 }
 
 void fb_console_clear(void)
@@ -263,8 +286,9 @@ void fb_console_put_char(char c)
       }
       break;
     default:
-      extern void brights_font_draw_char(char c, int x, int y, brights_color_t fg, brights_color_t bg);
-      brights_font_draw_char(c, px, py, fb_con.fg_color, fb_con.bg_color);
+      brights_font_draw_char(px, py, c,
+        (uint32_t)(fb_con.fg_color.r << 16 | fb_con.fg_color.g << 8 | fb_con.fg_color.b),
+        (uint32_t)(fb_con.bg_color.r << 16 | fb_con.bg_color.g << 8 | fb_con.bg_color.b));
       if (++fb_con.cursor_x >= fb_con.width) fb_console_newline();
       break;
   }

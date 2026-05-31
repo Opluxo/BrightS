@@ -119,6 +119,7 @@ cc "$CORE/runtime.c"
 # cc "$CORE/syscalls_extended.c"   # needs includes fixed
 # cc "$CORE/simd.c"               # needs freestanding compat (skipped)
 cc "$CORE/lightshell.c"
+cc "$CORE/boot_splash.c"
 cc "$CORE/storage.c"
 cc "$CORE/sleep.c"
 cc "$CORE/vmware.c"

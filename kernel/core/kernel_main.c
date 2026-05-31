@@ -46,6 +46,7 @@
 #include "sleep.h"
 #include "storage.h"
 #include "lightshell.h"
+#include "boot_splash.h"
 #include "userinit.h"
 #include "smp.h"
 #ifndef __i386__
@@ -349,9 +350,8 @@ void brights_kernel_main(void *gop)
   __asm__ __volatile__("sti");
   brights_print(&con, u"interrupts: enabled\r\n");
 
-  /* ---- Shell (should be last) ---- */
-  brights_print(&con, u"shell: starting...\r\n");
-  brights_print(&con, u"\r\n--- BrightS kernel ready ---\r\n\r\n");
-
+  /* ---- Boot splash + Login + Shell (should be last) ---- */
+  brights_boot_splash();
+  brights_boot_login();
   brights_lightshell_run();
 }

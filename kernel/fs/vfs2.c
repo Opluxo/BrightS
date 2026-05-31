@@ -217,19 +217,17 @@ vfs_mount_t *brights_vfs2_resolve(const char *full_path, const char **rel_path_o
 /* ---- File pool ---- */
 vfs_file_t *brights_vfs2_file_alloc(void)
 {
-  for (int i = 0; i < VFS_FILE_POOL_SIZE; ++i) {
-    if (!(file_pool_bitmap & (1ULL << i))) {
-      file_pool_bitmap |= (1ULL << i);
-      file_pool[i].in_use = 1;
-      file_pool[i].pos = 0;
-      file_pool[i].flags = 0;
-      file_pool[i].inode = 0;
-      file_pool[i].fops = 0;
-      file_pool[i].private_data = 0;
-      return &file_pool[i];
-    }
-  }
-  return 0;
+  uint64_t avail = ~file_pool_bitmap;
+  if (avail == 0) return 0;
+  int i = (int)__builtin_ctzll(avail);
+  file_pool_bitmap |= (1ULL << i);
+  file_pool[i].in_use = 1;
+  file_pool[i].pos = 0;
+  file_pool[i].flags = 0;
+  file_pool[i].inode = 0;
+  file_pool[i].fops = 0;
+  file_pool[i].private_data = 0;
+  return &file_pool[i];
 }
 
 void brights_vfs2_file_free(vfs_file_t *f)

@@ -29,13 +29,13 @@ static virtq_t tx_virtq;
 #define VIRTIO_NET_GUEST_FEATURES ((uint32_t)(VIRTIO_NET_F_MAC | VIRTIO_NET_F_STATUS))
 
 /* Receive buffer pool */
-#define RX_BUF_COUNT 4
+#define RX_BUF_COUNT 32
 #define RX_BUF_SIZE 2048
 static uint8_t rx_bufs[RX_BUF_COUNT][RX_BUF_SIZE] __attribute__((aligned(4096)));
 static int rx_next_buf = 0;
 
 /* Transmit buffer pool (DMA-safe, page-aligned) */
-#define TX_BUF_COUNT 4
+#define TX_BUF_COUNT 32
 #define TX_BUF_SIZE (VIRTIO_NET_HDR_SIZE + 1514)
 static uint8_t tx_bufs[TX_BUF_COUNT][TX_BUF_SIZE] __attribute__((aligned(4096)));
 static int tx_next_buf = 0;

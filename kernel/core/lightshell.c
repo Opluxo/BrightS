@@ -148,6 +148,7 @@ static const cmd_entry_t *cmd_find(const char *name)
 #define LIGHTSHELL_MAX_LINE 256
 #define LIGHTSHELL_MAX_USER 32
 #define LIGHTSHELL_MAX_PASS 64
+#define LOGIN_MAX_ATTEMPTS 3
 #define LIGHTSHELL_MAX_CFG  1024
 #define LIGHTSHELL_MAX_PATH 128
 #define LIGHTSHELL_HISTORY_SIZE 32
@@ -806,17 +807,6 @@ static int seed_user_config_dir(const char *user)
 static void print_tui_banner(void)
 {
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;36m");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  ██████╗ ██╗   ██╗███████╗███╗   ███╗██╗    ██╗ █████╗ ██████╗ ████████╗\r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ██╔════╝ ██║   ██║██╔════╝████╗ ████║██║    ██║██╔══██╗██╔══██╗╚══██╔══╝\r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ██║  ███╗██║   ██║███████╗██╔████╔██║██║ █╗ ██║███████║██████╔╝   ██║   \r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ██║   ██║██║   ██║╚════██║██║╚██╔╝██║██║███╗██║██╔══██║██╔══██╗   ██║   \r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ╚██████╔╝╚██████╔╝███████║██║ ╚═╝ ██║╚███╔███╔╝██║  ██║██║  ██║   ██║   \r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  ╚═════╝  ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   \r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m\r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;37m                 Designed by OpenLight Studio\033[0m\r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;34m                   Version 0.1.2.2 | Build " __DATE__ "\033[0m\r\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;32m[✓]\033[0m \033[1;37mUEFI Boot\033[0m\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;32m[✓]\033[0m \033[1;37mMemory Management\033[0m\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;32m[✓]\033[0m \033[1;37mProcess Scheduler\033[0m\r\n");
@@ -839,7 +829,7 @@ static void print_system_info(void)
   uint64_t free_mem = brights_pmem_free_bytes() / (1024 * 1024);
   uint32_t proc_count = brights_proc_total();
 
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS Linux 0.1.2.2\033[0m\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS OS 0.1.2.2\033[0m\r\n");
 
   char buf[64];
   char numbuf[16];
@@ -1012,11 +1002,37 @@ static const char *proc_state_name(brights_proc_state_t state)
   }
 }
 
+static int check_path_allowed(const char *path)
+{
+  if (is_root) {
+    return 0;
+  }
+  char prefix[LIGHTSHELL_MAX_PATH] = "/usr/home/";
+  int p = strlen_s(prefix);
+  for (int i = 0; current_user[i] && p < (int)sizeof(prefix) - 1; ++i) {
+    prefix[p++] = current_user[i];
+  }
+  prefix[p] = 0;
+  if (streq(path, prefix)) {
+    return 0;
+  }
+  prefix[p++] = '/';
+  prefix[p] = 0;
+  if (starts_with(path, prefix)) {
+    return 0;
+  }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "permission denied\n");
+  return -1;
+}
+
 static void cmd_ls(const char *arg)
 {
   char path[LIGHTSHELL_MAX_PATH];
   if (resolve_path(arg, path, sizeof(path)) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (check_path_allowed(path) < 0) {
     return;
   }
   brights_ramfs_stat_t st;
@@ -1074,6 +1090,9 @@ static void cmd_cat(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
     return;
   }
+  if (check_path_allowed(path) < 0) {
+    return;
+  }
   int fd = brights_ramfs_open(path);
   if (fd < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "not found\n");
@@ -1103,7 +1122,14 @@ static void cmd_stat(const char *arg)
   }
   char path[LIGHTSHELL_MAX_PATH];
   brights_ramfs_stat_t st;
-  if (resolve_path(arg, path, sizeof(path)) < 0 || brights_ramfs_stat(path, &st) < 0) {
+  if (resolve_path(arg, path, sizeof(path)) < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (check_path_allowed(path) < 0) {
+    return;
+  }
+  if (brights_ramfs_stat(path, &st) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "not found\n");
     return;
   }
@@ -1126,6 +1152,9 @@ static void cmd_touch(const char *arg)
   char path[LIGHTSHELL_MAX_PATH];
   if (resolve_path(arg, path, sizeof(path)) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (check_path_allowed(path) < 0) {
     return;
   }
   int fd = brights_ramfs_open(path);
@@ -1168,6 +1197,9 @@ static void cmd_write(const char *arg)
   char path[LIGHTSHELL_MAX_PATH];
   if (resolve_path(name, path, sizeof(path)) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (check_path_allowed(path) < 0) {
     return;
   }
   int fd = brights_ramfs_open(path);
@@ -1216,6 +1248,9 @@ static void cmd_append(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
     return;
   }
+  if (check_path_allowed(path) < 0) {
+    return;
+  }
   int fd = brights_ramfs_open(path);
   if (fd < 0) {
     fd = brights_ramfs_create(path);
@@ -1249,6 +1284,9 @@ static void cmd_rm(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
     return;
   }
+  if (check_path_allowed(path) < 0) {
+    return;
+  }
   if (brights_ramfs_unlink(path) == 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "ok\n");
   } else {
@@ -1267,6 +1305,9 @@ static void cmd_rmdir(const char *arg)
   brights_ramfs_stat_t st;
   if (resolve_path(arg, path, sizeof(path)) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (check_path_allowed(path) < 0) {
     return;
   }
   if (brights_ramfs_stat(path, &st) < 0) {
@@ -1336,6 +1377,12 @@ static void cmd_cp(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
     return;
   }
+  if (check_path_allowed(src_path) < 0) {
+    return;
+  }
+  if (check_path_allowed(dst_path) < 0) {
+    return;
+  }
   if (streq(src_path, dst_path)) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "copy failed\n");
     return;
@@ -1372,6 +1419,12 @@ static void cmd_mv(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
     return;
   }
+  if (check_path_allowed(src_path) < 0) {
+    return;
+  }
+  if (check_path_allowed(dst_path) < 0) {
+    return;
+  }
   if (streq(src_path, dst_path)) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "move failed\n");
     return;
@@ -1405,6 +1458,9 @@ static void cmd_hexdump(const char *arg)
   char path[LIGHTSHELL_MAX_PATH];
   if (resolve_path(arg, path, sizeof(path)) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (check_path_allowed(path) < 0) {
     return;
   }
   int fd = brights_ramfs_open(path);
@@ -2203,7 +2259,7 @@ static void cmd_login(const char *arg)
 static void cmd_logout(void)
 {
   str_copy(current_user, sizeof(current_user), "guest");
-  str_copy(current_dir, sizeof(current_dir), "/");
+  str_copy(current_dir, sizeof(current_dir), "/usr/home/guest");
   is_root = 0;
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "logout ok\n");
 }
@@ -2441,6 +2497,9 @@ static void cmd_cd(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
     return;
   }
+  if (check_path_allowed(path) < 0) {
+    return;
+  }
   if (brights_ramfs_stat(path, &st) < 0 || !st.is_dir) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "not a directory\n");
     return;
@@ -2458,6 +2517,9 @@ static void cmd_mkdir(const char *arg)
   }
   if (resolve_path(arg, path, sizeof(path)) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "invalid path\n");
+    return;
+  }
+  if (check_path_allowed(path) < 0) {
     return;
   }
   if (brights_ramfs_mkdir(path) < 0) {
@@ -2872,6 +2934,160 @@ static int tab_complete(char *line, int *len, int *pos)
   return 1;
 }
 
+int brights_boot_login(void)
+{
+  char user[LIGHTSHELL_MAX_USER];
+  char pass[LIGHTSHELL_MAX_PASS];
+  char expected[LIGHTSHELL_MAX_PASS];
+  int attempts = 0;
+  int old_tty = brights_tty_get_mode();
+
+  brights_tty_set_mode(TTY_MODE_RAW);
+
+  /* 49-char box on 80-col terminal: (80-49)/2 = 15 */
+#define LOGIN_PAD 15
+  /* 24-row terminal: ~8 content lines -> push down by 7 */
+#define LOGIN_VERT 7
+
+  for (;;) {
+    int cancel = 0;
+
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J");
+    for (int v = 0; v < LOGIN_VERT; ++v)
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+
+    {
+      int p;
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;36m");
+      for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "+---------------------------------------------+\r\n");
+      for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS OS 0.1.2.2              |\r\n");
+      for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              System Console Login            |\r\n");
+      for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "+---------------------------------------------+\r\n");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m\r\n");
+    }
+
+    if (attempts > 0) {
+      int p;
+      for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;31mLogin failed. Attempt ");
+      {
+        char num[8];
+        int ni = 0;
+        int a = attempts;
+        while (a > 0) { num[ni++] = (char)('0' + (a % 10)); a /= 10; }
+        while (ni > 0) { char o[2] = {num[--ni], 0}; brights_serial_write_ascii(BRIGHTS_COM1_PORT, o); }
+      }
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, " of ");
+      {
+        char num[8];
+        int ni = 0;
+        int a = LOGIN_MAX_ATTEMPTS;
+        while (a > 0) { num[ni++] = (char)('0' + (a % 10)); a /= 10; }
+        while (ni > 0) { char o[2] = {num[--ni], 0}; brights_serial_write_ascii(BRIGHTS_COM1_PORT, o); }
+      }
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m\r\n\r\n");
+    } else {
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
+    }
+
+    {
+      int p;
+      for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+    }
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Username: ");
+    int ui = 0;
+    for (;;) {
+      uint8_t ch = (uint8_t)brights_tty_read_char_blocking();
+      if (ch >= 0x80 && ch <= 0x89) continue;
+      if (ch == 0x1B) {
+        uint8_t n1 = (uint8_t)brights_tty_read_char_blocking();
+        if (n1 == '[') {
+          uint8_t n2 = (uint8_t)brights_tty_read_char_blocking();
+          if (n2 >= '1' && n2 <= '4') { (void)brights_tty_read_char_blocking(); }
+        }
+        continue;
+      }
+      if (ch == 0x03) { cancel = 1; break; }
+      if (ch == '\r' || ch == '\n') { user[ui] = 0; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n"); break; }
+      if ((ch == 0x08 || ch == 0x7F) && ui > 0) { --ui; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b"); continue; }
+      if (ch >= 32 && ch < 127 && ui < (int)sizeof(user) - 1) {
+        user[ui++] = (char)ch;
+        char o[2] = {(char)ch, 0};
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, o);
+      }
+    }
+
+    if (cancel) { user[0] = 0; break; }
+
+    if (user[0] == 0) {
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;31m");
+      for (int p = 0; p < LOGIN_PAD; ++p)
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Username cannot be empty.\033[0m\r\n");
+      brights_sleep_ms(1000);
+      continue;
+    }
+
+    {
+      int p;
+      for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
+    }
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Password: ");
+    int pi = 0;
+    for (;;) {
+      uint8_t ch = (uint8_t)brights_tty_read_char_blocking();
+      if (ch >= 0x80 && ch <= 0x89) continue;
+      if (ch == 0x1B) {
+        uint8_t n1 = (uint8_t)brights_tty_read_char_blocking();
+        if (n1 == '[') {
+          uint8_t n2 = (uint8_t)brights_tty_read_char_blocking();
+          if (n2 >= '1' && n2 <= '4') { (void)brights_tty_read_char_blocking(); }
+        }
+        continue;
+      }
+      if (ch == 0x03) { cancel = 1; break; }
+      if (ch == '\r' || ch == '\n') { pass[pi] = 0; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n"); break; }
+      if ((ch == 0x08 || ch == 0x7F) && pi > 0) { --pi; brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b"); continue; }
+      if (ch >= 32 && ch < 127 && pi < (int)sizeof(pass) - 1) {
+        pass[pi++] = (char)ch;
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, "*");
+      }
+    }
+
+    if (cancel) { user[0] = 0; break; }
+
+    if (pf_get_password(user, expected, sizeof(expected)) < 0 || !streq(expected, pass)) {
+      ++attempts;
+      if (attempts >= LOGIN_MAX_ATTEMPTS) { user[0] = 0; break; }
+      continue;
+    }
+
+    break;
+  }
+
+  str_copy(current_user, sizeof(current_user), (user[0] != 0) ? user : "guest");
+  is_root = streq(current_user, "root");
+
+  if (is_root) {
+    str_copy(current_dir, sizeof(current_dir), "/usr/home/root");
+  } else if (current_user[0] != 0) {
+    char home[LIGHTSHELL_MAX_PATH] = "/usr/home/";
+    int p = strlen_s(home);
+    for (int i = 0; current_user[i] && p < (int)sizeof(home) - 1; ++i) {
+      home[p++] = current_user[i];
+    }
+    home[p] = 0;
+    str_copy(current_dir, sizeof(current_dir), home);
+  }
+
+  brights_tty_set_mode(old_tty);
+  return 0;
+}
+
 void brights_lightshell_run(void)
 {
   char line[LIGHTSHELL_MAX_LINE];
@@ -3076,7 +3292,9 @@ void brights_lightshell_run(void)
     if ((ch == 0x08 || ch == 0x7F) && pos > 0) {
       kutil_memmove(line + pos - 1, line + pos, (uint64_t)(len - pos));
       --len; --pos;
-      line_update(line, len, pos);
+      line[len] = 0;
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b");
+      line_redraw_all(line, len, pos);
       continue;
     }
 
@@ -3089,12 +3307,17 @@ void brights_lightshell_run(void)
 
     // === Printable characters ===
     if (ch >= 32 && ch < 127 && len < LIGHTSHELL_MAX_LINE - 1) {
-      if (pos < len) {
-        kutil_memmove(line + pos + 1, line + pos, (uint64_t)(len - pos));
+      int old_pos = pos;
+      if (old_pos < len) {
+        kutil_memmove(line + old_pos + 1, line + old_pos,
+                      (uint64_t)(len - old_pos));
       }
-      line[pos] = (char)ch;
+      line[old_pos] = (char)ch;
       ++len; ++pos;
-      line_update(line, len, pos);
+      line[len] = 0;
+      line_update(line, len, old_pos);
+      char echo[2] = {(char)ch, 0};
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
       continue;
     }
   }

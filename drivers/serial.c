@@ -1,6 +1,8 @@
 #include "serial.h"
 #include "../arch/x86_64/io.h"
 
+void (*brights_serial_output_hook)(const char *s) = 0;
+
 static void serial_write_byte(uint16_t port, uint8_t val)
 {
   while ((inb(port + 5) & 0x20) == 0) {
@@ -61,6 +63,9 @@ void brights_serial_write_ascii(uint16_t port, const char *s)
 {
   if (!s) {
     return;
+  }
+  if (brights_serial_output_hook) {
+    brights_serial_output_hook(s);
   }
   while (*s) {
     uint8_t ch = (uint8_t)*s++;

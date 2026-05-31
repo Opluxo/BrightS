@@ -135,4 +135,7 @@ int brights_proc_exec_continue(void);
 // Get pointer to process table (for scheduler)
 brights_proc_info_t *brights_proc_table_ptr(void);
 
+// Get proc table index for a PID (returns BRIGHTS_PROC_MAX if not found)
+uint32_t brights_proc_index(uint32_t pid);
+
 #endif

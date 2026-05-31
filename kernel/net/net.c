@@ -703,11 +703,8 @@ int brights_recv(int sockfd, void *buf, uint32_t len)
   if (len > sock->recv_len) len = sock->recv_len;
   kutil_memcpy(buf, sock->recv_buf, len);
 
-  /* Shift remaining data */
   if (len < sock->recv_len) {
-    for (uint32_t i = 0; i < sock->recv_len - len; ++i) {
-      sock->recv_buf[i] = sock->recv_buf[i + len];
-    }
+    kutil_memmove(sock->recv_buf, sock->recv_buf + len, sock->recv_len - len);
   }
   sock->recv_len -= len;
   return (int)len;

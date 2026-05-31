@@ -24,3 +24,6 @@ target_compile_definitions(test_benchmark PRIVATE BRIGHTS_TEST_BUILD)
 
 add_test(NAME test_ramfs COMMAND test_ramfs)
 add_test(NAME test_benchmark COMMAND test_benchmark)
+
+add_executable(test_sched test_sched.c)
+add_test(NAME test_sched COMMAND test_sched)

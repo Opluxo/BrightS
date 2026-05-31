@@ -35,5 +35,6 @@ Thumbs.db
 *.bak
 *.orig
 
-# Test binaries
+# Test binaries (not source files)
 tests/test_*
+!tests/test_*.c

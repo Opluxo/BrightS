@@ -2,6 +2,9 @@
 build/
 build_x64/
 *.o
+
+# IDE cache
+.cache/
 *.obj
 *.efi
 *.iso

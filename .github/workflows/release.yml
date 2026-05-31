@@ -22,7 +22,8 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y build-essential cmake nasm mtools dosfstools \
-                               qemu-system-x86 ovmf git clang lld xorriso python3
+                               qemu-system-x86 ovmf git clang lld xorriso python3 \
+                               gcc-multilib
 
       # --- x86_64 (UEFI) ---
       - name: Configure CMake (x86_64)

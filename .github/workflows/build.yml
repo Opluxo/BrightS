@@ -56,10 +56,11 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential gcc-multilib nasm mtools dosfstools xorriso python3
+          sudo apt install -y build-essential nasm mtools dosfstools xorriso python3 \
+                               gcc-i686-linux-gnu
 
       - name: Build
-        run: bash scripts/build-i386.sh
+        run: CC=i686-linux-gnu-gcc bash scripts/build-i386.sh
 
       - name: Create ISO
         run: |

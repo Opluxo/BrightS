@@ -71,11 +71,13 @@ INCLUDES="$INCLUDES -I$DRIVERS"
 INCLUDES="$INCLUDES -I$PROJ/include/kernel"
 INCLUDES="$INCLUDES -I$PROJ/include"
 
+CC=${CC:-gcc}
+
 cc() {
     local src="$1"
     local obj="$BUILD/$(basename "$src" .c).o"
     echo "  CC  $src"
-    gcc $GCC_FLAGS $INCLUDES -c -o "$obj" "$src"
+    $CC $GCC_FLAGS $INCLUDES -c -o "$obj" "$src"
 }
 
 cc_asm() {
@@ -179,8 +181,7 @@ KERNEL_OBJS=$(ls "$BUILD"/*.o)
 
 # ---- Step 4: Link ----
 echo "[4/5] Linking..."
-# Use gcc as linker frontend to get correct libgcc path for 32-bit
-gcc -m32 -nostdlib -T "$ARCH/link.ld" -o "$BUILD/kernel.elf" $KERNEL_OBJS $RUST_LIB -lgcc
+$CC -m32 -nostdlib -T "$ARCH/link.ld" -o "$BUILD/kernel.elf" $KERNEL_OBJS $RUST_LIB -lgcc
 echo "  kernel.elf: $(stat -c%s "$BUILD/kernel.elf") bytes"
 
 # ---- Step 5: Convert to binary ----

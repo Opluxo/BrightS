@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL%20v2-6CC644?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/UEFI+BIOS-Boot-FF6C2C?style=flat-square" alt="Boot">
-  <img src="https://img.shields.io/badge/Version-0.1.2.3-4FC08D?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Version-0.1.2.4-4FC08D?style=flat-square" alt="Version">
 </p>
 
 ---
@@ -96,5 +96,5 @@ GNU General Public License v2. See [LICENSE](LICENSE).
 ---
 
 <p align="center">
-  <strong>BrightS v0.1.2.3</strong> · Designed by OpenLight Studio · GPL v2
+  <strong>BrightS v0.1.2.4</strong> · Designed by OpenLight Studio · GPL v2
 </p>

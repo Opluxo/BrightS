@@ -1,6 +1,6 @@
 # BrightS 开发路线图 | Development Roadmap
 
-v0.1.2.3 — 所有计划功能已完成
+v0.1.2.4 — 所有计划功能已完成
 
 ---
 

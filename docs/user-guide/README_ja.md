@@ -1,6 +1,6 @@
 # BrightS ユーザーガイド / BrightS 用户指南 / BrightS User Guide
 
-バージョン: 0.1.2.3
+バージョン: 0.1.2.4
 
 ## クイックスタート / 快速开始 / Quick Start
 

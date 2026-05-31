@@ -49,7 +49,7 @@ void brights_boot_splash(void)
 
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;36m");
   logo_line_centered("+------------------------------------------------------+");
-  logo_line_centered("|                 BrightS 0.1.2.3                      |");
+  logo_line_centered("|                 BrightS 0.1.2.4                      |");
   logo_line_centered("|            Designed by OpenLight Studio              |");
   logo_line_centered("+------------------------------------------------------+");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m\r\n");

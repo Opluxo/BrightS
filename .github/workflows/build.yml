@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build BrightS Kernel
+  x86_64:
+    name: x86_64 (UEFI)
     runs-on: ubuntu-24.04
 
     steps:
@@ -32,20 +32,48 @@ jobs:
       - name: Build
         run: cmake --build build -j$(nproc)
 
-      - name: Create boot images
+      - name: Create ISO
         run: |
-          chmod +x tools/make-iso.sh tools/create-disk-img.py
+          chmod +x tools/make-iso.sh
           ./tools/make-iso.sh
-          python3 tools/create-disk-img.py build/sys/kernel/kernel.efi build/brights-disk.img
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: brights-build
-          path: |
-            build/sys/kernel/kernel.efi
-            build/brights.iso
-            build/brights-efi.img
-            build/brights-disk.img
-            build/tests/test_ramfs
-            build/tests/test_benchmark
+          name: brights-x86_64
+          path: build/brights.iso
+
+  i386:
+    name: i386
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential nasm mtools dosfstools xorriso python3
+
+      - name: Build
+        run: bash scripts/build-i386.sh
+
+      - name: Create ISO
+        run: |
+          mkdir -p build/i386-iso
+          cp build/floppy.img build/i386-iso/
+          xorriso -as mkisofs \
+            -b floppy.img \
+            -no-emul-boot \
+            -V "BRIGHTS_I386" \
+            -o build/brights-i386.iso \
+            build/i386-iso/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: brights-i386
+          path: build/brights-i386.iso

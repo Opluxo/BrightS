@@ -13,4 +13,7 @@ uint8_t brights_serial_read_byte_blocking(uint16_t port);
 void brights_serial_write_ascii(uint16_t port, const char *s);
 void brights_serial_write(uint16_t port, const void *buf, uint64_t len);
 
+/* Optional framebuffer output hook — called before serial write */
+extern void (*brights_serial_output_hook)(const char *s);
+
 #endif

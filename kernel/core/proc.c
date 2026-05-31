@@ -21,27 +21,25 @@ static uint32_t current_pid = 0;
 
 static uint32_t proc_alloc_pid(void)
 {
-  uint32_t pid = next_pid;
   uint32_t tries = 0;
   while (tries < 256) {
-    pid = next_pid++;
+    uint32_t pid = next_pid++;
     if (next_pid >= 256) next_pid = 1;
-    int in_use = 0;
-    for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-      if (proc_table[i].pid == pid && proc_table[i].state != BRIGHTS_PROC_UNUSED) {
-        in_use = 1;
-        break;
-      }
-    }
-    if (!in_use) return pid;
+    if (pid_to_index[pid] == BRIGHTS_PROC_MAX) return pid;
     ++tries;
   }
-  return 0; /* All PIDs exhausted */
+  return 0;
 }
 
 brights_proc_info_t *brights_proc_table_ptr(void)
 {
   return proc_table;
+}
+
+uint32_t brights_proc_index(uint32_t pid)
+{
+  if (pid == 0 || pid >= 256) return BRIGHTS_PROC_MAX;
+  return pid_to_index[pid];
 }
 
 static inline void proc_str_copy(char *dst, int cap, const char *src)
@@ -205,57 +203,43 @@ int brights_proc_info_at(uint32_t index, brights_proc_info_t *info_out)
 
 int brights_proc_get_by_pid(uint32_t pid, brights_proc_info_t *info_out)
 {
-  if (!info_out || pid == 0) {
-    return -1;
-  }
-  for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-    if (proc_table[i].pid == pid && proc_table[i].state != BRIGHTS_PROC_UNUSED) {
-      *info_out = proc_table[i];
-      return 0;
-    }
-  }
-  return -1;
+  if (!info_out || pid == 0 || pid >= 256) return -1;
+  uint32_t idx = pid_to_index[pid];
+  if (idx >= BRIGHTS_PROC_MAX) return -1;
+  if (proc_table[idx].pid != pid || proc_table[idx].state == BRIGHTS_PROC_UNUSED) return -1;
+  *info_out = proc_table[idx];
+  return 0;
 }
 
 int brights_proc_exit(uint32_t pid, int exit_code)
 {
-  if (pid == 0) {
-    return -1;
-  }
-  for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-    if (proc_table[i].pid == pid && proc_table[i].state != BRIGHTS_PROC_UNUSED) {
-      /* Close all open file descriptors */
-      for (int j = 0; j < BRIGHTS_PROC_MAX_FDS; ++j) {
-        if (proc_table[i].fd_table[j]) {
-          brights_vfs2_close(proc_table[i].fd_table[j]);
-          proc_table[i].fd_table[j] = 0;
-        }
-      }
+  brights_proc_info_t *p = proc_get_by_pid(pid);
+  if (!p) return -1;
 
-      /* Clean up any syscall hooks owned by this process */
-      brights_syshook_cleanup_pid(pid);
-
-      /* Free the process address space (if not shared with kernel) */
-      if (proc_table[i].cr3 != 0 && proc_table[i].is_user) {
-        /* Only destroy if it's a user process with its own page table */
-        uint64_t kernel_cr3 = brights_paging_get_cr3();
-        if (proc_table[i].cr3 != kernel_cr3) {
-          brights_paging_destroy_address_space(proc_table[i].cr3);
-        }
-      }
-
-      /* Free kernel stack */
-      if (proc_table[i].kernel_stack != 0) {
-        void *kstack_page = (void *)(uintptr_t)(proc_table[i].kernel_stack - BRIGHTS_PROC_KSTACK_SIZE);
-        brights_pmem_free_page(kstack_page);
-      }
-
-      proc_table[i].state = BRIGHTS_PROC_ZOMBIE;
-      proc_table[i].exit_code = exit_code;
-      return 0;
+  for (int j = 0; j < BRIGHTS_PROC_MAX_FDS; ++j) {
+    if (p->fd_table[j]) {
+      brights_vfs2_close(p->fd_table[j]);
+      p->fd_table[j] = 0;
     }
   }
-  return -1;
+
+  brights_syshook_cleanup_pid(pid);
+
+  if (p->cr3 != 0 && p->is_user) {
+    uint64_t kernel_cr3 = brights_paging_get_cr3();
+    if (p->cr3 != kernel_cr3) {
+      brights_paging_destroy_address_space(p->cr3);
+    }
+  }
+
+  if (p->kernel_stack != 0) {
+    void *kstack_page = (void *)(uintptr_t)(p->kernel_stack - BRIGHTS_PROC_KSTACK_SIZE);
+    brights_pmem_free_page(kstack_page);
+  }
+
+  p->state = BRIGHTS_PROC_ZOMBIE;
+  p->exit_code = exit_code;
+  return 0;
 }
 
 int brights_proc_reap(uint32_t pid)
@@ -424,109 +408,95 @@ static uint64_t alloc_user_pml4(void)
 
 int brights_proc_spawn_user(const char *name, uint64_t entry, uint64_t stack_top)
 {
-  for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-    if (proc_table[i].state == BRIGHTS_PROC_UNUSED) {
-      proc_table[i].pid = proc_alloc_pid();
-      proc_table[i].ppid = current_pid;
-      proc_table[i].state = BRIGHTS_PROC_RUNNABLE;
-      proc_table[i].exit_code = 0;
-      proc_table[i].is_user = 1;
-      proc_table[i].user_entry = entry;
-      proc_table[i].user_stack_top = stack_top;
-      proc_table[i].brk = 0;
-      proc_table[i].brk_start = 0;
-      proc_table[i].cr3 = alloc_user_pml4();
+  int slot = proc_find_free_slot();
+  if (slot < 0) return -1;
 
-      /* Allocate kernel stack for this process */
-      void *kstack_page = brights_pmem_alloc_page();
-      if (kstack_page) {
-        proc_table[i].kernel_stack = (uint64_t)(uintptr_t)kstack_page + BRIGHTS_PROC_KSTACK_SIZE;
-      } else {
-        proc_table[i].kernel_stack = 0;
-      }
+  proc_table[slot].pid = proc_alloc_pid();
+  proc_table[slot].ppid = current_pid;
+  proc_table[slot].state = BRIGHTS_PROC_RUNNABLE;
+  proc_table[slot].exit_code = 0;
+  proc_table[slot].is_user = 1;
+  proc_table[slot].user_entry = entry;
+  proc_table[slot].user_stack_top = stack_top;
+  proc_table[slot].brk = 0;
+  proc_table[slot].brk_start = 0;
+  proc_table[slot].cr3 = alloc_user_pml4();
 
-      proc_sched_zero(&proc_table[i].sched);
-      proc_str_copy(proc_table[i].name, BRIGHTS_PROC_NAME_LEN, name ? name : "user");
-
-      /* Initialize fd table */
-      for (int j = 0; j < BRIGHTS_PROC_MAX_FDS; ++j) {
-        proc_table[i].fd_table[j] = 0;
-      }
-
-      /* Inherit cwd from parent */
-      brights_proc_info_t *parent = proc_get_current();
-      if (parent) {
-        proc_str_copy(proc_table[i].cwd, BRIGHTS_PROC_CWD_LEN, parent->cwd);
-      } else {
-        proc_table[i].cwd[0] = '/';
-        proc_table[i].cwd[1] = 0;
-      }
-
-      /* Initialize saved context */
-      proc_table[i].ctx.rip = entry;
-      proc_table[i].ctx.rsp = stack_top;
-#ifdef __i386__
-      proc_table[i].ctx.cs = 0x23;   /* User CS (0x20 | 3) */
-      proc_table[i].ctx.ss = 0x1B;   /* User DS (0x18 | 3) */
-#else
-      proc_table[i].ctx.cs = 0x2B;   /* User CS */
-      proc_table[i].ctx.ss = 0x23;   /* User DS */
-#endif
-      proc_table[i].ctx.rflags = 0x202; /* IF set */
-      proc_table[i].ctx.rax = 0;
-      proc_table[i].ctx.rbx = 0;
-      proc_table[i].ctx.rcx = 0;
-      proc_table[i].ctx.rdx = 0;
-      proc_table[i].ctx.rsi = 0;
-      proc_table[i].ctx.rdi = 0;
-      proc_table[i].ctx.rbp = 0;
-      proc_table[i].ctx.r8 = 0;
-      proc_table[i].ctx.r9 = 0;
-      proc_table[i].ctx.r10 = 0;
-      proc_table[i].ctx.r11 = 0;
-      proc_table[i].ctx.r12 = 0;
-      proc_table[i].ctx.r13 = 0;
-      proc_table[i].ctx.r14 = 0;
-      proc_table[i].ctx.r15 = 0;
-
-      return (int)proc_table[i].pid;
-    }
+  void *kstack_page = brights_pmem_alloc_page();
+  if (kstack_page) {
+    proc_table[slot].kernel_stack = (uint64_t)(uintptr_t)kstack_page + BRIGHTS_PROC_KSTACK_SIZE;
+  } else {
+    proc_table[slot].kernel_stack = 0;
   }
-  return -1;
+
+  proc_sched_zero(&proc_table[slot].sched);
+  proc_str_copy(proc_table[slot].name, BRIGHTS_PROC_NAME_LEN, name ? name : "user");
+
+  for (int j = 0; j < BRIGHTS_PROC_MAX_FDS; ++j) {
+    proc_table[slot].fd_table[j] = 0;
+  }
+
+  brights_proc_info_t *parent = proc_get_current();
+  if (parent) {
+    proc_str_copy(proc_table[slot].cwd, BRIGHTS_PROC_CWD_LEN, parent->cwd);
+  } else {
+    proc_table[slot].cwd[0] = '/';
+    proc_table[slot].cwd[1] = 0;
+  }
+
+  proc_table[slot].ctx.rip = entry;
+  proc_table[slot].ctx.rsp = stack_top;
+#ifdef __i386__
+  proc_table[slot].ctx.cs = 0x23;
+  proc_table[slot].ctx.ss = 0x1B;
+#else
+  proc_table[slot].ctx.cs = 0x2B;
+  proc_table[slot].ctx.ss = 0x23;
+#endif
+  proc_table[slot].ctx.rflags = 0x202;
+  proc_table[slot].ctx.rax = 0;
+  proc_table[slot].ctx.rbx = 0;
+  proc_table[slot].ctx.rcx = 0;
+  proc_table[slot].ctx.rdx = 0;
+  proc_table[slot].ctx.rsi = 0;
+  proc_table[slot].ctx.rdi = 0;
+  proc_table[slot].ctx.rbp = 0;
+  proc_table[slot].ctx.r8 = 0;
+  proc_table[slot].ctx.r9 = 0;
+  proc_table[slot].ctx.r10 = 0;
+  proc_table[slot].ctx.r11 = 0;
+  proc_table[slot].ctx.r12 = 0;
+  proc_table[slot].ctx.r13 = 0;
+  proc_table[slot].ctx.r14 = 0;
+  proc_table[slot].ctx.r15 = 0;
+
+  pid_to_index[proc_table[slot].pid] = (uint32_t)slot;
+  proc_mark_slot_used(slot);
+
+  return (int)proc_table[slot].pid;
 }
 
 uint64_t brights_proc_get_cr3(uint32_t pid)
 {
-  for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-    if (proc_table[i].pid == pid && proc_table[i].state != BRIGHTS_PROC_UNUSED) {
-      return proc_table[i].cr3;
-    }
-  }
-  return 0;
+  brights_proc_info_t *p = proc_get_by_pid(pid);
+  if (!p) return 0;
+  return p->cr3;
 }
 
 int brights_proc_set_brk(uint32_t pid, uint64_t new_brk)
 {
-  for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-    if (proc_table[i].pid == pid && proc_table[i].state != BRIGHTS_PROC_UNUSED) {
-      if (proc_table[i].brk_start == 0) {
-        proc_table[i].brk_start = new_brk;
-      }
-      proc_table[i].brk = new_brk;
-      return 0;
-    }
-  }
-  return -1;
+  brights_proc_info_t *p = proc_get_by_pid(pid);
+  if (!p) return -1;
+  if (p->brk_start == 0) p->brk_start = new_brk;
+  p->brk = new_brk;
+  return 0;
 }
 
 uint64_t brights_proc_get_brk(uint32_t pid)
 {
-  for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-    if (proc_table[i].pid == pid && proc_table[i].state != BRIGHTS_PROC_UNUSED) {
-      return proc_table[i].brk;
-    }
-  }
-  return 0;
+  brights_proc_info_t *p = proc_get_by_pid(pid);
+  if (!p) return 0;
+  return p->brk;
 }
 
 uint64_t brights_proc_kernel_stack(void)
@@ -610,14 +580,7 @@ int brights_proc_fork(void)
   brights_proc_info_t *parent = proc_get_current();
   if (!parent) return -1;
 
-  /* Find a free slot for the child */
-  int child_idx = -1;
-  for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
-    if (proc_table[i].state == BRIGHTS_PROC_UNUSED) {
-      child_idx = (int)i;
-      break;
-    }
-  }
+  int child_idx = proc_find_free_slot();
   if (child_idx < 0) return -1;
 
   brights_proc_info_t *child = &proc_table[child_idx];
@@ -673,6 +636,9 @@ int brights_proc_fork(void)
 
   /* Child returns 0 (rax = 0), parent returns child pid */
   child->ctx.rax = 0;
+
+  pid_to_index[child->pid] = (uint32_t)child_idx;
+  proc_mark_slot_used(child_idx);
 
   return (int)child->pid;
 }

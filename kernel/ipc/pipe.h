@@ -18,6 +18,9 @@ typedef struct {
 /* Create a new pipe and return its index */
 int brights_pipe_create(void);
 
+/* Destroy a pipe and free its slot */
+void brights_pipe_destroy(int idx);
+
 /* Get a pipe by index */
 brights_pipe_t *brights_pipe_get(int idx);
 

@@ -3,12 +3,16 @@
 
 /* Pipe table */
 static brights_pipe_t pipe_table[BRIGHTS_MAX_PIPES];
+static uint64_t pipe_bitmap;
 static int pipe_count = 0;
 
 int brights_pipe_create(void)
 {
-  if (pipe_count >= BRIGHTS_MAX_PIPES) return -1;
-  int idx = pipe_count++;
+  uint64_t avail = ~pipe_bitmap;
+  if (avail == 0) return -1;
+  int idx = (int)__builtin_ctzll(avail);
+  pipe_bitmap |= (1ULL << idx);
+  ++pipe_count;
   brights_pipe_t *p = &pipe_table[idx];
   p->rd = 0;
   p->wr = 0;
@@ -18,9 +22,18 @@ int brights_pipe_create(void)
   return idx;
 }
 
+void brights_pipe_destroy(int idx)
+{
+  if (idx < 0 || idx >= BRIGHTS_MAX_PIPES) return;
+  if (!(pipe_bitmap & (1ULL << idx))) return;
+  pipe_bitmap &= ~(1ULL << idx);
+  --pipe_count;
+}
+
 brights_pipe_t *brights_pipe_get(int idx)
 {
-  if (idx < 0 || idx >= pipe_count) return 0;
+  if (idx < 0 || idx >= BRIGHTS_MAX_PIPES) return 0;
+  if (!(pipe_bitmap & (1ULL << idx))) return 0;
   return &pipe_table[idx];
 }
 

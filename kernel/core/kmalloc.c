@@ -57,14 +57,7 @@ static inline size_t align_up(size_t v, size_t a)
 
 static inline void zero_mem(void *ptr, size_t len)
 {
-  uint64_t *p = (uint64_t *)ptr;
-  size_t qwords = len / 8;
-  for (size_t i = 0; i < qwords; ++i) p[i] = 0;
-  len &= 7;
-  if (len) {
-    uint8_t *b = (uint8_t *)(p + qwords);
-    for (size_t i = 0; i < len; ++i) b[i] = 0;
-  }
+  __builtin_memset(ptr, 0, len);
 }
 
 #ifdef BRIGHTS_RUST_ENABLED

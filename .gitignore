@@ -1,5 +1,6 @@
 # Build artifacts
 build/
+build_x64/
 *.o
 *.obj
 *.efi

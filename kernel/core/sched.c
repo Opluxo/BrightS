@@ -209,15 +209,11 @@ int brights_sched_add_process(uint32_t pid)
   int32_t slot = alloc_slot();
   if (slot < 0) return -1;
 
+  uint32_t pid_idx = brights_proc_index(pid);
+  if (pid_idx >= BRIGHTS_SCHED_MAX_PROC) { free_slot(slot); return -1; }
+
   brights_proc_info_t *table = brights_proc_table_ptr();
   if (!table) { free_slot(slot); return -1; }
-
-  /* Find proc table index */
-  uint32_t pid_idx = BRIGHTS_SCHED_MAX_PROC;
-  for (uint32_t i = 0; i < BRIGHTS_SCHED_MAX_PROC; ++i) {
-    if (table[i].pid == pid) { pid_idx = i; break; }
-  }
-  if (pid_idx >= BRIGHTS_SCHED_MAX_PROC) { free_slot(slot); return -1; }
 
   uint8_t prio = nice_to_priority(table[pid_idx].sched.nice);
   slot_table[slot].pid = pid_idx;
@@ -503,14 +499,11 @@ int brights_sched_set_nice(uint32_t pid, int32_t nice)
   if (nice < -20) nice = -20;
   if (nice > 19)  nice = 19;
 
+  uint32_t pid_idx = brights_proc_index(pid);
+  if (pid_idx >= BRIGHTS_SCHED_MAX_PROC) return -1;
+
   brights_proc_info_t *table = brights_proc_table_ptr();
   if (!table) return -1;
-
-  uint32_t pid_idx = BRIGHTS_SCHED_MAX_PROC;
-  for (uint32_t i = 0; i < BRIGHTS_SCHED_MAX_PROC; ++i) {
-    if (table[i].pid == pid) { pid_idx = i; break; }
-  }
-  if (pid_idx >= BRIGHTS_SCHED_MAX_PROC) return -1;
 
   table[pid_idx].sched.nice = nice;
 
@@ -534,14 +527,12 @@ int brights_sched_get_stats(uint32_t pid, brights_proc_sched_t *out)
 {
   if (!out || pid == 0 || pid >= 256) return -1;
 
-  brights_proc_info_t *table = brights_proc_table_ptr();
-  if (!table) return -1;
+  uint32_t pid_idx = brights_proc_index(pid);
+  if (pid_idx >= BRIGHTS_SCHED_MAX_PROC) return -1;
 
-  for (uint32_t i = 0; i < BRIGHTS_SCHED_MAX_PROC; ++i) {
-    if (table[i].pid == pid && table[i].state != BRIGHTS_PROC_UNUSED) {
-      *out = table[i].sched;
-      return 0;
-    }
-  }
-  return -1;
+  brights_proc_info_t *table = brights_proc_table_ptr();
+  if (!table || table[pid_idx].state == BRIGHTS_PROC_UNUSED) return -1;
+
+  *out = table[pid_idx].sched;
+  return 0;
 }

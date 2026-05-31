@@ -43,12 +43,14 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/drivers/usb_hid.c
     ${CMAKE_SOURCE_DIR}/drivers/usb_msc.c
     ${CMAKE_SOURCE_DIR}/kernel/ipc/pipe.c
+    ${CMAKE_SOURCE_DIR}/kernel/ipc/pipe_vfs.c
     ${CMAKE_SOURCE_DIR}/kernel/core/clock.c
     ${CMAKE_SOURCE_DIR}/kernel/core/acpi.c
     ${CMAKE_SOURCE_DIR}/kernel/core/hwinfo.c
     ${CMAKE_SOURCE_DIR}/kernel/core/kmalloc.c
     ${CMAKE_SOURCE_DIR}/kernel/core/cache.c
     ${CMAKE_SOURCE_DIR}/kernel/core/lightshell.c
+    ${CMAKE_SOURCE_DIR}/kernel/core/boot_splash.c
     ${CMAKE_SOURCE_DIR}/kernel/core/lightshell_cmds/netget.c
     ${CMAKE_SOURCE_DIR}/kernel/core/proc.c
     ${CMAKE_SOURCE_DIR}/kernel/core/runtime.c
@@ -68,8 +70,8 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/kernel/core/vm.c
     ${CMAKE_SOURCE_DIR}/kernel/core/printf.c
     ${CMAKE_SOURCE_DIR}/kernel/core/pf.c
-    ${CMAKE_SOURCE_DIR}/kernel/fs/vfs.c
     ${CMAKE_SOURCE_DIR}/kernel/fs/vfs2.c
+    ${CMAKE_SOURCE_DIR}/kernel/fs/boot_fs.c
     ${CMAKE_SOURCE_DIR}/kernel/fs/ramfs.c
     ${CMAKE_SOURCE_DIR}/kernel/fs/ramfs_vfs.c
     ${CMAKE_SOURCE_DIR}/kernel/fs/btrfs.c

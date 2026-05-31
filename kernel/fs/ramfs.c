@@ -373,11 +373,7 @@ int64_t brights_ramfs_read(int fd, uint64_t off, void *buf, uint64_t len)
   if (to_read > len) {
     to_read = len;
   }
-  uint8_t *dst = (uint8_t *)buf;
-  const uint8_t *src = f->data + off;
-  for (uint64_t i = 0; i < to_read; ++i) {
-    dst[i] = src[i];
-  }
+  kutil_memcpy(buf, f->data + off, to_read);
   return (int64_t)to_read;
 }
 
@@ -397,11 +393,7 @@ int64_t brights_ramfs_write(int fd, uint64_t off, const void *buf, uint64_t len)
   if (off + to_write > f->capacity) {
     to_write = f->capacity - off;
   }
-  uint8_t *dst = f->data + off;
-  const uint8_t *src = (const uint8_t *)buf;
-  for (uint64_t i = 0; i < to_write; ++i) {
-    dst[i] = src[i];
-  }
+  kutil_memcpy(f->data + off, buf, to_write);
   if (off + to_write > f->size) {
     f->size = off + to_write;
   }

@@ -1,4 +1,5 @@
 #include "sleep.h"
+#include "clock.h"
 #include "hwinfo.h"
 #ifdef __i386__
 /* HPET not available on i386 minimal port */
@@ -31,8 +32,13 @@ void brights_sleep_ms(uint64_t ms)
 #ifndef __i386__
   brights_hpet_nsleep(ms * 1000000);
 #else
-  (void)ms;
-  for (volatile uint64_t i = 0; i < ms * 100000; ++i) { __asm__ __volatile__("pause"); }
+  if (ms == 0) return;
+  uint64_t ticks = (ms + 9) / 10;
+  if (ticks == 0) ticks = 1;
+  uint64_t start = brights_clock_now_ticks();
+  while (brights_clock_now_ticks() - start < ticks) {
+    __asm__ __volatile__("hlt");
+  }
 #endif
 }
 

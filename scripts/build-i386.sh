@@ -97,6 +97,10 @@ cc "$ARCH/pci.c"
 cc "$ARCH/pic_pit.c"
 cc "$ARCH/paging.c"
 cc "$ARCH/syscall_abi.c"
+cc "$ARCH/apic.c"
+cc "$ARCH/ioapic.c"
+cc "$ARCH/hpet.c"
+cc "$ARCH/mtrr.c"
 
 # ---- Step 3: Compile core kernel C files ----
 echo "[3/5] Compiling core kernel..."

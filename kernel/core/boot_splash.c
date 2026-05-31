@@ -1,16 +1,11 @@
 #include "boot_splash.h"
 #include "../drivers/serial.h"
+#include "../drivers/fb.h"
+#include "../drivers/font.h"
 #include "sleep.h"
 
-/* Box is 56 chars wide, terminal is 80 cols, so center pad = (80-56)/2 = 12 */
 #define BOX_PAD 12
-/* Art banner is 48 chars wide, (80-48)/2 = 16 */
 #define ART_PAD 16
-/*
- * 24-row terminal content:
- *   5 art + 1 blank + 4 box + 1 blank + 1 status = 12 rows
- *   VERT_PAD = (24 - 12) / 2 = 6
- */
 #define VERT_PAD 6
 
 static void print_spaces(int n)
@@ -33,8 +28,69 @@ static void art_line(const char *line)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");
 }
 
+static inline int str_len(const char *s)
+{
+  int n = 0;
+  while (s[n]) ++n;
+  return n;
+}
+
+static void fb_draw_splash(void)
+{
+  brights_fb_info_t *info = brights_fb_get_info();
+  if (!info || !info->initialized) return;
+
+  int fb_w = (int)info->width;
+  int fb_h = (int)info->height;
+
+  brights_color_t bg = {0, 0, 40, 255};
+  uint32_t cyan = (0 << 16) | (255 << 8) | 255;
+  uint32_t green = (0 << 16) | (255 << 8) | 0;
+  uint32_t white = (255 << 16) | (255 << 8) | 255;
+
+  brights_fb_clear(bg);
+
+  int char_w = 8, char_h = 16;
+  int logo_start_y = (fb_h - 12 * char_h) / 2;
+  if (logo_start_y < 0) logo_start_y = 20;
+
+  const char *logo[] = {
+    "#####  #####  #####  #####  #   #  #####  ##### ",
+    "#   #  #   #    #    #      #   #    #    #     ",
+    "#####  #####    #    #  ##  #####    #    ##### ",
+    "#   #  # #      #    #   #  #   #    #        # ",
+    "#   #  #  #   #####  #####  #   #    #    ##### ",
+  };
+
+  int logo_width = 48;
+  int logo_x = (fb_w - logo_width * char_w) / 2;
+
+  for (int row = 0; row < 5; ++row) {
+    for (int col = 0; col < logo_width; ++col) {
+      if (logo[row][col] == '#') {
+        brights_font_draw_char(logo_x + col * char_w, logo_start_y + row * char_h,
+                               '#', cyan, bg);
+      }
+    }
+  }
+
+  int text_y = logo_start_y + 6 * char_h;
+  int box_start_x = (fb_w - 56 * char_w) / 2;
+
+  brights_font_draw_string(box_start_x, text_y,
+    "|                 BrightS 0.1.2.4                      |", cyan, bg);
+  brights_font_draw_string(box_start_x, text_y + char_h,
+    "|            Designed by OpenLight Studio              |", cyan, bg);
+
+  const char *status = "System initialization complete. Starting login...";
+  int status_x = (fb_w - str_len(status) * char_w) / 2;
+  brights_font_draw_string(status_x, text_y + 3 * char_h, status, green, bg);
+}
+
 void brights_boot_splash(void)
 {
+  fb_draw_splash();
+
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J");
   for (int i = 0; i < VERT_PAD; ++i)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\r\n");

@@ -49,7 +49,12 @@
 #include "boot_splash.h"
 #include "userinit.h"
 #include "smp.h"
-#ifndef __i386__
+#ifdef __i386__
+#include "../arch/i386/apic.h"
+#include "../arch/i386/ioapic.h"
+#include "../arch/i386/hpet.h"
+#include "../arch/i386/mtrr.h"
+#else
 #include "../arch/x86_64/apic.h"
 #include "../arch/x86_64/ioapic.h"
 #include "../arch/x86_64/hpet.h"
@@ -158,7 +163,6 @@ void brights_kernel_main(void *gop)
     brights_print(&con, u"acpi: init failed\r\n");
   }
 
-#ifndef __i386__
   /* ---- APIC ---- */
   if (brights_apic_init() == 0) {
     brights_print(&con, u"apic: init ok (id=");
@@ -220,13 +224,6 @@ void brights_kernel_main(void *gop)
   if (brights_apic_available()) {
     brights_smp_init();
   }
-#else
-  brights_print(&con, u"apic: not available (i386)\r\n");
-  brights_print(&con, u"ioapic: not available (i386)\r\n");
-  brights_print(&con, u"hpet: not available (i386)\r\n");
-  brights_print(&con, u"mtrr: not available (i386)\r\n");
-  brights_print(&con, u"smp: not available (i386)\r\n");
-#endif
 
   /* ---- Memory ---- */
   brights_kmalloc_init();
@@ -256,16 +253,12 @@ void brights_kernel_main(void *gop)
 
   /* ---- Scheduler timer ---- */
   /* Use APIC timer if available, otherwise PIT handles it via IDT */
-#ifndef __i386__
   if (brights_apic_available()) {
     brights_apic_timer_init(100); /* 100 Hz scheduling tick */
     brights_print(&con, u"sched: APIC timer @ 100Hz\r\n");
   } else {
     brights_print(&con, u"sched: PIT timer @ 100Hz\r\n");
   }
-#else
-  brights_print(&con, u"sched: PIT timer @ 100Hz\r\n");
-#endif
 
   /* ---- Process system ---- */
   int dev_count = brights_devfs_init();

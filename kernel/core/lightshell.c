@@ -28,7 +28,12 @@
 #include "kernel_util.h"
 #include "userinit.h"
 #include "smp.h"
-#ifndef __i386__
+#ifdef __i386__
+#include "../arch/i386/apic.h"
+#include "../arch/i386/ioapic.h"
+#include "../arch/i386/hpet.h"
+#include "../arch/i386/mtrr.h"
+#else
 #include "../arch/x86_64/apic.h"
 #include "../arch/x86_64/ioapic.h"
 #include "../arch/x86_64/hpet.h"

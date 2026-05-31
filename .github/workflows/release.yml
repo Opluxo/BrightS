@@ -1,20 +1,19 @@
-name: Build and Release
+name: Release
 
 on:
   push:
-    branches: [ main ]
     tags: [ 'v*' ]
 
 permissions:
-  contents: write  # Required to upload artifacts and create releases
+  contents: write
 
 jobs:
-  build:
-    name: Build BrightS Kernel Image
+  release:
+    name: Build & Release
     runs-on: ubuntu-24.04
-    
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -22,12 +21,13 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential cmake nasm mtools dosfstools qemu-system-x86 ovmf git clang lld xorriso python3
+          sudo apt install -y build-essential cmake nasm mtools dosfstools \
+                               qemu-system-x86 ovmf git clang lld xorriso python3
 
       - name: Configure CMake
         run: CC=clang LD=lld cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build project
+      - name: Build
         run: cmake --build build -j$(nproc)
 
       - name: Create boot images
@@ -36,25 +36,14 @@ jobs:
           ./tools/make-iso.sh
           python3 tools/create-disk-img.py build/sys/kernel/kernel.efi build/brights-disk.img
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: brights-build-artifacts
-          path: |
-            build/sys/kernel/kernel.efi
-            build/brights.iso
-            build/brights-efi.img
-            build/tests/test_ramfs
-            build/tests/test_benchmark
-
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: |
             build/sys/kernel/kernel.efi
             build/brights.iso
             build/brights-efi.img
+            build/brights-disk.img
             build/tests/test_ramfs
             build/tests/test_benchmark
           generate_release_notes: true

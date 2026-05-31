@@ -1,40 +1,27 @@
-# VMware Support in BrightS
+# BrightS VMware 支持
 
-## Overview
+## 概述
 
-BrightS includes VMware backdoor support for running inside VMware virtual machines.
+BrightS 内核支持 VMware Backdoor 接口，可在 VMware 虚拟机中运行。
 
-## Status
+## 状态
 
-- ✅ VMware detection during kernel boot
-- ✅ VMware backdoor I/O port communication
-- ✅ VMware time synchronization
-- ⏳ VMware drag-and-drop / shared folders (planned)
+- ✅ 启动时自动检测 VMware 环境
+- ✅ VMware Backdoor I/O 端口通信
+- ✅ VMware 时间同步
+- ⏳ 拖放 / 共享文件夹 (规划中)
 
-## How It Works
+## 实现
 
-1. During boot, the kernel checks for VMware backdoor availability via I/O port magic
-2. If VMware is detected, it initializes the backdoor interface
-3. VMware-specific features like time synchronization are enabled
+- `kernel/core/vmware.c` — backdoor 实现
+- `kernel/core/vmware.h` — 接口定义
+- 启动时通过 I/O 端口魔术字检测，检测到后初始化 backdoor 并启用时间同步
 
-## Files
+## 测试
 
-- `kernel/core/vmware.c` — backdoor implementation
-- `kernel/core/vmware.h` — interface definitions
-- `kernel/core/kernel_main.c` — initialization call
+在 VMware Workstation/Player 中创建虚拟机，挂载 ISO 启动，检查串口输出 `vmware: backdoor initialized`。
 
-## Testing
+## 注意事项
 
-Run in VMware Workstation/Player:
-1. Create a new VM
-2. Attach the built ISO
-3. Boot the VM
-4. Check serial output for "vmware: backdoor initialized"
-
-## Notes
-
-- Backdoor only active in VMware environments
-- In QEMU or physical hardware: "vmware: backdoor not available"
-- The ISO image supports both QEMU and VMware
-
-*Last updated: 2026-05-29*
+- Backdoor 仅在 VMware 环境中激活；QEMU 或物理机显示 `vmware: backdoor not available`
+- ISO 镜像同时支持 QEMU 和 VMware

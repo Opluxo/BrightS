@@ -88,6 +88,7 @@ static int cmd_ping_handler(const char *arg);
 static int cmd_history_handler(const char *arg);
 static int cmd_sleep_handler(const char *arg);
 static int cmd_env_handler(const char *arg);
+static int cmd_dns_handler(const char *arg);
 
 /* Sorted command table for binary search */
 static const cmd_entry_t cmd_table[] = {
@@ -98,6 +99,7 @@ static const cmd_entry_t cmd_table[] = {
   {"clear",   cmd_clear_handler},
   {"cp",      cmd_cp_handler},
   {"date",    cmd_date_handler},
+  {"dns",     cmd_dns_handler},
   {"echo",    cmd_echo_handler},
   {"halt",    cmd_halt_handler},
   {"help",    cmd_help_handler},
@@ -979,7 +981,7 @@ static void cmd_help(void)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "  \033[1;36mSystem\033[0m:    free uptime uname date sleep env reboot halt clear\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
-    "  \033[1;36mNetwork\033[0m:    ping ifconfig wifi netget\r\n");
+    "  \033[1;36mNetwork\033[0m:    ping ifconfig wifi netget dns\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
     "  \033[1;36mProcess\033[0m:    kill jobs bst\r\n");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT,
@@ -3502,12 +3504,30 @@ static int cmd_sleep_handler(const char *arg)
 
 static int cmd_env_handler(const char *arg)
 {
-  (void)arg;
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "PATH=/bin:/usr/bin\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "HOME=/usr/home\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "SHELL=/bin/sh\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "USER=guest\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "HOSTNAME=brights\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "PWD=/\n");
+  cmd_env();
+  return 1;
+}
+
+#include "../net/dns/dns.h"
+static int cmd_dns_handler(const char *arg)
+{
+  if (!arg || arg[0] == '\0') {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Usage: dns <nameserver1> [nameserver2]\r\n");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Example: dns 8.8.8.8 8.8.4.4\r\n");
+    return 1;
+  }
+  char buf1[32], buf2[32];
+  int i = 0;
+  while (arg[i] && arg[i] != ' ' && i < 31) { buf1[i] = arg[i]; ++i; }
+  buf1[i] = '\0';
+  if (arg[i] == ' ') {
+    ++i; int j = 0;
+    while (arg[i] && j < 31) { buf2[j] = arg[i]; ++i; ++j; }
+    buf2[j] = '\0';
+    brights_dns_init(buf1, buf2);
+  } else {
+    brights_dns_init(buf1, NULL);
+  }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "dns: nameservers updated\r\n");
   return 1;
 }

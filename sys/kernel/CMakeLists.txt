@@ -136,9 +136,11 @@ set(KERNEL_SOURCES
     VERBATIM
   )
 
-  add_dependencies(kernel_efi rust_kernel)
-
   add_custom_target(kernel_efi ALL DEPENDS ${KERNEL_EFI})
+
+  if(TARGET rust_kernel)
+    add_dependencies(kernel_efi rust_kernel)
+  endif()
 
   # Find QEMU
   find_program(QEMU_BIN qemu-system-x86_64)

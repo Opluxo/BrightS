@@ -43,12 +43,12 @@ static void fb_draw_splash(void)
   int fb_w = (int)info->width;
   int fb_h = (int)info->height;
 
-  brights_color_t bg = {0, 0, 40, 255};
+  brights_color_t bg_struct = {0, 0, 40, 255};
+  uint32_t bg = ((uint32_t)bg_struct.r << 16) | ((uint32_t)bg_struct.g << 8) | (uint32_t)bg_struct.b;
   uint32_t cyan = (0 << 16) | (255 << 8) | 255;
   uint32_t green = (0 << 16) | (255 << 8) | 0;
-  uint32_t white = (255 << 16) | (255 << 8) | 255;
 
-  brights_fb_clear(bg);
+  brights_fb_clear(bg_struct);
 
   int char_w = 8, char_h = 16;
   int logo_start_y = (fb_h - 12 * char_h) / 2;

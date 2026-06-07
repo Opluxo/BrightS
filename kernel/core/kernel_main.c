@@ -23,6 +23,7 @@
        */
 
 #include "../drivers/serial.h"
+#include "../../config/network.h"
 #include "printf.h"
 #include "acpi.h"
 #include "vmware.h"
@@ -37,7 +38,7 @@
 #include "clock.h"
 #include "hwinfo.h"
 #include "kmalloc.h"
-#include "../../../include/kernel/cache.h"
+#include "../../include/kernel/cache.h"
 #include "pmem.h"
 #include "proc.h"
 #include "sched.h"
@@ -232,8 +233,8 @@ void brights_kernel_main(void *gop)
   brights_sched_init();
   brights_signal_init();
   brights_syshook_init();
-   brights_print(&con, u"syshook: init ok (32 hook slots)\r\n");
-   brights_print(&con, u"DEBUG: Syshook initialized\r\n");
+  brights_print(&con, u"syshook: init ok (32 hook slots)\r\n");
+  brights_print(&con, u"DEBUG: Syshook initialized\r\n");
 
   brights_print(&con, u"pmem: ");
   print_u64( brights_pmem_total_bytes() / (1024 * 1024));
@@ -332,9 +333,9 @@ void brights_kernel_main(void *gop)
   brights_net_init();
   brights_virtionet_init();
   {
-    uint8_t mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+    uint8_t mac[6] = BRIGHTS_DEFAULT_MAC;
     brights_netif_add("eth0", mac);
-    brights_netif_set_ip("eth0", 0xC0A80164, 0xFFFFFF00, 0xC0A80101);
+    brights_netif_set_ip("eth0", BRIGHTS_DEFAULT_IP, BRIGHTS_DEFAULT_NETMASK, BRIGHTS_DEFAULT_GATEWAY);
     brights_netif_up("eth0");
   }
   brights_print(&con, u"net: ready\r\n");

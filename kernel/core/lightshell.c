@@ -1,6 +1,7 @@
 #include "lightshell.h"
 #include "lightshell_cmds/netget.h"
 #include "../drivers/serial.h"
+#include "../../config/network.h"
 #ifdef __i386__
 #include "../arch/i386/io.h"
 #else
@@ -2471,9 +2472,9 @@ static void cmd_ifconfig(const char *arg)
 
   if (streq(arg, "init")) {
     brights_net_init();
-    uint8_t mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+    uint8_t mac[6] = BRIGHTS_DEFAULT_MAC;
     brights_netif_add("eth0", mac);
-    brights_netif_set_ip("eth0", 0xC0A80164, 0xFFFFFF00, 0xC0A80101);
+    brights_netif_set_ip("eth0", BRIGHTS_DEFAULT_IP, BRIGHTS_DEFAULT_NETMASK, BRIGHTS_DEFAULT_GATEWAY);
     brights_netif_up("eth0");
 
     uint8_t wlan_mac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};

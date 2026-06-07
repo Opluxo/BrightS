@@ -32,6 +32,10 @@ jobs:
       - name: Build
         run: cmake --build build -j$(nproc)
 
+      - name: Run tests
+        run: |
+          cd build && ctest --output-on-failure
+
       - name: Create ISO
         run: |
           chmod +x tools/make-iso.sh
@@ -61,22 +65,35 @@ jobs:
       - name: Build
         run: CC=i686-linux-gnu-gcc bash scripts/build-i386.sh
 
-      - name: Create ISO
+      - name: Test floppy image
+        run: |
+          # Verify boot signature at end of first sector
+          od -A x -t x1z -v build/floppy.img | head -2
+          SIGNATURE=$(dd if=build/floppy.img bs=1 count=2 skip=510 2>/dev/null | od -An -tx1 | tr -d ' ')
+          if [ "$SIGNATURE" != "55aa" ] && [ "$SIGNATURE" != "aa55" ]; then
+            echo "ERROR: Missing 0x55AA boot signature"
+            exit 1
+          fi
+          echo "Boot signature: OK"
+
+      - name: Create ISO (El Torito hard-disk emulation)
         run: |
           mkdir -p build/i386-iso
           cp build/floppy.img build/i386-iso/
           xorriso -as mkisofs \
             -b floppy.img \
-            -no-emul-boot \
+            -hard-disk-boot \
             -V "BRIGHTS_I386" \
             -o build/brights-i386.iso \
             build/i386-iso/
 
-      - name: Upload ISO
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: brights-i386
-          path: build/brights-i386.iso
+          path: |
+            build/floppy.img
+            build/brights-i386.iso
 
   release:
     needs: [x86_64, i386]

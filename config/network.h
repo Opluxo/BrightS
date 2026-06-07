@@ -1,0 +1,26 @@
+#ifndef BRIGHTS_NETWORK_CONFIG_H
+#define BRIGHTS_NETWORK_CONFIG_H
+
+#include <stdint.h>
+
+#ifndef BRIGHTS_DEFAULT_MAC_0
+#define BRIGHTS_DEFAULT_MAC_0 0x00
+#define BRIGHTS_DEFAULT_MAC_1 0x11
+#define BRIGHTS_DEFAULT_MAC_2 0x22
+#define BRIGHTS_DEFAULT_MAC_3 0x33
+#define BRIGHTS_DEFAULT_MAC_4 0x44
+#define BRIGHTS_DEFAULT_MAC_5 0x55
+#endif
+
+#define BRIGHTS_DEFAULT_MAC   {BRIGHTS_DEFAULT_MAC_0, BRIGHTS_DEFAULT_MAC_1, \
+                               BRIGHTS_DEFAULT_MAC_2, BRIGHTS_DEFAULT_MAC_3, \
+                               BRIGHTS_DEFAULT_MAC_4, BRIGHTS_DEFAULT_MAC_5}
+
+/* 192.168.1.100 */
+#define BRIGHTS_DEFAULT_IP      ((192u << 24) | (168u << 16) | (1u << 8) | 100u)
+/* 255.255.255.0 */
+#define BRIGHTS_DEFAULT_NETMASK ((255u << 24) | (255u << 16) | (255u << 8) | 0u)
+/* 192.168.1.1 */
+#define BRIGHTS_DEFAULT_GATEWAY ((192u << 24) | (168u << 16) | (1u << 8) | 1u)
+
+#endif

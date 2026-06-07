@@ -12,6 +12,9 @@
 #include "../drivers/serial.h"
 
 #define BRIGHTS_PROC_MAX 64u
+#define BRIGHTS_PATH_MAX_SEG 16u
+#define BRIGHTS_PATH_SEG_LEN 64u
+#define BRIGHTS_PATH_COMBINED_LEN 256u
 
 static brights_proc_info_t proc_table[BRIGHTS_PROC_MAX];
 static uint32_t pid_to_index[256];
@@ -298,19 +301,17 @@ int brights_proc_resolve_path(const char *path, char *out, int cap)
 
   const char *cwd = brights_proc_get_cwd();
 
-  /* Absolute path */
   if (path[0] == '/') {
-    /* Normalize and copy */
-    char segs[16][64];
+    char segs[BRIGHTS_PATH_MAX_SEG][BRIGHTS_PATH_SEG_LEN];
     int seg_count = 0;
     int i = 0;
     while (path[i]) {
       while (path[i] == '/') ++i;
       if (!path[i]) break;
-      char seg[64];
+      char seg[BRIGHTS_PATH_SEG_LEN];
       int slen = 0;
       while (path[i] && path[i] != '/') {
-        if (slen >= 63) return -1;
+        if (slen >= (int)BRIGHTS_PATH_SEG_LEN - 1) return -1;
         seg[slen++] = path[i++];
       }
       seg[slen] = 0;
@@ -319,7 +320,7 @@ int brights_proc_resolve_path(const char *path, char *out, int cap)
         if (seg_count > 0) --seg_count;
         continue;
       }
-      if (seg_count >= 16) return -1;
+      if (seg_count >= (int)BRIGHTS_PATH_MAX_SEG) return -1;
       for (int j = 0; j <= slen; ++j) segs[seg_count][j] = seg[j];
       ++seg_count;
     }
@@ -339,34 +340,28 @@ int brights_proc_resolve_path(const char *path, char *out, int cap)
     return 0;
   }
 
-  /* Relative path: prepend cwd */
-  /* Build: cwd + "/" + path, then normalize */
-  char combined[256];
+  char combined[BRIGHTS_PATH_COMBINED_LEN];
   int ci = 0;
 
-  /* Copy cwd */
-  for (int i = 0; cwd[i] && ci < 254; ++i) combined[ci++] = cwd[i];
+  for (int i = 0; cwd[i] && ci < (int)BRIGHTS_PATH_COMBINED_LEN - 2; ++i) combined[ci++] = cwd[i];
 
-  /* Add '/' if cwd doesn't end with one and path isn't empty */
   if (ci > 0 && combined[ci - 1] != '/' && path[0] != 0) {
-    if (ci < 254) combined[ci++] = '/';
+    if (ci < (int)BRIGHTS_PATH_COMBINED_LEN - 2) combined[ci++] = '/';
   }
 
-  /* Copy relative path */
-  for (int i = 0; path[i] && ci < 254; ++i) combined[ci++] = path[i];
+  for (int i = 0; path[i] && ci < (int)BRIGHTS_PATH_COMBINED_LEN - 2; ++i) combined[ci++] = path[i];
   combined[ci] = 0;
 
-  /* Normalize: resolve . and .. */
-  char segs[16][64];
+  char segs[BRIGHTS_PATH_MAX_SEG][BRIGHTS_PATH_SEG_LEN];
   int seg_count = 0;
   int i = 0;
   while (combined[i]) {
     while (combined[i] == '/') ++i;
     if (!combined[i]) break;
-    char seg[64];
+    char seg[BRIGHTS_PATH_SEG_LEN];
     int slen = 0;
     while (combined[i] && combined[i] != '/') {
-      if (slen >= 63) return -1;
+      if (slen >= (int)BRIGHTS_PATH_SEG_LEN - 1) return -1;
       seg[slen++] = combined[i++];
     }
     seg[slen] = 0;
@@ -375,7 +370,7 @@ int brights_proc_resolve_path(const char *path, char *out, int cap)
       if (seg_count > 0) --seg_count;
       continue;
     }
-    if (seg_count >= 16) return -1;
+    if (seg_count >= (int)BRIGHTS_PATH_MAX_SEG) return -1;
     for (int j = 0; j <= slen; ++j) segs[seg_count][j] = seg[j];
     ++seg_count;
   }

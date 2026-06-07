@@ -85,6 +85,15 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/kernel/net/http/http.c
   )
 
+  set(RUST_KERNEL_SRC ${CMAKE_SOURCE_DIR}/kernel/rust)
+  set(RUST_KERNEL_LIB ${RUST_KERNEL_SRC}/target/x86_64-unknown-none/release/librust_kernel.a)
+
+  add_custom_target(rust_kernel ALL
+    COMMAND cargo build --release
+    WORKING_DIRECTORY ${RUST_KERNEL_SRC}
+    COMMENT "Building Rust kernel module"
+  )
+
   add_custom_command(
     OUTPUT ${KERNEL_EFI}
      COMMAND ${CLANG_BIN}
@@ -106,8 +115,9 @@ set(KERNEL_SOURCES
       -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes
       -Wmissing-prototypes -Wno-unused-parameter -Wno-pointer-sign
       -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-cast-qual
-       -I${CMAKE_SOURCE_DIR}/arch/x86_64
-        -I${CMAKE_SOURCE_DIR}/kernel
+        -I${CMAKE_SOURCE_DIR}
+         -I${CMAKE_SOURCE_DIR}/arch/x86_64
+         -I${CMAKE_SOURCE_DIR}/kernel
         -I${CMAKE_SOURCE_DIR}/kernel/core
         -I${CMAKE_SOURCE_DIR}/kernel/dev
         -I${CMAKE_SOURCE_DIR}/kernel/fs
@@ -120,10 +130,13 @@ set(KERNEL_SOURCES
          -I${CMAKE_SOURCE_DIR}/include
          -I${CMAKE_SOURCE_DIR}/include/kernel
         ${KERNEL_SOURCES}
+        ${RUST_KERNEL_LIB}
       -o ${KERNEL_EFI}
-    DEPENDS ${KERNEL_SOURCES}
+    DEPENDS ${KERNEL_SOURCES} ${RUST_KERNEL_LIB}
     VERBATIM
   )
+
+  add_dependencies(kernel_efi rust_kernel)
 
   add_custom_target(kernel_efi ALL DEPENDS ${KERNEL_EFI})
 

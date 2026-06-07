@@ -1,4 +1,4 @@
-; BrightS i386 Bootloader (Extended INT 13h LBA)
+; BrightS i386 Bootloader (LBA + CHS fallback)
 BITS 16
 ORG 0x7C00
 
@@ -17,6 +17,19 @@ start:
     call puts
 
     mov word [load_seg], KERNEL_LOAD_SEG
+
+    ; Check if LBA extensions are available
+    mov dl, [boot_drive]
+    mov ah, 0x41
+    mov bx, 0x55AA
+    int 0x13
+    jc use_chs
+
+    cmp bx, 0xAA55
+    jne use_chs
+
+    ; LBA available: use extended read
+    mov byte [lba_supported], 1
 
 read_loop:
     cmp word [sectors_left], 0
@@ -53,6 +66,64 @@ read_ok:
     sub word [sectors_left], 1
     jmp read_loop
 
+use_chs:
+    mov byte [lba_supported], 0
+
+    ; Get disk geometry
+    mov dl, [boot_drive]
+    mov ah, 0x08
+    int 0x13
+    jc disk_error
+
+    mov [heads], dh
+    inc byte [heads]
+
+    and cx, 0x3F
+    mov [sectors_per_track], cx
+
+    ; Convert LBA to CHS and read
+    mov word [lba_cur_chs], 1
+
+chs_read_loop:
+    cmp word [sectors_left], 0
+    je load_done
+
+    pusha
+    mov ax, [lba_cur_chs]
+    xor dx, dx
+    movzx bx, byte [sectors_per_track]
+    div bx
+    mov cl, dl
+    inc cl
+
+    xor dx, dx
+    movzx bx, byte [heads]
+    div bx
+    mov dh, dl
+    mov ch, al
+    popa
+
+    mov dl, [boot_drive]
+    mov ah, 0x02
+    mov al, 1
+    int 0x13
+    jnc chs_read_ok
+
+    ; Retry with reset
+    xor ax, ax
+    int 0x13
+    mov dl, [boot_drive]
+    mov ah, 0x02
+    mov al, 1
+    int 0x13
+    jc disk_error
+
+chs_read_ok:
+    add word [load_seg], 0x20
+    add word [lba_cur_chs], 1
+    sub word [sectors_left], 1
+    jmp chs_read_loop
+
 load_done:
     mov si, msg_ok
     call puts
@@ -69,13 +140,23 @@ load_done:
     mov cr0, eax
     jmp dword 0x08:KERNEL_DEST
 
-msg_boot     db 'B', 0
-msg_ok       db 'O', 0
-msg_err      db '!', 0
-boot_drive   db 0
-lba_cur      dw 1
-sectors_left dw KERNEL_SECTORS
-load_seg     dw KERNEL_LOAD_SEG
+disk_error:
+    mov si, msg_disk_err
+    call puts
+    jmp $
+
+msg_boot        db 'B', 0
+msg_ok          db 'O', 0
+msg_err         db '!', 0
+msg_disk_err    db 'D', 0
+boot_drive      db 0
+lba_cur         dw 1
+lba_cur_chs     dw 1
+sectors_left    dw KERNEL_SECTORS
+load_seg        dw KERNEL_LOAD_SEG
+lba_supported   db 0
+heads           db 0
+sectors_per_track dw 0
 
 ALIGN 4
 dap:

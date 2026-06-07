@@ -3503,8 +3503,17 @@ static int cmd_sleep_handler(const char *arg)
   return 1;
 }
 
+static void cmd_env(void)
+{
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "PATH=/bin:/usr/bin\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "HOME=/usr/home\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "SHELL=/bin/sh\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "USER=guest\n");
+}
+
 static int cmd_env_handler(const char *arg)
 {
+  (void)arg;
   cmd_env();
   return 1;
 }

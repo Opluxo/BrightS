@@ -97,10 +97,9 @@ set(KERNEL_SOURCES
     )
   endif()
 
+  set(RUST_LINK "")
   if(TARGET rust_kernel)
     set(RUST_LINK ${RUST_KERNEL_LIB})
-  else()
-    set(RUST_LINK "")
   endif()
 
   add_custom_command(
@@ -141,7 +140,7 @@ set(KERNEL_SOURCES
         ${KERNEL_SOURCES}
         ${RUST_LINK}
       -o ${KERNEL_EFI}
-    DEPENDS ${KERNEL_SOURCES} ${RUST_LINK}
+    DEPENDS ${KERNEL_SOURCES}
     VERBATIM
   )
 

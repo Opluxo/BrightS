@@ -88,17 +88,15 @@ set(KERNEL_SOURCES
   set(RUST_KERNEL_SRC ${CMAKE_SOURCE_DIR}/kernel/rust)
   set(RUST_KERNEL_LIB ${RUST_KERNEL_SRC}/target/x86_64-unknown-none/release/librust_kernel.a)
 
+  set(RUST_LINK "")
   find_program(CARGO_BIN cargo)
   if(CARGO_BIN)
-    add_custom_target(rust_kernel
+    add_custom_command(
+      OUTPUT ${RUST_KERNEL_LIB}
       COMMAND cargo build --release
       WORKING_DIRECTORY ${RUST_KERNEL_SRC}
       COMMENT "Building Rust kernel module"
     )
-  endif()
-
-  set(RUST_LINK "")
-  if(TARGET rust_kernel)
     set(RUST_LINK ${RUST_KERNEL_LIB})
   endif()
 
@@ -140,15 +138,11 @@ set(KERNEL_SOURCES
         ${KERNEL_SOURCES}
         ${RUST_LINK}
       -o ${KERNEL_EFI}
-    DEPENDS ${KERNEL_SOURCES}
+    DEPENDS ${KERNEL_SOURCES} ${RUST_LINK}
     VERBATIM
   )
 
   add_custom_target(kernel_efi ALL DEPENDS ${KERNEL_EFI})
-
-  if(TARGET rust_kernel)
-    add_dependencies(kernel_efi rust_kernel)
-  endif()
 
   # Find QEMU
   find_program(QEMU_BIN qemu-system-x86_64)

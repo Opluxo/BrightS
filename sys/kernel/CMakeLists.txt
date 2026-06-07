@@ -88,11 +88,20 @@ set(KERNEL_SOURCES
   set(RUST_KERNEL_SRC ${CMAKE_SOURCE_DIR}/kernel/rust)
   set(RUST_KERNEL_LIB ${RUST_KERNEL_SRC}/target/x86_64-unknown-none/release/librust_kernel.a)
 
-  add_custom_target(rust_kernel ALL
-    COMMAND cargo build --release
-    WORKING_DIRECTORY ${RUST_KERNEL_SRC}
-    COMMENT "Building Rust kernel module"
-  )
+  find_program(CARGO_BIN cargo)
+  if(CARGO_BIN)
+    add_custom_target(rust_kernel
+      COMMAND cargo build --release
+      WORKING_DIRECTORY ${RUST_KERNEL_SRC}
+      COMMENT "Building Rust kernel module"
+    )
+  endif()
+
+  if(TARGET rust_kernel)
+    set(RUST_LINK ${RUST_KERNEL_LIB})
+  else()
+    set(RUST_LINK "")
+  endif()
 
   add_custom_command(
     OUTPUT ${KERNEL_EFI}
@@ -130,9 +139,9 @@ set(KERNEL_SOURCES
          -I${CMAKE_SOURCE_DIR}/include
          -I${CMAKE_SOURCE_DIR}/include/kernel
         ${KERNEL_SOURCES}
-        ${RUST_KERNEL_LIB}
+        ${RUST_LINK}
       -o ${KERNEL_EFI}
-    DEPENDS ${KERNEL_SOURCES} ${RUST_KERNEL_LIB}
+    DEPENDS ${KERNEL_SOURCES} ${RUST_LINK}
     VERBATIM
   )
 

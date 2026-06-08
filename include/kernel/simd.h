@@ -14,6 +14,7 @@
  */
 
 #include <stddef.h>
+#include <wchar.h>
 #ifdef __SSE2__
 #include <emmintrin.h>
 #endif

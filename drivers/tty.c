@@ -157,6 +157,16 @@ char brights_tty_read_char_blocking(void)
 static fb_console_t fb_con = {0};
 static int fb_con_initialized = 0;
 
+void fb_console_set_work_area(int y, int h)
+{
+  fb_con.work_y = y;
+  fb_con.work_h = h;
+  if (fb_con.cursor_y < y || fb_con.cursor_y >= y + h) {
+    fb_con.cursor_x = 0;
+    fb_con.cursor_y = y;
+  }
+}
+
 static void fb_console_write_strip_ansi(const char *s)
 {
   if (!s) return;
@@ -192,6 +202,8 @@ void fb_console_init(void)
   fb_con.bg_color = brights_rgb(0, 40, 80);
   fb_con.scroll_enabled = 1;
   fb_con.cursor_visible = 1;
+  fb_con.work_y = 0;
+  fb_con.work_h = fb_con.height;
   
   fb_con_initialized = 1;
   fb_console_clear();
@@ -202,7 +214,8 @@ void fb_console_clear(void)
 {
   if (!fb_con_initialized) fb_console_init();
   brights_fb_fill(fb_con.bg_color);
-  fb_con.cursor_x = fb_con.cursor_y = 0;
+  fb_con.cursor_x = 0;
+  fb_con.cursor_y = fb_con.work_y;
 }
 
 void fb_console_set_colors(brights_color_t fg, brights_color_t bg)
@@ -213,10 +226,11 @@ void fb_console_set_colors(brights_color_t fg, brights_color_t bg)
 
 void fb_console_goto(int x, int y)
 {
+  int y_limit = fb_con.work_y + fb_con.work_h;
   if (x < 0) x = 0;
   else if (x >= fb_con.width) x = fb_con.width - 1;
-  if (y < 0) y = 0;
-  else if (y >= fb_con.height) y = fb_con.height - 1;
+  if (y < fb_con.work_y) y = fb_con.work_y;
+  else if (y >= y_limit) y = y_limit - 1;
   fb_con.cursor_x = x;
   fb_con.cursor_y = y;
 }
@@ -229,13 +243,14 @@ void fb_console_get_pos(int *x, int *y)
 
 void fb_console_newline(void)
 {
+  int limit = fb_con.work_y + fb_con.work_h;
   fb_con.cursor_x = 0;
-  if (++fb_con.cursor_y >= fb_con.height) {
+  if (++fb_con.cursor_y >= limit) {
     if (fb_con.scroll_enabled) {
       fb_console_scroll();
-      fb_con.cursor_y = fb_con.height - 1;
+      fb_con.cursor_y = limit - 1;
     } else {
-      fb_con.cursor_y = 0;
+      fb_con.cursor_y = fb_con.work_y;
     }
   }
 }
@@ -244,18 +259,22 @@ void fb_console_scroll(void)
 {
   brights_fb_info_t *fb = brights_fb_get_info();
   if (!fb) return;
-  
+
   uint32_t line_h = 16;
+  uint32_t work_start_px = fb_con.work_y * line_h;
+  uint32_t work_h_px = fb_con.work_h * line_h;
   uint32_t scroll_bytes = line_h * fb->pitch;
   uint8_t *fb_base = (uint8_t *)fb->framebuffer;
-  uint32_t copy_rows = fb->height - line_h;
+  uint32_t copy_rows = (fb_con.work_h - 1) * line_h;
   uint32_t copy_bytes = copy_rows * fb->pitch;
-  
+  uint32_t src_off = work_start_px * fb->pitch + scroll_bytes;
+  uint32_t dst_off = work_start_px * fb->pitch;
+
   for (uint32_t i = 0; i < copy_bytes; i++) {
-    fb_base[i] = fb_base[i + scroll_bytes];
+    fb_base[dst_off + i] = fb_base[src_off + i];
   }
-  
-  uint8_t *clear_start = fb_base + copy_bytes;
+
+  uint8_t *clear_start = fb_base + dst_off + copy_bytes;
   for (uint32_t i = 0; i < scroll_bytes; i++) {
     clear_start[i] = 0;
   }

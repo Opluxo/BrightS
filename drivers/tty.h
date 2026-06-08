@@ -37,6 +37,8 @@ typedef struct {
   brights_color_t bg_color;
   int scroll_enabled;
   int cursor_visible;
+  int work_y;
+  int work_h;
 } fb_console_t;
 
 void fb_console_init(void);
@@ -52,6 +54,7 @@ void fb_console_scroll(void);
 void fb_console_set_cursor_visible(int visible);
 void fb_console_update_cursor(void);
 fb_console_t *fb_console_get_info(void);
+void fb_console_set_work_area(int y, int h);
 
 /* printf-style functions for framebuffer console */
 void fb_printf(const char *fmt, ...);

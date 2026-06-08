@@ -15,6 +15,7 @@
 #include "../drivers/rtc.h"
 #include "../drivers/ps2kbd.h"
 #include "../drivers/tty.h"
+#include "../drivers/tui.h"
 #include "clock.h"
 #include "acpi.h"
 #include "hwinfo.h"
@@ -969,6 +970,37 @@ static void print_prompt(void)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, current_dir);
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, is_root ? "# " : "$ ");
+
+  if (brights_fb_available()) {
+    char lbuf[64];
+    char rbuf[32];
+    int i, v;
+
+    i = 0;
+    for (int j = 0; current_user[j] && i < (int)sizeof(lbuf) - 16; ++j)
+      lbuf[i++] = current_user[j];
+    lbuf[i++] = '@';
+    lbuf[i++] = 'b'; lbuf[i++] = 'r'; lbuf[i++] = 'i'; lbuf[i++] = 'g';
+    lbuf[i++] = 'h'; lbuf[i++] = 't'; lbuf[i++] = 's';
+    lbuf[i] = 0;
+
+    brights_rtc_time_t tr;
+    if (brights_rtc_read(&tr) == 0) {
+      v = tr.hour / 10; rbuf[0] = v ? (char)('0' + v) : '0';
+      v = tr.hour % 10; rbuf[1] = (char)('0' + v);
+      rbuf[2] = ':';
+      v = tr.minute / 10; rbuf[3] = (char)('0' + v);
+      v = tr.minute % 10; rbuf[4] = (char)('0' + v);
+      rbuf[5] = ':';
+      v = tr.second / 10; rbuf[6] = (char)('0' + v);
+      v = tr.second % 10; rbuf[7] = (char)('0' + v);
+      rbuf[8] = 0;
+    } else {
+      rbuf[0] = 0;
+    }
+
+    tui_draw_status_bar(lbuf, rbuf);
+  }
 }
 
 static void cmd_help(void)
@@ -3106,6 +3138,21 @@ void brights_lightshell_run(void)
   int old_tty = brights_tty_get_mode();
 
   brights_tty_set_mode(TTY_MODE_RAW);
+
+  if (brights_fb_available()) {
+    tui_init();
+    fb_console_t *con = fb_console_get_info();
+    fb_console_set_work_area(1, con->height - 2);
+
+    char title_right[64];
+    int ti = 0;
+    for (int tj = 0; current_user[tj] && ti < (int)sizeof(title_right) - 1; ++tj)
+      title_right[ti++] = current_user[tj];
+    title_right[ti] = 0;
+    tui_draw_title_bar("BrightS v0.1.2.5", title_right);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J\033[H");
+  }
+
   print_tui_banner();
   print_system_info();
   print_prompt();

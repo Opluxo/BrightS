@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <string.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <stdio.h>
 
 /* Simulate scheduler slot management for testing */

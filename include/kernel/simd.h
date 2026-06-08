@@ -13,6 +13,7 @@
  * - Cryptographic operations (hash, checksum)
  */
 
+#include <stddef.h>
 #ifdef __SSE2__
 #include <emmintrin.h>
 #endif

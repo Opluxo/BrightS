@@ -81,7 +81,7 @@ void *brights_simd_memcpy(void *dst, const void *src, size_t n)
 
     /* Fallback to standard memcpy for remaining bytes */
     if (n > 0) {
-        kernel_memcpy((uint8_t*)dst + (n - n % (sizeof(void*) * 4)),
+        kutil_memcpy((uint8_t*)dst + (n - n % (sizeof(void*) * 4)),
                      (const uint8_t*)src + (n - n % (sizeof(void*) * 4)), n);
     }
 
@@ -125,7 +125,7 @@ void *brights_simd_memset(void *dst, int c, size_t n)
 
     /* Fallback for remaining bytes */
     if (n > 0) {
-        kernel_memset((uint8_t*)dst + (n - n % 4), val, n);
+        kutil_memset((uint8_t*)dst + (n - n % 4), val, n);
     }
 
     return dst;
@@ -163,7 +163,7 @@ int brights_simd_memcmp(const void *a, const void *b, size_t n)
 #endif
 
     /* Fallback to standard memcmp */
-    return kernel_memcmp(a, b, n);
+    return kutil_memcmp(a, b, n);
 }
 
 /*
@@ -238,7 +238,7 @@ void brights_simd_vec_add_i32(int32_t *dst, const int32_t *a, const int32_t *b, 
 const char *brights_simd_strstr(const char *haystack, const char *needle)
 {
     /* For now, fallback to optimized standard implementation */
-    return strstr(haystack, needle);
+    return kutil_strstr(haystack, needle);
 }
 
 /*
@@ -247,7 +247,7 @@ const char *brights_simd_strstr(const char *haystack, const char *needle)
 size_t brights_simd_strlen(const char *str)
 {
     /* For now, fallback to standard implementation */
-    return strlen(str);
+    return kutil_strlen(str);
 }
 
 /*
@@ -286,10 +286,10 @@ uint32_t brights_simd_crc32(const void *data, size_t len)
 void brights_simd_md5(const void *data, size_t len, uint8_t hash[16])
 {
     /* Placeholder - full MD5 implementation would be complex */
-    kernel_memset(hash, 0, 16);
+    kutil_memset(hash, 0, 16);
     /* Copy first 16 bytes or less */
     size_t copy_len = len < 16 ? len : 16;
-    kernel_memcpy(hash, data, copy_len);
+    kutil_memcpy(hash, data, copy_len);
 }
 
 /*
@@ -319,7 +319,7 @@ int brights_perf_stop_monitoring(brights_perf_counters_t *counters)
 {
     /* Placeholder for counter collection */
     if (counters) {
-        kernel_memset(counters, 0, sizeof(brights_perf_counters_t));
+        kutil_memset(counters, 0, sizeof(brights_perf_counters_t));
     }
     return 0;
 }

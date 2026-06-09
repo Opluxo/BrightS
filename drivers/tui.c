@@ -84,7 +84,6 @@ void tui_draw_title_bar(const char *left, const char *right)
 void tui_draw_status_bar(const char *left, const char *right)
 {
   brights_color_t bg = brights_rgb(0, 30, 60);
-  brights_color_t fg = tui_clr_bright_white();
   brights_fb_info_t *fb = brights_fb_get_info();
   if (!fb) return;
 

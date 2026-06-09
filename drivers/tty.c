@@ -262,7 +262,6 @@ void fb_console_scroll(void)
 
   uint32_t line_h = 16;
   uint32_t work_start_px = fb_con.work_y * line_h;
-  uint32_t work_h_px = fb_con.work_h * line_h;
   uint32_t scroll_bytes = line_h * fb->pitch;
   uint8_t *fb_base = (uint8_t *)fb->framebuffer;
   uint32_t copy_rows = (fb_con.work_h - 1) * line_h;

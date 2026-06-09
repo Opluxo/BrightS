@@ -189,6 +189,7 @@ static env_entry_t env_table[ENV_MAX];
 static int env_count = 0;
 
 static int streq(const char *a, const char *b);
+static int env_set(const char *key, const char *val);
 static void str_copy(char *dst, int cap, const char *src);
 
 static void env_init(void)

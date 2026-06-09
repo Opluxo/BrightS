@@ -652,7 +652,7 @@ void brights_dbuffer_draw_circle(int cx, int cy, int radius, brights_color_t col
   }
 }
 
-void brights_dbuffer_draw_hline(int x, int y, int width, brights_color_t color)
+static void brights_dbuffer_draw_hline(int x, int y, int width, brights_color_t color)
 {
   if (!dbuffer.active) { brights_fb_draw_hline(x, y, width, color); return; }
   if ((uint32_t)y >= (uint32_t)dbuffer.height || width <= 0) return;

@@ -91,6 +91,7 @@ static int cmd_history_handler(const char *arg);
 static int cmd_sleep_handler(const char *arg);
 static int cmd_env_handler(const char *arg);
 static int cmd_dns_handler(const char *arg);
+static int cmd_export_handler(const char *arg);
 
 /* Sorted command table for binary search */
 static const cmd_entry_t cmd_table[] = {
@@ -136,6 +137,7 @@ static const cmd_entry_t cmd_table[] = {
   {"history", cmd_history_handler},
   {"sleep",   cmd_sleep_handler},
   {"env",     cmd_env_handler},
+  {"export",  cmd_export_handler},
 };
 
 static const int cmd_count = sizeof(cmd_table) / sizeof(cmd_table[0]);
@@ -173,12 +175,68 @@ static int history_count = 0;
 static int history_index = -1;
 static int history_nav_index = -1;
 
+// Environment variables
+#define ENV_MAX 16
+#define ENV_KEY_MAX 32
+#define ENV_VAL_MAX 128
+
+typedef struct {
+  char key[ENV_KEY_MAX];
+  char val[ENV_VAL_MAX];
+} env_entry_t;
+
+static env_entry_t env_table[ENV_MAX];
+static int env_count = 0;
+
+static void env_init(void)
+{
+  env_count = 0;
+  env_set("PATH", "/bin:/usr/bin");
+  env_set("HOME", "/usr/home");
+  env_set("SHELL", "/bin/sh");
+  env_set("USER", current_user);
+  env_set("PWD", current_dir);
+}
+
+static const char *env_get(const char *key)
+{
+  if (!key) return 0;
+  for (int i = 0; i < env_count; ++i) {
+    if (streq(env_table[i].key, key))
+      return env_table[i].val;
+  }
+  return 0;
+}
+
+static int env_set(const char *key, const char *val)
+{
+  if (!key || !val) return -1;
+  for (int i = 0; i < env_count; ++i) {
+    if (streq(env_table[i].key, key)) {
+      str_copy(env_table[i].val, ENV_VAL_MAX, val);
+      return 0;
+    }
+  }
+  if (env_count >= ENV_MAX) return -1;
+  str_copy(env_table[env_count].key, ENV_KEY_MAX, key);
+  str_copy(env_table[env_count].val, ENV_VAL_MAX, val);
+  ++env_count;
+  return 0;
+}
+
+static void env_sync(void)
+{
+  env_set("USER", current_user);
+  env_set("PWD", current_dir);
+  env_set("HOME", is_root ? "/usr/home/root" : "/usr/home");
+}
+
 // Command list for tab completion
 static const char *commands[] = {
   "help", "ls", "pwd", "cd", "mkdir", "rmdir", "whoami", "profile",
   "logout", "bst", "cat", "stat", "login", "passwd", "useradd", "setpf",
   "touch", "write", "append", "rm", "cp", "mv", "hexdump", "echo",
-  "kill", "jobs", "fg", "bg", "netget",
+  "kill", "jobs", "fg", "bg", "netget", "export",
   0
 };
 
@@ -2545,6 +2603,7 @@ static void cmd_cd(const char *arg)
     return;
   }
   str_copy(current_dir, sizeof(current_dir), path);
+  env_sync();
 }
 
 static void cmd_mkdir(const char *arg)
@@ -3111,6 +3170,7 @@ int brights_boot_login(void)
 
   str_copy(current_user, sizeof(current_user), (user[0] != 0) ? user : "guest");
   is_root = streq(current_user, "root");
+  env_sync();
 
   if (is_root) {
     str_copy(current_dir, sizeof(current_dir), "/usr/home/root");
@@ -3138,6 +3198,7 @@ void brights_lightshell_run(void)
   int old_tty = brights_tty_get_mode();
 
   brights_tty_set_mode(TTY_MODE_RAW);
+  env_init();
 
   if (brights_fb_available()) {
     tui_init();
@@ -3550,19 +3611,37 @@ static int cmd_sleep_handler(const char *arg)
   return 1;
 }
 
-static void cmd_env(void)
-{
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "PATH=/bin:/usr/bin\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "HOME=/usr/home\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "SHELL=/bin/sh\n");
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "USER=guest\n");
-}
-
 static int cmd_env_handler(const char *arg)
 {
   (void)arg;
-  cmd_env();
+  for (int i = 0; i < env_count; ++i) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, env_table[i].key);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "=");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, env_table[i].val);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  }
   return 1;
+}
+
+static int cmd_export_handler(const char *arg)
+{
+  if (!arg || arg[0] == 0) {
+    return cmd_env_handler(arg);
+  }
+  char key[ENV_KEY_MAX], val[ENV_VAL_MAX];
+  int i = 0;
+  while (arg[i] && arg[i] != '=' && i < ENV_KEY_MAX - 1) {
+    key[i] = arg[i]; ++i;
+  }
+  key[i] = 0;
+  if (arg[i] != '=') return -1;
+  ++i;
+  int j = 0;
+  while (arg[i] && j < ENV_VAL_MAX - 1) {
+    val[j] = arg[i]; ++i; ++j;
+  }
+  val[j] = 0;
+  return env_set(key, val);
 }
 
 #include "../net/dns/dns.h"

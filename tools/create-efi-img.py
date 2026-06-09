@@ -63,9 +63,11 @@ def create_fat32_image(output_path, efi_path, image_size=4*1024*1024):
     fat[3] = 0xFFFFFFFF  # EFI dir - end of chain
     fat[4] = 0xFFFFFFFF  # BOOT dir - end of chain
     
-    # File data clusters - end of chain
-    for i in range(file_data_start_cluster, file_data_start_cluster + efi_clusters):
-        fat[i] = 0xFFFFFFFF  # End of chain
+    # File data clusters - proper chain
+    for i in range(file_data_start_cluster, file_data_start_cluster + efi_clusters - 1):
+        fat[i] = i + 1  # Point to next cluster
+    if efi_clusters > 0:
+        fat[file_data_start_cluster + efi_clusters - 1] = 0xFFFFFFFF  # EOC
     
     # Build directory entries (32 bytes each)
     def make_lfn_entry(order, name_part, attr=0x0F):

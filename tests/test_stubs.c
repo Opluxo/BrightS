@@ -1,11 +1,13 @@
 #include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stddef.h>
+
+extern void *malloc(size_t);
+extern void free(void *);
 
 void *brights_pmem_alloc_page(void)
 {
   void *p = malloc(4096);
-  if (p) memset(p, 0, 4096);
+  if (p) __builtin_memset(p, 0, 4096);
   return p;
 }
 

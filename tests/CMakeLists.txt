@@ -28,8 +28,11 @@ target_compile_definitions(test_benchmark PRIVATE BRIGHTS_TEST_BUILD)
 
 add_executable(test_extended
   test_extended.c
+  test_stubs.c
   ${CMAKE_SOURCE_DIR}/kernel/core/simd.c
   ${CMAKE_SOURCE_DIR}/kernel/core/cache.c
+  ${CMAKE_SOURCE_DIR}/kernel/core/kmalloc.c
+  ${CMAKE_SOURCE_DIR}/kernel/core/clock.c
 )
 
 target_include_directories(test_extended PRIVATE

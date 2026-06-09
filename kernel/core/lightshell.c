@@ -167,7 +167,7 @@ static const cmd_entry_t *cmd_find(const char *name)
 static char current_user[LIGHTSHELL_MAX_USER] = "guest";
 static char current_dir[LIGHTSHELL_MAX_PATH] = "/";
 static int is_root = 0;
-static char version[20] = "0.0.5 Beta";
+static char version[20] = "v0.1.2.6";
 
 // Command history
 static char history[LIGHTSHELL_HISTORY_SIZE][LIGHTSHELL_MAX_LINE];
@@ -3210,7 +3210,7 @@ void brights_lightshell_run(void)
     for (int tj = 0; current_user[tj] && ti < (int)sizeof(title_right) - 1; ++tj)
       title_right[ti++] = current_user[tj];
     title_right[ti] = 0;
-    tui_draw_title_bar("BrightS v0.1.2.5", title_right);
+    tui_draw_title_bar("BrightS v0.1.2.6", title_right);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J\033[H");
   }
 

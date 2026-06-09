@@ -3,6 +3,7 @@
 #include "font.h"
 #include "tty.h"
 #include "serial.h"
+#include <stddef.h>
 
 #define BRIGHTS_COM1_PORT 0x3F8
 

@@ -14,7 +14,10 @@
  */
 
 #include <stddef.h>
-#include <wchar.h>
+#ifndef _WCHAR_T_DEFINED
+typedef int wchar_t;
+#define _WCHAR_T_DEFINED
+#endif
 #ifdef __SSE2__
 #include <emmintrin.h>
 #endif

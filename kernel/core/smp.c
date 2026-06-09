@@ -1,8 +1,9 @@
+#include "smp.h"
+
 #ifdef __i386__
 /* SMP not supported on i386 minimal port */
 int brights_smp_init(void) { return -1; }
 #else
-#include "smp.h"
 #include "hwinfo.h"
 #include "printf.h"
 #include "sched.h"

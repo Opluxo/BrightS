@@ -60,7 +60,7 @@ static int usb_add_device(usb_device_t *dev)
 }
 
 /* Standard control transfer wrapper */
-int usb_std_ctrl_transfer(usb_controller_t *ctrl, uint8_t dev_addr,
+static int usb_std_ctrl_transfer(usb_controller_t *ctrl, uint8_t dev_addr,
   uint8_t bmReqType, uint8_t bRequest, uint16_t wValue,
   uint16_t wIndex, uint16_t wLength, void *data)
 {

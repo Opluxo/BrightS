@@ -9,6 +9,9 @@ int brights_smp_init(void);
 /* Get number of detected CPU cores */
 uint32_t brights_smp_core_count(void);
 
+/* Get number of online (started) CPU cores */
+uint32_t brights_smp_online_count(void);
+
 /* Get APIC ID of a core index */
 uint32_t brights_smp_apic_id(uint32_t core_idx);
 

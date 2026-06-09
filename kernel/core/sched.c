@@ -52,7 +52,7 @@ extern brights_proc_info_t *brights_proc_table_ptr(void);
 
 static inline brights_proc_info_t *get_proc_by_slot(int32_t slot)
 {
-  if (slot < 0 || slot >= BRIGHTS_SCHED_MAX_PROC) return 0;
+  if (slot < 0 || (uint32_t)slot >= BRIGHTS_SCHED_MAX_PROC) return 0;
   if (!slot_table[slot].in_use) return 0;
   brights_proc_info_t *table = brights_proc_table_ptr();
   if (!table) return 0;
@@ -72,7 +72,7 @@ static inline int32_t alloc_slot(void)
 
 static inline void free_slot(int32_t slot)
 {
-  if (slot < 0 || slot >= BRIGHTS_SCHED_MAX_PROC) return;
+  if (slot < 0 || (uint32_t)slot >= BRIGHTS_SCHED_MAX_PROC) return;
   for (int p = 0; p < BRIGHTS_SCHED_PRIO_CNT; ++p)
     run_queues[p] &= ~(1ULL << slot);
   if (slot_table[slot].in_use && slot_table[slot].pid < 256)
@@ -106,7 +106,7 @@ static int32_t find_next_runnable(void)
     if (bm == 0) continue;
 
     /* If current is still runnable at this priority, advance past it */
-    int32_t start = (current_slot >= 0 && current_slot < BRIGHTS_SCHED_MAX_PROC) ? current_slot : -1;
+    int32_t start = (current_slot >= 0 && (uint32_t)current_slot < BRIGHTS_SCHED_MAX_PROC) ? current_slot : -1;
     if (start >= 0) {
       uint64_t rest = bm & ~((1ULL << (start + 1)) - 1);
       if (rest) return (int32_t)__builtin_ctzll(rest);
@@ -139,7 +139,7 @@ void brights_sched_init(void)
   current_trap_frame = 0;
   free_slot_bitmap = (BRIGHTS_SCHED_MAX_PROC == 64) ? ~0ULL : ((1ULL << BRIGHTS_SCHED_MAX_PROC) - 1);
 
-  for (int i = 0; i < BRIGHTS_SCHED_MAX_PROC; ++i) {
+  for (uint32_t i = 0; i < BRIGHTS_SCHED_MAX_PROC; ++i) {
     slot_table[i].in_use = 0;
     slot_table[i].pid = 0;
     slot_table[i].priority = BRIGHTS_SCHED_PRIO_NORMAL;
@@ -158,7 +158,7 @@ void brights_sched_tick(void)
   if ((sched_ticks % AGING_FULL_INTERVAL) == 0) {
     brights_proc_info_t *table = brights_proc_table_ptr();
     if (table) {
-      for (int i = 0; i < BRIGHTS_SCHED_MAX_PROC; ++i) {
+      for (uint32_t i = 0; i < BRIGHTS_SCHED_MAX_PROC; ++i) {
         if (!slot_table[i].in_use) continue;
         uint32_t pid_idx = slot_table[i].pid;
         if (table[pid_idx].state == BRIGHTS_PROC_UNUSED) continue;
@@ -258,7 +258,7 @@ int brights_sched_schedule(void)
   }
 
   int32_t slot = find_next_runnable();
-  if (slot < 0 || slot >= BRIGHTS_SCHED_MAX_PROC) {
+  if (slot < 0 || (uint32_t)slot >= BRIGHTS_SCHED_MAX_PROC) {
     current_pid = 0;
     current_slot = -1;
     return -1;

@@ -54,8 +54,10 @@ def create_fat32_fs(total_sectors, efi_data):
     fat[1] = 0xFFFFFFFF
     for i in range(2, 5):
         fat[i] = 0xFFFFFFFF
-    for i in range(file_data_start_cluster, file_data_start_cluster + efi_clusters):
-        fat[i] = 0xFFFFFFFF
+    for i in range(file_data_start_cluster, file_data_start_cluster + efi_clusters - 1):
+        fat[i] = i + 1  # Point to next cluster
+    if efi_clusters > 0:
+        fat[file_data_start_cluster + efi_clusters - 1] = 0xFFFFFFFF  # EOC
 
     def make_short_name_entry(short_name, ext, attr, cluster, size):
         entry = bytearray(32)
@@ -64,8 +66,10 @@ def create_fat32_fs(total_sectors, efi_data):
         entry[11] = attr
         entry[20] = (cluster >> 16) & 0xFF
         entry[21] = (cluster >> 24) & 0xFF
-        entry[22] = cluster & 0xFF
-        entry[23] = (cluster >> 8) & 0xFF
+        # Bytes 22-25: Last modified time/date (leave as 0, i.e. 1980-01-01 00:00:00)
+        # Bytes 26-27: First cluster low (16 bits)
+        entry[26] = cluster & 0xFF
+        entry[27] = (cluster >> 8) & 0xFF
         struct.pack_into('<I', entry, 28, size)
         return bytes(entry)
 
@@ -97,39 +101,8 @@ def create_fat32_fs(total_sectors, efi_data):
     boot_dir_entries[offset:offset+32] = make_short_name_entry("..", "", 0x10, 3, 0)
     offset += 32
 
-    checksum = compute_lfn_checksum("BOOTX64.EFI")
-    lfn_entry = bytearray(32)
-    lfn_entry[0] = 0x41
-    lfn_name = "BOOTX64.EFI"
-    name_utf16 = lfn_name.encode('utf-16-le')
-    for i in range(5):
-        if i * 2 < len(name_utf16):
-            lfn_entry[1 + i*2] = name_utf16[i*2]
-            lfn_entry[1 + i*2 + 1] = name_utf16[i*2 + 1]
-        else:
-            lfn_entry[1 + i*2] = 0xFF
-            lfn_entry[1 + i*2 + 1] = 0xFF
-    for i in range(6):
-        idx = 5 + i
-        if idx * 2 < len(name_utf16):
-            lfn_entry[14 + i*2] = name_utf16[idx*2]
-            lfn_entry[14 + i*2 + 1] = name_utf16[idx*2 + 1]
-        else:
-            lfn_entry[14 + i*2] = 0xFF
-            lfn_entry[14 + i*2 + 1] = 0xFF
-    for i in range(2):
-        idx = 11 + i
-        if idx * 2 < len(name_utf16):
-            lfn_entry[28 + i*2] = name_utf16[idx*2]
-            lfn_entry[28 + i*2 + 1] = name_utf16[idx*2 + 1]
-        else:
-            lfn_entry[28 + i*2] = 0xFF
-            lfn_entry[28 + i*2 + 1] = 0xFF
-    lfn_entry[11] = 0x0F
-    lfn_entry[26] = checksum
-    boot_dir_entries[offset:offset+32] = bytes(lfn_entry)
-    offset += 32
     boot_dir_entries[offset:offset+32] = make_short_name_entry("BOOTX64", "EFI", 0x20, file_data_start_cluster, efi_size)
+    offset += 32
 
     fat1_data = bytearray(sectors_per_fat * SECTOR_SIZE)
     for i, entry in enumerate(fat):
@@ -159,11 +132,12 @@ def create_fat32_fs(total_sectors, efi_data):
     struct.pack_into('<I', boot_sector, 44, root_dir_cluster)
     struct.pack_into('<H', boot_sector, 48, 1)
     struct.pack_into('<H', boot_sector, 50, 6)
-    boot_sector[67] = 0x80
-    boot_sector[69] = 0x29
-    struct.pack_into('<I', boot_sector, 70, 0x12345678)
-    boot_sector[74:85] = b'BRIGHTS EFI '
-    boot_sector[85:93] = b'FAT32   '
+    boot_sector[64] = 0x80          # Physical drive number (0x80 = hard disk)
+    boot_sector[65] = 0             # Reserved
+    boot_sector[66] = 0x29          # Extended boot signature (0x29 = valid)
+    struct.pack_into('<I', boot_sector, 67, 0x12345678)       # Volume serial number (4 bytes)
+    boot_sector[71:82] = b'BRIGHTS EFI'                       # Volume label (11 bytes)
+    boot_sector[82:90] = b'FAT32   '                          # File system type (8 bytes)
     boot_sector[510] = 0x55
     boot_sector[511] = 0xAA
 

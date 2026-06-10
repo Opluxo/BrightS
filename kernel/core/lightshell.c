@@ -235,6 +235,45 @@ static void env_sync(void)
   env_set("HOME", is_root ? "/usr/home/root" : "/usr/home");
 }
 
+static void expand_vars(char *dst, int cap, const char *src)
+{
+  int di = 0;
+  while (*src && di < cap - 1) {
+    if (*src == '$') {
+      const char *start = src + 1;
+      const char *end = start;
+      while (*end && ((*end >= 'a' && *end <= 'z') ||
+                      (*end >= 'A' && *end <= 'Z') ||
+                      (*end >= '0' && *end <= '9') ||
+                      *end == '_'))
+        ++end;
+      if (end > start) {
+        char key[ENV_KEY_MAX];
+        int ki = 0;
+        for (const char *p = start; p < end && ki < ENV_KEY_MAX - 1; ++p)
+          key[ki++] = *p;
+        key[ki] = 0;
+        const char *val = env_get(key);
+        if (val) {
+          while (*val && di < cap - 1)
+            dst[di++] = *val++;
+        } else {
+          dst[di++] = '$';
+          for (const char *p = start; p < end && di < cap - 1; ++p)
+            dst[di++] = *p;
+        }
+        src = end;
+      } else {
+        dst[di++] = '$';
+        ++src;
+      }
+    } else {
+      dst[di++] = *src++;
+    }
+  }
+  dst[di] = 0;
+}
+
 // Command list for tab completion
 static const char *commands[] = {
   "help", "ls", "pwd", "cd", "mkdir", "rmdir", "whoami", "profile",
@@ -900,7 +939,7 @@ static void print_system_info(void)
   uint64_t free_mem = brights_pmem_free_bytes() / (1024 * 1024);
   uint32_t proc_count = brights_proc_total();
 
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS OS 0.1.2.4\033[0m\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS v0.1.2.6\033[0m\r\n");
 
   char buf[64];
   char numbuf[16];
@@ -2008,7 +2047,11 @@ static int handle_bst_procom(const char *arg)
   if (streq(arg, "version")) {
     const brights_cpu_info_t *cpu = brights_hwinfo_cpu();
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS System Information\n");
+#ifdef __i386__
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Kernel : BrightS i386\n");
+#else
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Kernel : BrightS x86_64\n");
+#endif
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  Version: ");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, version);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
@@ -2096,7 +2139,11 @@ static int handle_bst_procom(const char *arg)
 
 static void cmd_uname(void)
 {
+#ifdef __i386__
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS i386\n");
+#else
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "BrightS x86_64\n");
+#endif
 }
 
 static void cmd_mount(void)
@@ -2160,7 +2207,9 @@ static int handle_bst(const char *arg)
 static void cmd_echo(const char *arg)
 {
   arg = skip_spaces(arg);
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, arg);
+  char expanded[LIGHTSHELL_MAX_LINE * 2];
+  expand_vars(expanded, sizeof(expanded), arg);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, expanded);
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
 }
 
@@ -2634,7 +2683,9 @@ static void cmd_mkdir(const char *arg)
 
 static int handle_line(char *line)
 {
-  const char *cmd = skip_spaces(line);
+  char expanded[LIGHTSHELL_MAX_LINE * 2];
+  expand_vars(expanded, sizeof(expanded), line);
+  const char *cmd = skip_spaces(expanded);
   if (*cmd == 0) return 1;
 
   /* Extract command name (up to first space) */
@@ -3065,7 +3116,7 @@ int brights_boot_login(void)
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "+---------------------------------------------+\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS OS 0.1.2.4              |\r\n");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS v0.1.2.6               |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              System Console Login            |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");

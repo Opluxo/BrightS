@@ -76,6 +76,9 @@ int brights_netif_set_ip(const char *name, uint32_t ip, uint32_t netmask, uint32
 int brights_netif_up(const char *name);
 int brights_netif_down(const char *name);
 
+/* Poll all drivers for incoming frames */
+void brights_net_poll_all(void);
+
 /* Send raw Ethernet frame */
 int brights_net_send(const uint8_t *frame, uint32_t len);
 

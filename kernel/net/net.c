@@ -323,8 +323,9 @@ int brights_ip_send(uint32_t dst_ip, uint8_t protocol, const void *data, uint32_
 
   /* Find destination MAC */
   uint8_t dst_mac[6];
-  if (brights_arp_resolve(dst_ip, dst_mac) < 0) {
-    /* Send ARP request first, then drop this packet */
+  if (dst_ip == 0xFFFFFFFF) {
+    kutil_memset(dst_mac, 0xFF, 6);
+  } else if (brights_arp_resolve(dst_ip, dst_mac) < 0) {
     brights_arp_request(dst_ip);
     return -1;
   }
@@ -402,12 +403,16 @@ void icmp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
 int brights_udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, const void *data, uint32_t len)
 {
   udp_hdr_t udp;
-  udp.src_port = (uint16_t)((src_port >> 8) | (src_port << 8)); /* Big-endian */
+  uint32_t total = sizeof(udp_hdr_t) + len;
+  uint8_t buf[sizeof(udp_hdr_t) + len];
+  udp.src_port = (uint16_t)((src_port >> 8) | (src_port << 8));
   udp.dst_port = (uint16_t)((dst_port >> 8) | (dst_port << 8));
-  udp.length = (uint16_t)(((sizeof(udp_hdr_t) + len) >> 8) | ((sizeof(udp_hdr_t) + len) << 8));
+  udp.length = (uint16_t)((total >> 8) | (total << 8));
   udp.checksum = 0;
-
-  return brights_ip_send(dst_ip, IP_PROTO_UDP, &udp, sizeof(udp));
+  kutil_memcpy(buf, &udp, sizeof(udp_hdr_t));
+  if (data && len > 0)
+    kutil_memcpy(buf + sizeof(udp_hdr_t), data, len);
+  return brights_ip_send(dst_ip, IP_PROTO_UDP, buf, total);
 }
 
 void udp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
@@ -736,6 +741,22 @@ int brights_close(int sockfd)
 
   sock->in_use = 0;
   return 0;
+}
+
+/* ===== Network poll: drain all pending frames from all drivers ===== */
+
+void brights_net_poll_all(void)
+{
+  for (int i = 0; i < netif_count; i++) {
+    brights_net_driver_t *drv = brights_net_get_driver(i);
+    if (!drv || !drv->initialized) continue;
+    while (drv->ops.poll()) {
+      uint8_t frame[BRIGHTS_NET_BUF_SIZE];
+      uint32_t len = sizeof(frame);
+      if (drv->ops.recv(frame, &len) == 0 && len > 0)
+        brights_net_recv(frame, len);
+    }
+  }
 }
 
 /* ===== Network receive (called by driver) ===== */

@@ -3,84 +3,238 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BrightS Documentation</title>
+  <title>BrightS — Modern x86 Kernel</title>
   <style>
-    :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
-    .container { max-width: 960px; width: 100%; }
-    h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem; background: linear-gradient(135deg, #58a6ff, #bc8cff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .subtitle { font-size: 1.1rem; color: #8b949e; margin-bottom: 2rem; }
-    .version { font-size: 0.85rem; color: #484f58; margin-bottom: 2rem; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin: 2rem 0; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; transition: border-color 0.2s, transform 0.2s; }
-    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
-    .card h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
-    .card h2 a { color: var(--accent); text-decoration: none; }
-    .card h2 a:hover { text-decoration: underline; }
-    .card p { font-size: 0.9rem; color: #8b949e; }
-    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
-    .links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .links a { color: var(--accent); text-decoration: none; font-size: 0.9rem; padding: 0.25rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; transition: background 0.2s; }
-    .links a:hover { background: rgba(88,166,255,0.1); }
-    footer { margin-top: 3rem; font-size: 0.85rem; color: #484f58; text-align: center; }
+    body {
+      font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    nav {
+      width: 100%;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1060px;
+      font-size: 0.85rem;
+      color: #86868b;
+    }
+    nav .logo { font-weight: 600; font-size: 0.95rem; color: #1d1d1f; letter-spacing: -0.3px; }
+    nav a { color: #86868b; text-decoration: none; margin-left: 1.5rem; transition: color 0.2s; }
+    nav a:hover { color: #1d1d1f; }
+    .hero {
+      text-align: center;
+      padding: 6rem 2rem 3rem;
+      max-width: 720px;
+    }
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+      margin-bottom: 0.75rem;
+    }
+    .hero .version-badge {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #6e6e73;
+      background: #e8e8ed;
+      border-radius: 20px;
+      padding: 0.2rem 0.75rem;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.3px;
+    }
+    .hero p {
+      font-size: 1.3rem;
+      color: #6e6e73;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.2rem;
+      max-width: 1060px;
+      width: 100%;
+      padding: 0 2rem;
+      margin-top: 2rem;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+      border-color: rgba(0,0,0,0.1);
+    }
+    .card-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+    .card h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      letter-spacing: -0.2px;
+    }
+    .card p {
+      font-size: 0.9rem;
+      color: #6e6e73;
+      line-height: 1.5;
+    }
+    .section-label {
+      max-width: 1060px;
+      width: 100%;
+      padding: 3rem 2rem 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #86868b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      max-width: 1060px;
+      width: 100%;
+      padding: 1rem 2rem 3rem;
+    }
+    .links a {
+      color: #1d1d1f;
+      text-decoration: none;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      transition: all 0.25s;
+    }
+    .links a:hover {
+      background: #e8e8ed;
+      border-color: rgba(0,0,0,0.1);
+    }
+    .links a.github {
+      background: #1d1d1f;
+      color: #fff;
+      border: none;
+    }
+    .links a.github:hover { background: #000; }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.8rem;
+      color: #86868b;
+      width: 100%;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      margin-top: auto;
+    }
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 2.4rem; }
+      .hero p { font-size: 1.1rem; }
+      .grid { grid-template-columns: 1fr; }
+      nav { flex-direction: column; gap: 0.5rem; }
+      nav .links-row { display: flex; gap: 1rem; }
+      nav a { margin-left: 0; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>BrightS</h1>
-    <div class="subtitle">Modern x86 kernel written in C</div>
-    <div class="version">v0.1.2.6</div>
-
-    <div class="grid">
-      <div class="card">
-        <h2><a href="docs/user-guide/README.md">User Guide</a></h2>
-        <p>Getting started, command reference, and usage guides in EN/JA/ZH.</p>
-      </div>
-      <div class="card">
-        <h2><a href="docs/developer-guide/README.md">Developer Guide</a></h2>
-        <p>Setup, project structure, performance tuning, and contributing.</p>
-      </div>
-      <div class="card">
-        <h2><a href="docs/api-reference/README.md">API Reference</a></h2>
-        <p>Kernel API documentation and syscall references.</p>
-      </div>
-      <div class="card">
-        <h2><a href="docs/runtime/README.md">Runtime</a></h2>
-        <p>Multi-language runtime — C, C++, Rust, Python, Lang.</p>
-      </div>
-      <div class="card">
-        <h2><a href="docs/CHANGELOG.md">Changelog</a></h2>
-        <p>Release history and version changes.</p>
-      </div>
-      <div class="card">
-        <h2><a href="docs/TODO.md">Roadmap</a></h2>
-        <p>Planned features and future development.</p>
-      </div>
-      <div class="card">
-        <h2><a href="docs/INSTALLATION.md">Installation</a></h2>
-        <p>Build and install instructions for x86_64 and i386.</p>
-      </div>
-      <div class="card">
-        <h2><a href="docs/PROGRESS.md">Progress</a></h2>
-        <p>Overall project progress and milestone tracking.</p>
-      </div>
-    </div>
-
-    <hr>
-
-    <div class="links">
-      <a href="docs/SECURITY_STATUS.md">Security</a>
-      <a href="docs/OPTIMIZATION_REPORT.md">Optimization</a>
-      <a href="docs/I386_PORTING_PLAN.md">i386 Porting</a>
-      <a href="README.md">Branch README</a>
-      <a href="LICENSE">License</a>
+  <nav>
+    <span class="logo">BrightS</span>
+    <div class="links-row">
       <a href="https://github.com/Opluxo/BrightS">GitHub</a>
+      <a href="LICENSE">License</a>
+      <a href="docs/SECURITY_STATUS.md">Security</a>
     </div>
+  </nav>
 
-    <footer>
-      BrightS — GNU General Public License v2
-    </footer>
+  <section class="hero">
+    <div class="version-badge">v0.1.2.6</div>
+    <h1>BrightS</h1>
+    <p>Modern x86 kernel — UEFI &amp; BIOS — built from the ground up in C.</p>
+  </section>
+
+  <div class="section-label">Documentation</div>
+  <div class="grid">
+    <a class="card" href="docs/user-guide/README.md">
+      <span class="card-icon">📖</span>
+      <h2>User Guide</h2>
+      <p>Getting started, commands, and usage guides in EN/JA/ZH.</p>
+    </a>
+    <a class="card" href="docs/developer-guide/README.md">
+      <span class="card-icon">🛠️</span>
+      <h2>Developer Guide</h2>
+      <p>Setup, project structure, performance tuning, contributing.</p>
+    </a>
+    <a class="card" href="docs/api-reference/README.md">
+      <span class="card-icon">⚙️</span>
+      <h2>API Reference</h2>
+      <p>Kernel API docs and syscall reference.</p>
+    </a>
+    <a class="card" href="docs/runtime/README.md">
+      <span class="card-icon">🧩</span>
+      <h2>Runtime</h2>
+      <p>C, C++, Rust, Python, Lang — multi-language runtime.</p>
+    </a>
+    <a class="card" href="docs/CHANGELOG.md">
+      <span class="card-icon">📋</span>
+      <h2>Changelog</h2>
+      <p>Release history and version changes.</p>
+    </a>
+    <a class="card" href="docs/TODO.md">
+      <span class="card-icon">🚀</span>
+      <h2>Roadmap</h2>
+      <p>Planned features and future development.</p>
+    </a>
+    <a class="card" href="docs/INSTALLATION.md">
+      <span class="card-icon">💾</span>
+      <h2>Installation</h2>
+      <p>Build and install for x86_64 UEFI &amp; i386 BIOS.</p>
+    </a>
+    <a class="card" href="docs/PROGRESS.md">
+      <span class="card-icon">📊</span>
+      <h2>Progress</h2>
+      <p>Project milestones and overall progress tracking.</p>
+    </a>
+    <a class="card" href="docs/OPTIMIZATION_REPORT.md">
+      <span class="card-icon">⚡</span>
+      <h2>Optimization</h2>
+      <p>Performance analysis and optimization report.</p>
+    </a>
+    <a class="card" href="docs/I386_PORTING_PLAN.md">
+      <span class="card-icon">🔄</span>
+      <h2>i386 Porting</h2>
+      <p>Plan and status of i386 BIOS port.</p>
+    </a>
   </div>
+
+  <div class="section-label">More</div>
+  <div class="links">
+    <a href="docs/SECURITY_STATUS.md">🔒 Security</a>
+    <a href="LICENSE">📄 License</a>
+    <a class="github" href="https://github.com/Opluxo/BrightS">View on GitHub</a>
+  </div>
+
+  <footer>
+    BrightS · GNU General Public License v2 · Opluxo LLC
+  </footer>
 </body>
 </html>

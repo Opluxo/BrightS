@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrightS Docs</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+      background: #ffffff;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      height: 48px;
+      display: flex;
+      align-items: center;
+    }
+    nav .inner {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    nav a {
+      font-size: 0.82rem;
+      color: #86868b;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: #1d1d1f; }
+    nav .back { font-weight: 500; }
+    nav .sep { color: #d2d2d7; font-size: 0.8rem; }
+
+    #content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem 3rem;
+      line-height: 1.7;
+      font-size: 1rem;
+    }
+
+    #content h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.3px; margin: 1.5rem 0 0.75rem; }
+    #content h2 { font-size: 1.6rem; font-weight: 600; letter-spacing: -0.2px; margin: 1.75rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid #e8e8ed; }
+    #content h3 { font-size: 1.2rem; font-weight: 600; margin: 1.25rem 0 0.4rem; }
+    #content p { margin-bottom: 0.75rem; color: #3a3a3c; }
+    #content a { color: #0066cc; text-decoration: none; }
+    #content a:hover { text-decoration: underline; }
+    #content ul, #content ol { margin: 0.5rem 0 0.75rem 1.5rem; color: #3a3a3c; }
+    #content li { margin-bottom: 0.25rem; }
+    #content blockquote {
+      margin: 1rem 0;
+      padding: 0.75rem 1.25rem;
+      background: #f5f5f7;
+      border-left: 4px solid #86868b;
+      border-radius: 0 8px 8px 0;
+      color: #515154;
+    }
+    #content code {
+      background: #f5f5f7;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.88rem;
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+    }
+    #content pre {
+      background: #f5f5f7;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+      border: 1px solid #e8e8ed;
+    }
+    #content pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    #content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    #content th, #content td {
+      padding: 0.6rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #e8e8ed;
+    }
+    #content th { font-weight: 600; color: #1d1d1f; background: #f5f5f7; }
+    #content td { color: #3a3a3c; }
+    #content img { max-width: 100%; border-radius: 8px; margin: 1rem 0; }
+    #content hr { border: none; border-top: 1px solid #e8e8ed; margin: 1.5rem 0; }
+
+    .loading {
+      text-align: center;
+      padding: 6rem 2rem;
+      color: #86868b;
+      font-size: 1rem;
+    }
+    .error {
+      text-align: center;
+      padding: 6rem 2rem;
+      color: #ff3b30;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="inner">
+      <a class="back" href="./">← BrightS Docs</a>
+      <span class="sep">/</span>
+      <a href="https://github.com/Opluxo/BrightS">GitHub</a>
+    </div>
+  </nav>
+  <div id="content"><div class="loading">Loading…</div></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script>
+    (async () => {
+      const params = new URLSearchParams(location.search);
+      const file = params.get('path') || 'docs/README.md';
+      const el = document.getElementById('content');
+
+      try {
+        const res = await fetch(file);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const md = await res.text();
+
+        marked.setOptions({
+          highlight: function(code, lang) {
+            if (lang && hljs.getLanguage(lang)) {
+              return hljs.highlight(code, { language: lang }).value;
+            }
+            return hljs.highlightAuto(code).value;
+          },
+          langPrefix: 'hljs language-',
+          breaks: true
+        });
+
+        el.innerHTML = marked.parse(md);
+      } catch (e) {
+        el.innerHTML = `<div class="error"><h2>Error loading document</h2><p>${e.message}</p><p>Make sure you're viewing through <a href="https://opluxo.github.io/BrightS/">GitHub Pages</a>.</p></div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

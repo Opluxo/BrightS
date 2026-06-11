@@ -6,246 +6,124 @@
   <title>BrightS — Modern x86 Kernel</title>
   <script>if(location.hostname==='github.com'||location.hostname==='www.github.com')location.href='https://opluxo.github.io/BrightS/'</script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
-      background: #ffffff;
-      color: #1d1d1f;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{font-family:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',sans-serif;color:#1d1d1f;-webkit-font-smoothing:antialiased;background:#000}
 
-    nav {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      background: rgba(255,255,255,0.72);
-      backdrop-filter: saturate(180%) blur(20px);
-      -webkit-backdrop-filter: saturate(180%) blur(20px);
-      border-bottom: 1px solid rgba(0,0,0,0.08);
-    }
-    nav .inner {
-      max-width: 1060px;
-      margin: 0 auto;
-      padding: 0 1.5rem;
-      height: 48px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    nav .logo { font-weight: 600; font-size: 0.85rem; letter-spacing: -0.2px; color: #1d1d1f; }
-    nav .nav-links { display: flex; gap: 1.5rem; }
-    nav a { font-size: 0.8rem; color: #86868b; text-decoration: none; transition: color 0.2s; }
-    nav a:hover { color: #1d1d1f; }
+    /* === NAV === */
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(0,0,0,0.65);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(255,255,255,0.08)}
+    nav .inner{max-width:1060px;margin:0 auto;padding:0 1.5rem;height:48px;display:flex;align-items:center;justify-content:space-between}
+    nav .logo{font-weight:600;font-size:0.85rem;letter-spacing:-0.2px;color:#fff}
+    nav .nav-links{display:flex;gap:1.5rem}
+    nav a{font-size:0.8rem;color:rgba(255,255,255,0.5);text-decoration:none;transition:color 0.2s}
+    nav a:hover{color:#fff}
 
-    .hero {
-      margin-top: 48px;
-      height: 90vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 2rem 1.5rem;
-      background: #f5f5f7;
-    }
-    .hero .badge {
-      display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #6e6e73;
-      background: #e8e8ed;
-      border-radius: 100px;
-      padding: 0.25rem 0.75rem;
-      margin-bottom: 1.5rem;
-      letter-spacing: 0.5px;
-    }
-    .hero h1 {
-      font-size: 4.5rem;
-      font-weight: 700;
-      letter-spacing: -0.8px;
-      line-height: 1.05;
-      margin-bottom: 1rem;
-    }
-    .hero .tagline {
-      font-size: 1.6rem;
-      font-weight: 400;
-      color: #6e6e73;
-      line-height: 1.5;
-      max-width: 680px;
-      margin-bottom: 2rem;
-    }
-    .hero .cta { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
-    .hero .cta a {
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-decoration: none;
-      padding: 0.65rem 1.6rem;
-      border-radius: 50px;
-      transition: all 0.25s;
-    }
-    .hero .cta .primary { background: #1d1d1f; color: #fff; }
-    .hero .cta .primary:hover { background: #000; }
-    .hero .cta .secondary { color: #1d1d1f; border: 1px solid #d2d2d7; }
-    .hero .cta .secondary:hover { background: #e8e8ed; }
-    .hero .scroll-hint {
-      position: absolute;
-      bottom: 2rem;
-      font-size: 0.75rem;
-      color: #86868b;
-      animation: bounce 2s infinite;
-    }
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(6px); }
-    }
+    /* === HERO (dark) === */
+    .hero{margin-top:48px;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem 1.5rem;position:relative;background:#000;overflow:hidden}
+    .hero::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:900px;background:radial-gradient(circle,rgba(56,152,255,0.12) 0%,rgba(188,140,255,0.06) 40%,transparent 70%);pointer-events:none}
+    .hero .badge{display:inline-block;font-size:0.7rem;font-weight:600;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.06);border-radius:100px;padding:0.25rem 0.75rem;margin-bottom:1.5rem;letter-spacing:0.5px}
+    .hero h1{font-size:5.5rem;font-weight:700;letter-spacing:-1.2px;line-height:1;margin-bottom:1rem;background:linear-gradient(135deg,#fff 0%,#c8d0e0 50%,#8eb0ff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .hero .tagline{font-size:1.4rem;font-weight:400;color:rgba(255,255,255,0.55);line-height:1.6;max-width:620px;margin-bottom:2.5rem}
+    .hero .cta{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+    .hero .cta a{font-size:0.9rem;font-weight:500;text-decoration:none;padding:0.7rem 1.8rem;border-radius:50px;transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
+    .hero .cta .primary{background:#fff;color:#000}
+    .hero .cta .primary:hover{background:rgba(255,255,255,0.85);box-shadow:0 0 20px rgba(255,255,255,0.15)}
+    .hero .cta .secondary{color:#fff;border:1px solid rgba(255,255,255,0.2)}
+    .hero .cta .secondary:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.35)}
+    .hero .scroll-hint{position:absolute;bottom:2rem;font-size:0.7rem;color:rgba(255,255,255,0.3);letter-spacing:0.5px;animation:pulse 2.5s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:0.3;transform:translateY(0)}50%{opacity:0.8;transform:translateY(4px)}}
 
-    .section-content {
-      padding: 6rem 1.5rem;
-      max-width: 1060px;
-      margin: 0 auto;
-    }
-    .section-content.split {
-      display: flex;
-      align-items: center;
-      gap: 5rem;
-    }
-    .section-content.split .text { flex: 1; }
-    .section-content.split .visual { flex: 1; }
-    .section-content .label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #86868b;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 0.75rem;
-    }
-    .section-content h2 {
-      font-size: 2.5rem;
-      font-weight: 600;
-      letter-spacing: -0.4px;
-      line-height: 1.15;
-      margin-bottom: 1rem;
-    }
-    .section-content .desc {
-      font-size: 1.15rem;
-      color: #6e6e73;
-      line-height: 1.7;
-      margin-bottom: 1.25rem;
-    }
-    .section-content .desc strong { color: #1d1d1f; font-weight: 500; }
-    .section-content .detail {
-      font-size: 0.9rem;
-      color: #86868b;
-      line-height: 1.6;
-    }
-    .section-content .detail code {
-      background: #e8e8ed;
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
-      font-size: 0.82rem;
-    }
-    .visual-block {
-      background: #f5f5f7;
-      border-radius: 24px;
-      padding: 2.5rem;
-      text-align: center;
-    }
-    .visual-block .emoji-big { font-size: 3.5rem; display: block; margin-bottom: 1rem; }
-    .visual-block .stat { font-size: 2.8rem; font-weight: 700; letter-spacing: -0.5px; color: #1d1d1f; }
-    .visual-block .stat-label { font-size: 0.9rem; color: #6e6e73; margin-top: 0.25rem; }
-    .visual-block .chip-row { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
-    .visual-block .chip { text-align: center; }
-    .visual-block .chip .value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.3px; }
-    .visual-block .chip .lbl { font-size: 0.78rem; color: #6e6e73; }
+    /* === SECTIONS === */
+    .section{padding:7rem 1.5rem;position:relative;overflow:hidden}
+    .section-light{background:#fff}
+    .section-dark{background:#000;color:#fff}
+    .section-gray{background:#f5f5f7}
+    .section-inner{max-width:1060px;margin:0 auto}
+    .section-split{display:flex;align-items:center;gap:5rem}
+    .section-split .text{flex:1}
+    .section-split .visual{flex:1}
 
-    .section-alt { background: #f5f5f7; }
-    .section-alt .visual-block { background: #fff; }
+    /* labels */
+    .section .label{font-size:0.7rem;font-weight:600;color:#86868b;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.75rem}
+    .section-dark .label{color:rgba(255,255,255,0.35)}
 
-    .docs-section {
-      padding: 5rem 1.5rem 4rem;
-      text-align: center;
-    }
-    .docs-section h2 {
-      font-size: 2rem;
-      font-weight: 600;
-      letter-spacing: -0.3px;
-      margin-bottom: 0.5rem;
-    }
-    .docs-section .sub {
-      font-size: 1rem;
-      color: #6e6e73;
-      margin-bottom: 2.5rem;
-    }
-    .docs-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
-      max-width: 1060px;
-      margin: 0 auto;
-    }
-    .docs-card {
-      background: #f5f5f7;
-      border-radius: 14px;
-      padding: 1.25rem;
-      text-decoration: none;
-      color: inherit;
-      transition: all 0.25s;
-      text-align: left;
-    }
-    .docs-card:hover {
-      background: #e8e8ed;
-      transform: translateY(-2px);
-    }
-    .docs-card .icon { font-size: 1.4rem; margin-bottom: 0.5rem; display: block; }
-    .docs-card h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.2rem; }
-    .docs-card p { font-size: 0.78rem; color: #6e6e73; line-height: 1.4; }
+    /* headings */
+    .section h2{font-size:3rem;font-weight:700;letter-spacing:-0.5px;line-height:1.08;margin-bottom:1.25rem}
+    .section-dark h2{color:#fff}
+    .section .desc{font-size:1.2rem;color:#6e6e73;line-height:1.7;margin-bottom:1.5rem}
+    .section-dark .desc{color:rgba(255,255,255,0.55)}
+    .section .desc strong{color:#1d1d1f;font-weight:500}
+    .section-dark .desc strong{color:#fff}
+    .section .detail{font-size:0.9rem;color:#86868b;line-height:1.6}
+    .section-dark .detail{color:rgba(255,255,255,0.35)}
+    .section .detail code{background:#e8e8ed;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.82rem}
+    .section-dark .detail code{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7)}
 
-    .docs-links {
-      margin-top: 2rem;
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .docs-links a {
-      font-size: 0.85rem;
-      color: #1d1d1f;
-      text-decoration: none;
-      padding: 0.5rem 1.2rem;
-      border-radius: 50px;
-      border: 1px solid #d2d2d7;
-      transition: all 0.25s;
-    }
-    .docs-links a:hover { background: #e8e8ed; }
+    /* visual blocks */
+    .visual-block{border-radius:28px;padding:3rem;text-align:center}
+    .section-light .visual-block{background:#f5f5f7}
+    .section-dark .visual-block{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)}
+    .section-gray .visual-block{background:#fff}
+    .visual-block .emoji-big{font-size:3rem;display:block;margin-bottom:1rem}
+    .visual-block .chip-row{display:flex;gap:2.5rem;justify-content:center;flex-wrap:wrap}
+    .visual-block .chip{text-align:center}
+    .visual-block .chip .value{font-size:1.8rem;font-weight:700;letter-spacing:-0.3px;color:#1d1d1f}
+    .section-dark .visual-block .chip .value{color:#fff}
+    .visual-block .chip .lbl{font-size:0.75rem;color:#6e6e73;margin-top:0.15rem}
+    .section-dark .visual-block .chip .lbl{color:rgba(255,255,255,0.4)}
 
-    footer {
-      border-top: 1px solid #d2d2d7;
-      padding: 1.5rem;
-      text-align: center;
-      font-size: 0.75rem;
-      color: #86868b;
-    }
-    footer a { color: #515154; text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
+    /* protocol pills */
+    .pill{display:inline-block;padding:0.35rem 1rem;border-radius:100px;font-size:0.8rem;font-weight:500;margin:0.25rem}
+    .section-light .pill{background:#f0f0f5;color:#1d1d1f}
+    .section-dark .pill{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.06)}
 
-    @media (max-width: 800px) {
-      .hero h1 { font-size: 3rem; }
-      .hero .tagline { font-size: 1.2rem; }
-      .section-content.split { flex-direction: column; gap: 2rem; }
-      .section-content.split .text { order: 1; }
-      .section-content.split .visual { order: 0; }
-      .section-content h2 { font-size: 1.8rem; }
-      .section-content .desc { font-size: 1rem; }
-      .docs-grid { grid-template-columns: repeat(2, 1fr); }
-      .visual-block .chip-row { gap: 1.5rem; }
+    /* divider line */
+    .divider{max-width:1060px;margin:0 auto;padding:0 1.5rem;height:1px;background:linear-gradient(90deg,transparent,#d2d2d7 50%,transparent)}
+    .section-dark + .section-dark .divider{background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08) 50%,transparent)}
+
+    /* === DOCS SECTION === */
+    .docs-section{padding:6rem 1.5rem;text-align:center;background:#f5f5f7}
+    .docs-section h2{font-size:2.5rem;font-weight:700;letter-spacing:-0.4px;margin-bottom:0.5rem}
+    .docs-section .sub{font-size:1.1rem;color:#6e6e73;margin-bottom:3rem}
+    .docs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;max-width:1060px;margin:0 auto}
+    .docs-card{background:#fff;border-radius:16px;padding:1.5rem;text-decoration:none;color:inherit;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);text-align:left;border:1px solid rgba(0,0,0,0.04)}
+    .docs-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,0.08);border-color:rgba(0,0,0,0.08)}
+    .docs-card .icon{font-size:1.5rem;margin-bottom:0.6rem;display:block}
+    .docs-card h4{font-size:0.9rem;font-weight:600;margin-bottom:0.25rem}
+    .docs-card p{font-size:0.78rem;color:#6e6e73;line-height:1.4}
+
+    .docs-links{margin-top:2rem;display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center}
+    .docs-links a{font-size:0.85rem;color:#1d1d1f;text-decoration:none;padding:0.5rem 1.2rem;border-radius:50px;border:1px solid #d2d2d7;transition:all 0.25s}
+    .docs-links a:hover{background:#e8e8ed}
+
+    /* === FOOTER === */
+    footer{border-top:1px solid rgba(255,255,255,0.06);padding:2rem;text-align:center;font-size:0.75rem;color:rgba(255,255,255,0.3);background:#000}
+    footer a{color:rgba(255,255,255,0.5);text-decoration:none;transition:color 0.2s}
+    footer a:hover{color:#fff}
+
+    /* === SCROLL ANIMATIONS === */
+    .fade{opacity:0;transform:translateY(30px);transition:opacity 0.8s cubic-bezier(0.16,1,0.3,1),transform 0.8s cubic-bezier(0.16,1,0.3,1)}
+    .fade.visible{opacity:1;transform:translateY(0)}
+    .fade-delay-1{transition-delay:0.1s}
+    .fade-delay-2{transition-delay:0.2s}
+    .fade-delay-3{transition-delay:0.3s}
+
+    /* === RESPONSIVE === */
+    @media(max-width:800px){
+      .hero h1{font-size:3.2rem}
+      .hero .tagline{font-size:1.15rem}
+      .section-split{flex-direction:column;gap:2.5rem}
+      .section-split .text{order:1}.section-split .visual{order:0}
+      .section h2{font-size:2rem}
+      .section .desc{font-size:1rem}
+      .docs-grid{grid-template-columns:repeat(2,1fr)}
+      .visual-block .chip-row{gap:1.5rem}
+      .visual-block .chip .value{font-size:1.4rem}
     }
-    @media (max-width: 480px) {
-      .hero h1 { font-size: 2.2rem; }
-      .docs-grid { grid-template-columns: 1fr; }
+    @media(max-width:480px){
+      .hero h1{font-size:2.4rem}
+      .docs-grid{grid-template-columns:1fr}
+      .section{padding:4rem 1.25rem}
     }
   </style>
 </head>
@@ -264,183 +142,143 @@
     </div>
   </nav>
 
+  <!-- HERO -->
   <section class="hero">
     <div class="badge">v0.1.2.6</div>
     <h1>BrightS</h1>
-    <p class="tagline">A modern x86 kernel built from the ground up in C. Supporting UEFI and legacy BIOS with a full system stack.</p>
+    <p class="tagline">A modern x86 kernel built from the ground up in C.<br>Supporting UEFI and legacy BIOS with a full system stack.</p>
     <div class="cta">
       <a class="primary" href="https://github.com/Opluxo/BrightS">View on GitHub</a>
       <a class="secondary" href="https://opluxo.github.io/BrightS/view.html?path=docs/INSTALLATION.md">Build Guide</a>
     </div>
-    <div class="scroll-hint">Scroll to explore</div>
+    <div class="scroll-hint">SCROLL</div>
   </section>
 
-  <section class="section-alt" id="architecture">
-    <div class="section-content split">
-      <div class="text">
+  <!-- ARCHITECTURE -->
+  <section class="section section-light" id="architecture">
+    <div class="section-inner section-split">
+      <div class="text fade">
         <div class="label">Architecture</div>
         <h2>Two platforms,<br>one kernel.</h2>
         <p class="desc">BrightS runs on both <strong>x86_64 UEFI</strong> and <strong>i386 BIOS</strong> systems, sharing the same core codebase. No forks, no separate branches — just a single kernel that adapts.</p>
-        <p class="detail">Built with <code>clang + LLD</code> for UEFI targets and <code>i686-linux-gnu-gcc</code> for legacy BIOS, producing a <strong>~176 KB</strong> EFI image or a <strong>1.44 MB</strong> floppy image.</p>
+        <p class="detail">Built with <code>clang + LLD</code> for UEFI targets and <code>i686-linux-gnu-gcc</code> for legacy BIOS.</p>
       </div>
-      <div class="visual">
+      <div class="visual fade fade-delay-1">
         <div class="visual-block">
-          <span class="emoji-big">🖥️</span>
           <div class="chip-row">
-            <div class="chip">
-              <div class="value">x86_64</div>
-              <div class="lbl">UEFI &middot; 4-level paging</div>
-            </div>
-            <div class="chip" style="color:#86868b;font-size:1.5rem;align-self:center">+</div>
-            <div class="chip">
-              <div class="value">i386</div>
-              <div class="lbl">BIOS &middot; PAE paging</div>
-            </div>
+            <div class="chip"><div class="value">x86_64</div><div class="lbl">UEFI · 4-level paging</div></div>
+            <div class="chip" style="color:#d2d2d7;font-size:1.2rem;align-self:center">+</div>
+            <div class="chip"><div class="value">i386</div><div class="lbl">BIOS · PAE paging</div></div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="performance">
-    <div class="section-content split">
-      <div class="visual">
+  <div class="divider"></div>
+
+  <!-- PERFORMANCE -->
+  <section class="section section-dark" id="performance">
+    <div class="section-inner section-split">
+      <div class="visual fade">
         <div class="visual-block">
-          <span class="emoji-big">⚡</span>
           <div class="chip-row">
-            <div class="chip">
-              <div class="value">O(1)</div>
-              <div class="lbl">Scheduler</div>
-            </div>
-            <div class="chip">
-              <div class="value">8 MB</div>
-              <div class="lbl">Slab heap</div>
-            </div>
-            <div class="chip">
-              <div class="value">10</div>
-              <div class="lbl">Tick preemption</div>
-            </div>
+            <div class="chip"><div class="value">O(1)</div><div class="lbl">Scheduler</div></div>
+            <div class="chip"><div class="value">8 MB</div><div class="lbl">Slab heap</div></div>
+            <div class="chip"><div class="value">10</div><div class="lbl">Tick preemption</div></div>
           </div>
         </div>
       </div>
-      <div class="text">
+      <div class="text fade fade-delay-1">
         <div class="label">Performance</div>
-        <h2>Engineered for speed.</h2>
+        <h2>Engineered<br>for speed.</h2>
         <p class="desc">An <strong>O(1) round‑robin scheduler</strong> with 10‑tick preemption keeps processes responsive. The <strong>slab allocator</strong> manages an 8 MB heap with minimal fragmentation.</p>
-        <p class="desc"><strong>SIMD‑optimized</strong> memcpy and memset accelerate memory operations. Multi‑layer <strong>LRU caches</strong> (DNS, path, inode, buffer) front every I/O path.</p>
-        <p class="detail">Link‑time optimization (LTO) is enabled for the UEFI target, producing leaner, faster binaries.</p>
+        <p class="desc"><strong>SIMD‑optimized</strong> memcpy/memset and multi‑layer <strong>LRU caches</strong> front every I/O path.</p>
+        <p class="detail">Link‑time optimization (LTO) produces leaner, faster binaries.</p>
       </div>
     </div>
   </section>
 
-  <section class="section-alt" id="networking">
-    <div class="section-content split">
-      <div class="text">
+  <div class="divider"></div>
+
+  <!-- NETWORKING -->
+  <section class="section section-dark" id="networking">
+    <div class="section-inner section-split">
+      <div class="text fade">
         <div class="label">Networking</div>
         <h2>Real protocols,<br>real networking.</h2>
-        <p class="desc">BrightS ships a complete <strong>TCP/IP stack</strong> with VirtIO‑Net drivers. <strong>DHCP</strong> performs a full DISCOVER → OFFER → REQUEST → ACK handshake over UDP, binding to port 68 with timeout and retries.</p>
-        <p class="desc">The <strong>DNS resolver</strong> builds raw‑byte queries, handles name compression, and parses A‑record responses. The <strong>HTTP client</strong> resolves DNS, opens TCP connections, and sends GET / POST requests — all from kernel space.</p>
-        <p class="detail">The <code>netget</code> command fetches URLs directly from the shell, no userspace daemon required.</p>
+        <p class="desc">A complete <strong>TCP/IP stack</strong> with VirtIO‑Net drivers. <strong>DHCP</strong> performs a full DISCOVER → OFFER → REQUEST → ACK handshake over UDP.</p>
+        <p class="desc">The <strong>DNS resolver</strong> builds raw‑byte queries, handles name compression, and parses A‑record responses. The <strong>HTTP client</strong> resolves DNS, opens TCP connections, and sends GET/POST — all from kernel space.</p>
+        <p class="detail">The <code>netget</code> command fetches URLs directly from the shell.</p>
       </div>
-      <div class="visual">
+      <div class="visual fade fade-delay-1">
         <div class="visual-block">
-          <span class="emoji-big">🌐</span>
-          <div style="display:flex;flex-wrap:wrap;gap:0.8rem;justify-content:center;margin-top:0.5rem">
-            <span style="background:#e8e8ed;padding:0.3rem 1rem;border-radius:100px;font-size:0.82rem;font-weight:500">DHCP</span>
-            <span style="background:#e8e8ed;padding:0.3rem 1rem;border-radius:100px;font-size:0.82rem;font-weight:500">DNS</span>
-            <span style="background:#e8e8ed;padding:0.3rem 1rem;border-radius:100px;font-size:0.82rem;font-weight:500">HTTP</span>
-            <span style="background:#e8e8ed;padding:0.3rem 1rem;border-radius:100px;font-size:0.82rem;font-weight:500">VirtIO-Net</span>
-            <span style="background:#e8e8ed;padding:0.3rem 1rem;border-radius:100px;font-size:0.82rem;font-weight:500">UDP</span>
-            <span style="background:#e8e8ed;padding:0.3rem 1rem;border-radius:100px;font-size:0.82rem;font-weight:500">TCP</span>
-            <span style="background:#e8e8ed;padding:0.3rem 1rem;border-radius:100px;font-size:0.82rem;font-weight:500">ARP</span>
-            <span style="background:#e8e8ed;padding:0.3rem 1rem;border-radius:100px;font-size:0.82rem;font-weight:500">FTP</span>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center">
+            <span class="pill">DHCP</span><span class="pill">DNS</span><span class="pill">HTTP</span>
+            <span class="pill">VirtIO-Net</span><span class="pill">UDP</span><span class="pill">TCP</span>
+            <span class="pill">ARP</span><span class="pill">FTP</span>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="developer">
-    <div class="section-content split">
-      <div class="visual">
+  <div class="divider"></div>
+
+  <!-- DEVELOPER -->
+  <section class="section section-dark" id="developer">
+    <div class="section-inner section-split">
+      <div class="visual fade">
         <div class="visual-block">
-          <span class="emoji-big">🧩</span>
           <div class="chip-row">
-            <div class="chip">
-              <div class="value">C</div>
-              <div class="lbl">Kernel &amp; runtime</div>
-            </div>
-            <div class="chip">
-              <div class="value">C++</div>
-              <div class="lbl">Inline runtime</div>
-            </div>
-            <div class="chip">
-              <div class="value">Rust</div>
-              <div class="lbl">Kspace modules</div>
-            </div>
-            <div class="chip">
-              <div class="value">Python</div>
-              <div class="lbl">Embedded runtime</div>
-            </div>
+            <div class="chip"><div class="value">C</div><div class="lbl">Kernel &amp; runtime</div></div>
+            <div class="chip"><div class="value">C++</div><div class="lbl">Inline runtime</div></div>
+            <div class="chip"><div class="value">Rust</div><div class="lbl">Kspace modules</div></div>
+            <div class="chip"><div class="value">Python</div><div class="lbl">Embedded</div></div>
           </div>
         </div>
       </div>
-      <div class="text">
+      <div class="text fade fade-delay-1">
         <div class="label">Developer</div>
         <h2>Multi‑language<br>by design.</h2>
-        <p class="desc">BrightS includes first‑class runtime support for <strong>C, C++, Rust, Python, and Lang</strong>. Write kernel modules in Rust, script shell sessions in Python, or compile C++ programs directly with the built‑in <code>g++</code> command.</p>
-        <p class="desc">The <strong>LightShell</strong> environment features history, tab completion, pipes, redirection, job control, environment variables, and a growing set of built‑in commands including <code>netget</code>, <code>ping</code>, and <code>export</code>.</p>
-        <p class="detail">File systems supported: <strong>RAMFS</strong>, <strong>DevFS</strong>, <strong>Btrfs</strong>, all through a unified VFS2 interface.</p>
+        <p class="desc">First‑class runtime support for <strong>C, C++, Rust, Python, and Lang</strong>. Write kernel modules in Rust, script sessions in Python, compile C++ with the built‑in <code>g++</code> command.</p>
+        <p class="desc"><strong>LightShell</strong> — history, tab completion, pipes, redirection, job control, environment variables.</p>
+        <p class="detail">File systems: <strong>RAMFS</strong>, <strong>DevFS</strong>, <strong>Btrfs</strong> — unified VFS2 interface.</p>
       </div>
     </div>
   </section>
 
-  <section class="docs-section" style="background:#f5f5f7" id="docs">
-    <h2>Documentation</h2>
-    <p class="sub">Guides and references in English, 简体中文, and 日本語.</p>
+  <!-- DOCS -->
+  <section class="docs-section" id="docs">
+    <h2 class="fade">Documentation</h2>
+    <p class="sub fade">Guides and references in English, 简体中文, and 日本語.</p>
     <div class="docs-grid">
-      <a class="docs-card" href="https://opluxo.github.io/BrightS/view.html?path=docs/user-guide/README.md">
-        <span class="icon">📖</span>
-        <h4>User Guide</h4>
-        <p>Getting started, commands, and usage.</p>
+      <a class="docs-card fade fade-delay-1" href="https://opluxo.github.io/BrightS/view.html?path=docs/user-guide/README.md">
+        <span class="icon">📖</span><h4>User Guide</h4><p>Getting started, commands, usage.</p>
       </a>
-      <a class="docs-card" href="https://opluxo.github.io/BrightS/view.html?path=docs/developer-guide/README.md">
-        <span class="icon">🛠️</span>
-        <h4>Developer Guide</h4>
-        <p>Setup, structure, contributing.</p>
+      <a class="docs-card fade fade-delay-2" href="https://opluxo.github.io/BrightS/view.html?path=docs/developer-guide/README.md">
+        <span class="icon">🛠️</span><h4>Developer Guide</h4><p>Setup, structure, contributing.</p>
       </a>
-      <a class="docs-card" href="https://opluxo.github.io/BrightS/view.html?path=docs/api-reference/README.md">
-        <span class="icon">⚙️</span>
-        <h4>API Reference</h4>
-        <p>Kernel API and syscalls.</p>
+      <a class="docs-card fade fade-delay-3" href="https://opluxo.github.io/BrightS/view.html?path=docs/api-reference/README.md">
+        <span class="icon">⚙️</span><h4>API Reference</h4><p>Kernel API and syscalls.</p>
       </a>
-      <a class="docs-card" href="https://opluxo.github.io/BrightS/view.html?path=docs/runtime/README.md">
-        <span class="icon">🧩</span>
-        <h4>Runtime</h4>
-        <p>C, C++, Rust, Python, Lang.</p>
+      <a class="docs-card fade" href="https://opluxo.github.io/BrightS/view.html?path=docs/runtime/README.md">
+        <span class="icon">🧩</span><h4>Runtime</h4><p>C, C++, Rust, Python, Lang.</p>
       </a>
-      <a class="docs-card" href="https://opluxo.github.io/BrightS/view.html?path=docs/INSTALLATION.md">
-        <span class="icon">💾</span>
-        <h4>Installation</h4>
-        <p>Build for UEFI &amp; BIOS.</p>
+      <a class="docs-card fade fade-delay-1" href="https://opluxo.github.io/BrightS/view.html?path=docs/INSTALLATION.md">
+        <span class="icon">💾</span><h4>Installation</h4><p>Build for UEFI &amp; BIOS.</p>
       </a>
-      <a class="docs-card" href="https://opluxo.github.io/BrightS/view.html?path=docs/CHANGELOG.md">
-        <span class="icon">📋</span>
-        <h4>Changelog</h4>
-        <p>Release history.</p>
+      <a class="docs-card fade fade-delay-2" href="https://opluxo.github.io/BrightS/view.html?path=docs/CHANGELOG.md">
+        <span class="icon">📋</span><h4>Changelog</h4><p>Release history.</p>
       </a>
-      <a class="docs-card" href="https://opluxo.github.io/BrightS/view.html?path=docs/TODO.md">
-        <span class="icon">🚀</span>
-        <h4>Roadmap</h4>
-        <p>Planned features.</p>
+      <a class="docs-card fade fade-delay-3" href="https://opluxo.github.io/BrightS/view.html?path=docs/TODO.md">
+        <span class="icon">🚀</span><h4>Roadmap</h4><p>Planned features.</p>
       </a>
-      <a class="docs-card" href="https://opluxo.github.io/BrightS/view.html?path=docs/PROGRESS.md">
-        <span class="icon">📊</span>
-        <h4>Progress</h4>
-        <p>Milestones tracker.</p>
+      <a class="docs-card fade" href="https://opluxo.github.io/BrightS/view.html?path=docs/PROGRESS.md">
+        <span class="icon">📊</span><h4>Progress</h4><p>Milestones tracker.</p>
       </a>
     </div>
-    <div class="docs-links">
+    <div class="docs-links fade">
       <a href="https://opluxo.github.io/BrightS/view.html?path=docs/SECURITY_STATUS.md">🔒 Security</a>
       <a href="https://opluxo.github.io/BrightS/view.html?path=docs/OPTIMIZATION_REPORT.md">⚡ Optimization</a>
       <a href="https://opluxo.github.io/BrightS/view.html?path=docs/I386_PORTING_PLAN.md">🔄 i386 Porting</a>
@@ -448,9 +286,16 @@
     </div>
   </section>
 
+  <!-- FOOTER -->
   <footer>
-    <p>BrightS &middot; GNU General Public License v2 &middot; <a href="https://github.com/Opluxo">Opluxo LLC</a></p>
+    <p>BrightS · GNU General Public License v2 · <a href="https://github.com/Opluxo">Opluxo LLC</a></p>
   </footer>
+
+  <!-- SCROLL REVEAL -->
+  <script>
+    const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}})},{threshold:0.15,rootMargin:'0px 0px -40px 0px'});
+    document.querySelectorAll('.fade').forEach(el=>obs.observe(el));
+  </script>
 
 </body>
 </html>

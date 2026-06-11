@@ -18,7 +18,7 @@
 lsblk
 
 # 写入镜像
-sudo dd if=BrightS-v0.1.2.4-x86_64.iso of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=BrightS-v0.1.2.6-x86_64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 ### Windows
@@ -37,10 +37,10 @@ sudo dd if=BrightS-v0.1.2.4-x86_64.iso of=/dev/sdX bs=4M status=progress conv=fs
 ```bash
 # x86_64 UEFI
 qemu-system-x86_64 -bios /usr/share/edk2/x64/OVMF.4m.fd \
-  -drive file=BrightS-v0.1.2.4-x86_64.iso,format=raw -m 512 -serial stdio
+  -drive file=BrightS-v0.1.2.6-x86_64.iso,format=raw -m 512 -serial stdio
 
 # i386 BIOS
-qemu-system-i386 -drive file=BrightS-v0.1.2.4-i386.iso,format=raw -serial stdio
+qemu-system-i386 -drive file=BrightS-v0.1.2.6-i386.iso,format=raw -serial stdio
 ```
 
 ## 构建镜像

@@ -1,6 +1,6 @@
 # BrightS 项目进展 | Project Progress
 
-v0.1.2.4
+v0.1.2.6
 
 ---
 

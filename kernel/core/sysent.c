@@ -613,9 +613,13 @@ static int64_t sys_uname(uint64_t buf, uint64_t a1, uint64_t a2, uint64_t a3, ui
   // Copy strings
   const char *sysname = "BrightS";
   const char *nodename = "brights";
-  const char *release = "0.1.0";
-  const char *version = "BrightS 0.1.0";
+  const char *release = "0.1.2.6";
+  const char *version = "BrightS v0.1.2.6";
+#ifdef __i386__
+  const char *machine = "i386";
+#else
   const char *machine = "x86_64";
+#endif
   
   for (int i = 0; i < 64 && sysname[i]; ++i) uts->sysname[i] = sysname[i];
   for (int i = 0; i < 64 && nodename[i]; ++i) uts->nodename[i] = nodename[i];

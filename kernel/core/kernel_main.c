@@ -87,7 +87,7 @@ void brights_kernel_main(void *gop)
   if (gop && brights_fb_init(gop) == 0) {
     brights_print(&con, u"fb: initialized\r\n");
     brights_fb_clear((brights_color_t){0, 0, 40, 255});
-    brights_font_draw_string(10, 10, "BrightS OS", 
+    brights_font_draw_string(10, 10, "BrightS v0.1.2.6", 
       (255 << 16) | (200 << 8) | 50,
       0xFFFFFFFF);
   } else {

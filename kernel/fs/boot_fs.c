@@ -281,7 +281,7 @@ void brights_boot_fs_init(void)
   seed_file("/bin/pkg/bspm",
     "#!/bin/sh\n"
     "# BrightS Package Manager (BSPM) Installer\n"
-    "BSPM_REPO=\"https://github.com/s12mcOvO/BrightS_Package_Manager\"\n"
+    "BSPM_REPO=\"https://github.com/OpenLight-Studio/BrightS_Package_Manager\"\n"
     "BSPM_VERSION=\"1.0.0\"\n"
     "\n"
     "case \"$1\" in\n"
@@ -312,10 +312,10 @@ void brights_boot_fs_init(void)
   seed_dir("/bin/pkg/.db");
   seed_file("/bin/pkg/readme.txt",
     "BrightS Package Manager (BSPM)\n"
-    "Repository: https://github.com/s12mcOvO/BrightS_Package_Manager\n"
+    "Repository: https://github.com/OpenLight-Studio/BrightS_Package_Manager\n"
     "\n"
     "To install BSPM:\n"
-    "  git clone https://github.com/s12mcOvO/BrightS_Package_Manager\n"
+    "  git clone https://github.com/OpenLight-Studio/BrightS_Package_Manager\n"
     "  cp BrightS_Package_Manager/bin/bspm /bin/pkg/\n"
     "\n"
     "Usage: bspm [command] [package]\n"

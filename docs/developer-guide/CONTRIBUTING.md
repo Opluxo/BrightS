@@ -27,4 +27,4 @@ By contributing, you agree to GPL v2.
 
 ---
 
-[GitHub](https://github.com/OpenLight-Studio/BrightS)
+[GitHub](https://github.com/Opluxo/BrightS)

@@ -27,4 +27,4 @@ test:  测试
 
 ---
 
-[GitHub](https://github.com/OpenLight-Studio/BrightS)
+[GitHub](https://github.com/Opluxo/BrightS)

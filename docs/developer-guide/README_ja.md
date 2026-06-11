@@ -1,6 +1,6 @@
 # BrightS 開発者ガイド
 
-> v0.1.2.6 | [GitHub](https://github.com/OpenLight-Studio/BrightS)
+> v0.1.2.6 | [GitHub](https://github.com/Opluxo/BrightS)
 
 [EN](README.md) · [JA](README_ja.md) · [ZH](README_zh_CN.md)
 
@@ -18,7 +18,7 @@
 ## クイックスタート
 
 ```bash
-git clone https://github.com/OpenLight-Studio/BrightS.git
+git clone https://github.com/Opluxo/BrightS.git
 cd BrightS
 make all && make run
 ```

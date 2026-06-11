@@ -57,8 +57,8 @@ docs/
 
 ## 社区
 
-- [Issues](https://github.com/OpenLight-Studio/BrightS/issues)
-- [Discussions](https://github.com/OpenLight-Studio/BrightS/discussions)
+- [Issues](https://github.com/Opluxo/BrightS/issues)
+- [Discussions](https://github.com/Opluxo/BrightS/discussions)
 
 ## 许可证
 

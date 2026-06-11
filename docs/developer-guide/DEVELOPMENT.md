@@ -36,7 +36,7 @@ ls /usr/share/OVMF/OVMF_CODE.fd
 ## 项目设置 | Setup
 
 ```bash
-git clone https://github.com/OpenLight-Studio/BrightS.git
+git clone https://github.com/Opluxo/BrightS.git
 cd BrightS
 mkdir build && cd build
 cmake ..

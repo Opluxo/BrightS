@@ -96,5 +96,5 @@ GNU General Public License v2. See [LICENSE](LICENSE).
 ---
 
 <p align="center">
-  <strong>BrightS v0.1.2.6</strong> · Designed by OpenLight Studio · GPL v2
+  <strong>BrightS v0.1.2.6</strong> · Designed by Opluxo LLC · GPL v2
 </p>

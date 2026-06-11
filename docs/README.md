@@ -42,8 +42,8 @@ docs/
 
 ## Community
 
-- [Issues](https://github.com/OpenLight-Studio/BrightS/issues)
-- [Discussions](https://github.com/OpenLight-Studio/BrightS/discussions)
+- [Issues](https://github.com/Opluxo/BrightS/issues)
+- [Discussions](https://github.com/Opluxo/BrightS/discussions)
 
 ## License
 

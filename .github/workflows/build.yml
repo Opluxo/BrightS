@@ -1,0 +1,134 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  x86_64:
+    name: x86_64 (UEFI)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential cmake nasm mtools dosfstools \
+                               qemu-system-x86 ovmf git clang lld xorriso python3
+          rustup target add x86_64-unknown-none 2>/dev/null || true
+
+      - name: Configure CMake
+        run: CC=clang LD=lld cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd build && ctest --output-on-failure
+
+      - name: Create ISO
+        run: |
+          chmod +x tools/make-iso.sh
+          ./tools/make-iso.sh
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: brights-x86_64
+          path: build/brights.iso
+
+  i386:
+    name: i386
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential nasm mtools dosfstools xorriso python3 \
+                               gcc-i686-linux-gnu
+
+      - name: Build
+        run: CC=i686-linux-gnu-gcc bash scripts/build-i386.sh
+
+      - name: Test floppy image
+        run: |
+          # Verify boot signature at end of first sector
+          od -A x -t x1z -v build/floppy.img | head -2
+          SIGNATURE=$(dd if=build/floppy.img bs=1 count=2 skip=510 2>/dev/null | od -An -tx1 | tr -d ' ')
+          if [ "$SIGNATURE" != "55aa" ] && [ "$SIGNATURE" != "aa55" ]; then
+            echo "ERROR: Missing 0x55AA boot signature"
+            exit 1
+          fi
+          echo "Boot signature: OK"
+
+      - name: Create ISO (El Torito hard-disk emulation)
+        run: |
+          mkdir -p build/i386-iso
+          cp build/floppy.img build/i386-iso/
+          xorriso -as mkisofs \
+            -b floppy.img \
+            -hard-disk-boot \
+            -V "BRIGHTS_I386" \
+            -o build/brights-i386.iso \
+            build/i386-iso/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: brights-i386
+          path: |
+            build/floppy.img
+            build/brights-i386.iso
+
+  release:
+    needs: [x86_64, i386]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download x86_64 ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: brights-x86_64
+          path: build/
+
+      - name: Download i386 ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: brights-i386
+          path: build/
+
+      - name: Rename artifacts
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p release
+          cp build/brights.iso "release/BrightS-${TAG}-x86_64.iso"
+          cp build/brights-i386.iso "release/BrightS-${TAG}-i386.iso"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/BrightS-*.iso
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

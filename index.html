@@ -7,234 +7,424 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
-      background: #f5f5f7;
+      font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+      background: #ffffff;
       color: #1d1d1f;
       -webkit-font-smoothing: antialiased;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      -moz-osx-font-smoothing: grayscale;
     }
+
     nav {
-      width: 100%;
-      padding: 1rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+    nav .inner {
       max-width: 1060px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    nav .logo {
+      font-weight: 600;
       font-size: 0.85rem;
-      color: #86868b;
+      letter-spacing: -0.2px;
+      color: #1d1d1f;
     }
-    nav .logo { font-weight: 600; font-size: 0.95rem; color: #1d1d1f; letter-spacing: -0.3px; }
-    nav a { color: #86868b; text-decoration: none; margin-left: 1.5rem; transition: color 0.2s; }
-    nav a:hover { color: #1d1d1f; }
-    .hero {
-      text-align: center;
-      padding: 6rem 2rem 3rem;
-      max-width: 720px;
-    }
-    .hero h1 {
-      font-size: 3.5rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      line-height: 1.1;
-      margin-bottom: 0.75rem;
-    }
-    .hero .version-badge {
-      display: inline-block;
+    nav .nav-links { display: flex; gap: 1.5rem; }
+    nav a {
       font-size: 0.8rem;
-      font-weight: 500;
+      color: #86868b;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: #1d1d1f; }
+
+    .hero {
+      background: #f5f5f7;
+      text-align: center;
+      padding: 8rem 1.5rem 5rem;
+      margin-top: 48px;
+    }
+    .hero .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
       color: #6e6e73;
       background: #e8e8ed;
-      border-radius: 20px;
-      padding: 0.2rem 0.75rem;
-      margin-bottom: 1.5rem;
-      letter-spacing: 0.3px;
+      border-radius: 100px;
+      padding: 0.25rem 0.75rem;
+      margin-bottom: 1.25rem;
+      letter-spacing: 0.5px;
     }
-    .hero p {
-      font-size: 1.3rem;
-      color: #6e6e73;
+    .hero h1 {
+      font-size: 4rem;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+      line-height: 1.05;
+      margin-bottom: 0.75rem;
+    }
+    .hero .subtitle {
+      font-size: 1.5rem;
       font-weight: 400;
+      color: #6e6e73;
+      line-height: 1.5;
+      max-width: 680px;
+      margin: 0 auto 1.5rem;
+    }
+    .hero .cta {
+      display: inline-flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .hero .cta a {
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      padding: 0.6rem 1.5rem;
+      border-radius: 50px;
+      transition: all 0.25s;
+    }
+    .hero .cta .primary {
+      background: #1d1d1f;
+      color: #fff;
+    }
+    .hero .cta .primary:hover { background: #000; }
+    .hero .cta .secondary {
+      color: #1d1d1f;
+      border: 1px solid #d2d2d7;
+    }
+    .hero .cta .secondary:hover { background: #e8e8ed; }
+
+    section { padding: 5rem 1.5rem; }
+    section.alt { background: #f5f5f7; }
+    .section-inner {
+      max-width: 1060px;
+      margin: 0 auto;
+    }
+    .section-title {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      margin-bottom: 0.75rem;
+    }
+    .section-sub {
+      text-align: center;
+      font-size: 1.15rem;
+      color: #6e6e73;
+      max-width: 640px;
+      margin: 0 auto 3rem;
       line-height: 1.6;
     }
-    .grid {
+
+    .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 1.2rem;
-      max-width: 1060px;
-      width: 100%;
-      padding: 0 2rem;
-      margin-top: 2rem;
     }
-    .card {
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 1.5rem;
-      text-decoration: none;
-      color: inherit;
+    .feature-card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 1.75rem;
+      border: 1px solid #e8e8ed;
       transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      border: 1px solid rgba(0,0,0,0.06);
     }
-    .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-      border-color: rgba(0,0,0,0.1);
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      border-color: #d2d2d7;
     }
-    .card-icon {
-      font-size: 1.5rem;
+    .feature-card .icon {
+      font-size: 1.6rem;
       margin-bottom: 0.75rem;
       display: block;
     }
-    .card h2 {
-      font-size: 1.05rem;
+    .feature-card h3 {
+      font-size: 1rem;
       font-weight: 600;
-      margin-bottom: 0.35rem;
-      letter-spacing: -0.2px;
+      margin-bottom: 0.3rem;
     }
-    .card p {
-      font-size: 0.9rem;
+    .feature-card p {
+      font-size: 0.85rem;
       color: #6e6e73;
       line-height: 1.5;
     }
-    .section-label {
-      max-width: 1060px;
-      width: 100%;
-      padding: 3rem 2rem 0.5rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #86868b;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
     }
-    .links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.6rem;
-      max-width: 1060px;
-      width: 100%;
-      padding: 1rem 2rem 3rem;
+    .arch-card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 2rem;
+      border: 1px solid #e8e8ed;
+      text-align: center;
     }
-    .links a {
-      color: #1d1d1f;
+    .arch-card .icon { font-size: 2rem; margin-bottom: 0.75rem; display: block; }
+    .arch-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .arch-card p { font-size: 0.85rem; color: #6e6e73; }
+
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    .docs-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1.25rem;
+      border: 1px solid #e8e8ed;
       text-decoration: none;
-      font-size: 0.85rem;
-      padding: 0.5rem 1rem;
-      border-radius: 12px;
-      background: #ffffff;
-      border: 1px solid rgba(0,0,0,0.06);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      color: inherit;
       transition: all 0.25s;
     }
-    .links a:hover {
-      background: #e8e8ed;
-      border-color: rgba(0,0,0,0.1);
+    .docs-card:hover {
+      border-color: #1d1d1f;
+      transform: translateY(-2px);
     }
-    .links a.github {
-      background: #1d1d1f;
-      color: #fff;
-      border: none;
+    .docs-card .icon { font-size: 1.3rem; margin-bottom: 0.5rem; display: block; }
+    .docs-card h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.2rem; }
+    .docs-card p { font-size: 0.78rem; color: #6e6e73; line-height: 1.4; }
+
+    .specs {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1.5rem;
     }
-    .links a.github:hover { background: #000; }
+    .spec-item { text-align: center; }
+    .spec-item .value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 0.2rem;
+    }
+    .spec-item .label {
+      font-size: 0.85rem;
+      color: #6e6e73;
+    }
+
     footer {
+      border-top: 1px solid #d2d2d7;
+      padding: 1.5rem;
       text-align: center;
-      padding: 2rem;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: #86868b;
-      width: 100%;
-      border-top: 1px solid rgba(0,0,0,0.06);
-      margin-top: auto;
+    }
+    footer a {
+      color: #515154;
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .docs-grid { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 640px) {
-      .hero h1 { font-size: 2.4rem; }
-      .hero p { font-size: 1.1rem; }
-      .grid { grid-template-columns: 1fr; }
-      nav { flex-direction: column; gap: 0.5rem; }
-      nav .links-row { display: flex; gap: 1rem; }
-      nav a { margin-left: 0; }
+      .hero h1 { font-size: 2.5rem; }
+      .hero .subtitle { font-size: 1.15rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .arch-grid { grid-template-columns: 1fr; }
+      .docs-grid { grid-template-columns: 1fr; }
+      section { padding: 3rem 1.25rem; }
+      nav .nav-links { gap: 0.75rem; }
+      nav .nav-links a { font-size: 0.72rem; }
     }
   </style>
 </head>
 <body>
+
   <nav>
-    <span class="logo">BrightS</span>
-    <div class="links-row">
-      <a href="https://github.com/Opluxo/BrightS">GitHub</a>
-      <a href="https://github.com/Opluxo/BrightS/blob/docs/LICENSE">License</a>
-      <a href="https://github.com/Opluxo/BrightS/blob/docs/docs/SECURITY_STATUS.md">Security</a>
+    <div class="inner">
+      <span class="logo">BrightS</span>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#docs">Documentation</a>
+        <a href="https://github.com/Opluxo/BrightS">GitHub</a>
+      </div>
     </div>
   </nav>
 
   <section class="hero">
-    <div class="version-badge">v0.1.2.6</div>
+    <div class="badge">v0.1.2.6</div>
     <h1>BrightS</h1>
-    <p>Modern x86 kernel — UEFI &amp; BIOS — built from the ground up in C.</p>
+    <p class="subtitle">A modern x86 kernel, built from the ground up in C. Supports both UEFI (x86_64) and legacy BIOS (i386), with a full TCP/IP stack, multitasking, and multi-language runtime.</p>
+    <div class="cta">
+      <a class="primary" href="https://github.com/Opluxo/BrightS">View on GitHub</a>
+      <a class="secondary" href="https://github.com/Opluxo/BrightS/blob/docs/docs/INSTALLATION.md">Build Guide</a>
+    </div>
   </section>
 
-  <div class="section-label">Documentation</div>
-  <div class="grid">
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/user-guide/README.md">
-      <span class="card-icon">📖</span>
-      <h2>User Guide</h2>
-      <p>Getting started, commands, and usage guides in EN/JA/ZH.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/developer-guide/README.md">
-      <span class="card-icon">🛠️</span>
-      <h2>Developer Guide</h2>
-      <p>Setup, project structure, performance tuning, contributing.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/api-reference/README.md">
-      <span class="card-icon">⚙️</span>
-      <h2>API Reference</h2>
-      <p>Kernel API docs and syscall reference.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/runtime/README.md">
-      <span class="card-icon">🧩</span>
-      <h2>Runtime</h2>
-      <p>C, C++, Rust, Python, Lang — multi-language runtime.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/CHANGELOG.md">
-      <span class="card-icon">📋</span>
-      <h2>Changelog</h2>
-      <p>Release history and version changes.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/TODO.md">
-      <span class="card-icon">🚀</span>
-      <h2>Roadmap</h2>
-      <p>Planned features and future development.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/INSTALLATION.md">
-      <span class="card-icon">💾</span>
-      <h2>Installation</h2>
-      <p>Build and install for x86_64 UEFI &amp; i386 BIOS.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/PROGRESS.md">
-      <span class="card-icon">📊</span>
-      <h2>Progress</h2>
-      <p>Project milestones and overall progress tracking.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/OPTIMIZATION_REPORT.md">
-      <span class="card-icon">⚡</span>
-      <h2>Optimization</h2>
-      <p>Performance analysis and optimization report.</p>
-    </a>
-    <a class="card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/I386_PORTING_PLAN.md">
-      <span class="card-icon">🔄</span>
-      <h2>i386 Porting</h2>
-      <p>Plan and status of i386 BIOS port.</p>
-    </a>
-  </div>
+  <section id="features">
+    <div class="section-inner">
+      <h2 class="section-title">Engineered for performance</h2>
+      <p class="section-sub">Every subsystem designed from scratch — memory management, scheduling, networking, and storage — optimized for both modern UEFI and classic BIOS systems.</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="icon">🖥️</span>
+          <h3>Dual Boot</h3>
+          <p>x86_64 UEFI + i386 BIOS. One kernel, two architectures, one codebase.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🧠</span>
+          <h3>Memory Management</h3>
+          <p>4-level / PAE paging, slab allocator, 8 MB heap, PMEM abstraction.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">⚡</span>
+          <h3>O(1) Scheduler</h3>
+          <p>Round-robin with 10-tick preemption, SMP-ready, process groups.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🌐</span>
+          <h3>TCP/IP Stack</h3>
+          <p>VirtIO-Net, DHCP, DNS, HTTP — real protocols, real networking.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">💾</span>
+          <h3>Storage Stack</h3>
+          <p>AHCI, NVMe, ramdisk, block device interface, Btrfs filesystem.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🔒</span>
+          <h3>Security</h3>
+          <p>SMEP / SMAP, heap hardening, syscall boundary checking.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🐚</span>
+          <h3>LightShell</h3>
+          <p>History, tab completion, pipes, redirection, job control, env vars.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🧩</span>
+          <h3>Multi-Language Runtime</h3>
+          <p>First-class support for C, C++, Rust, Python, and custom Lang.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🚀</span>
+          <h3>SIMD Optimized</h3>
+          <p>SIMD memcpy / memset, LRU caches (DNS, path, inode, buffer), LTO.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <div class="section-label">More</div>
-  <div class="links">
-    <a href="https://github.com/Opluxo/BrightS/blob/docs/docs/SECURITY_STATUS.md">🔒 Security</a>
-    <a href="https://github.com/Opluxo/BrightS/blob/docs/LICENSE">📄 License</a>
-    <a class="github" href="https://github.com/Opluxo/BrightS">View on GitHub</a>
-  </div>
+  <section class="alt">
+    <div class="section-inner">
+      <h2 class="section-title">Two architectures, one kernel</h2>
+      <p class="section-sub">BrightS runs on both modern UEFI systems and legacy BIOS hardware, sharing the same core code.</p>
+      <div class="arch-grid">
+        <div class="arch-card">
+          <span class="icon">🖥️</span>
+          <h3>x86_64 &middot; UEFI</h3>
+          <p>4-level paging, clang + LLD, ISO image. Built for modern PCs.</p>
+        </div>
+        <div class="arch-card">
+          <span class="icon">🔄</span>
+          <h3>i386 &middot; BIOS</h3>
+          <p>PAE paging, GCC freestanding, floppy image. Built for vintage hardware.</p>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:2.5rem">
+        <table style="margin:0 auto;border-collapse:collapse;font-size:0.9rem">
+          <tr><td style="padding:0.5rem 1.5rem;color:#86868b;border-bottom:1px solid #e8e8ed">Target</td><td style="padding:0.5rem 1.5rem;font-weight:500;border-bottom:1px solid #e8e8ed">Image</td><td style="padding:0.5rem 1.5rem;color:#86868b;border-bottom:1px solid #e8e8ed">Size</td></tr>
+          <tr><td style="padding:0.5rem 1.5rem;color:#86868b">x86_64 UEFI</td><td style="padding:0.5rem 1.5rem;font-weight:500"><code style="background:#e8e8ed;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.8rem">build_x64/sys/kernel/kernel.efi</code></td><td style="padding:0.5rem 1.5rem;color:#86868b">~176 KB</td></tr>
+          <tr><td style="padding:0.5rem 1.5rem;color:#86868b">i386 BIOS</td><td style="padding:0.5rem 1.5rem;font-weight:500"><code style="background:#e8e8ed;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.8rem">build/floppy.img</code></td><td style="padding:0.5rem 1.5rem;color:#86868b">1.44 MB</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="docs">
+    <div class="section-inner">
+      <h2 class="section-title">Documentation</h2>
+      <p class="section-sub">Comprehensive guides in English, 简体中文, and 日本語.</p>
+      <div class="docs-grid">
+        <a class="docs-card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/user-guide/README.md">
+          <span class="icon">📖</span>
+          <h4>User Guide</h4>
+          <p>Getting started, command reference, usage guides.</p>
+        </a>
+        <a class="docs-card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/developer-guide/README.md">
+          <span class="icon">🛠️</span>
+          <h4>Developer Guide</h4>
+          <p>Setup, project structure, performance, contributing.</p>
+        </a>
+        <a class="docs-card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/api-reference/README.md">
+          <span class="icon">⚙️</span>
+          <h4>API Reference</h4>
+          <p>Kernel API and syscall documentation.</p>
+        </a>
+        <a class="docs-card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/runtime/README.md">
+          <span class="icon">🧩</span>
+          <h4>Runtime</h4>
+          <p>C, C++, Rust, Python, Lang runtimes.</p>
+        </a>
+        <a class="docs-card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/CHANGELOG.md">
+          <span class="icon">📋</span>
+          <h4>Changelog</h4>
+          <p>Release history and version changes.</p>
+        </a>
+        <a class="docs-card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/TODO.md">
+          <span class="icon">🚀</span>
+          <h4>Roadmap</h4>
+          <p>Planned features and future development.</p>
+        </a>
+        <a class="docs-card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/INSTALLATION.md">
+          <span class="icon">💾</span>
+          <h4>Installation</h4>
+          <p>Build and install on both targets.</p>
+        </a>
+        <a class="docs-card" href="https://github.com/Opluxo/BrightS/blob/docs/docs/PROGRESS.md">
+          <span class="icon">📊</span>
+          <h4>Progress</h4>
+          <p>Project milestones and tracking.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="section-inner">
+      <h2 class="section-title">By the numbers</h2>
+      <p class="section-sub">BrightS is designed to be small, fast, and capable.</p>
+      <div class="specs">
+        <div class="spec-item">
+          <div class="value">10</div>
+          <div class="label">Tick preemption</div>
+        </div>
+        <div class="spec-item">
+          <div class="value">8 MB</div>
+          <div class="label">Slab heap</div>
+        </div>
+        <div class="spec-item">
+          <div class="value">176 KB</div>
+          <div class="label">UEFI kernel size</div>
+        </div>
+        <div class="spec-item">
+          <div class="value">2</div>
+          <div class="label">Architectures</div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <footer>
-    BrightS · GNU General Public License v2 · Opluxo LLC
+    <p>BrightS &middot; GNU General Public License v2 &middot; Designed by <a href="https://github.com/Opluxo">Opluxo LLC</a></p>
   </footer>
+
 </body>
 </html>

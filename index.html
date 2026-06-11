@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrightS Documentation</title>
+  <style>
+    :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+    .container { max-width: 960px; width: 100%; }
+    h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem; background: linear-gradient(135deg, #58a6ff, #bc8cff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { font-size: 1.1rem; color: #8b949e; margin-bottom: 2rem; }
+    .version { font-size: 0.85rem; color: #484f58; margin-bottom: 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin: 2rem 0; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; transition: border-color 0.2s, transform 0.2s; }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .card h2 a { color: var(--accent); text-decoration: none; }
+    .card h2 a:hover { text-decoration: underline; }
+    .card p { font-size: 0.9rem; color: #8b949e; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    .links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .links a { color: var(--accent); text-decoration: none; font-size: 0.9rem; padding: 0.25rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; transition: background 0.2s; }
+    .links a:hover { background: rgba(88,166,255,0.1); }
+    footer { margin-top: 3rem; font-size: 0.85rem; color: #484f58; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BrightS</h1>
+    <div class="subtitle">Modern x86 kernel written in C</div>
+    <div class="version">v0.1.2.6</div>
+
+    <div class="grid">
+      <div class="card">
+        <h2><a href="docs/user-guide/README.md">User Guide</a></h2>
+        <p>Getting started, command reference, and usage guides in EN/JA/ZH.</p>
+      </div>
+      <div class="card">
+        <h2><a href="docs/developer-guide/README.md">Developer Guide</a></h2>
+        <p>Setup, project structure, performance tuning, and contributing.</p>
+      </div>
+      <div class="card">
+        <h2><a href="docs/api-reference/README.md">API Reference</a></h2>
+        <p>Kernel API documentation and syscall references.</p>
+      </div>
+      <div class="card">
+        <h2><a href="docs/runtime/README.md">Runtime</a></h2>
+        <p>Multi-language runtime — C, C++, Rust, Python, Lang.</p>
+      </div>
+      <div class="card">
+        <h2><a href="docs/CHANGELOG.md">Changelog</a></h2>
+        <p>Release history and version changes.</p>
+      </div>
+      <div class="card">
+        <h2><a href="docs/TODO.md">Roadmap</a></h2>
+        <p>Planned features and future development.</p>
+      </div>
+      <div class="card">
+        <h2><a href="docs/INSTALLATION.md">Installation</a></h2>
+        <p>Build and install instructions for x86_64 and i386.</p>
+      </div>
+      <div class="card">
+        <h2><a href="docs/PROGRESS.md">Progress</a></h2>
+        <p>Overall project progress and milestone tracking.</p>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="links">
+      <a href="docs/SECURITY_STATUS.md">Security</a>
+      <a href="docs/OPTIMIZATION_REPORT.md">Optimization</a>
+      <a href="docs/I386_PORTING_PLAN.md">i386 Porting</a>
+      <a href="README.md">Branch README</a>
+      <a href="LICENSE">License</a>
+      <a href="https://github.com/Opluxo/BrightS">GitHub</a>
+    </div>
+
+    <footer>
+      BrightS — GNU General Public License v2
+    </footer>
+  </div>
+</body>
+</html>

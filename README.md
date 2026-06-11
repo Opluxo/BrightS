@@ -65,7 +65,6 @@ BrightS/
 ├── drivers/              # 显示/GPU 驱动
 ├── user/                 # 用户态程序
 ├── include/kernel/       # 内核头文件
-├── docs/                 # 文档 (中/英/日)
 ├── scripts/              # 构建脚本
 ├── tools/                # CI 工具
 ├── tests/                # 测试
@@ -79,13 +78,11 @@ BrightS/
 
 ## 🌍 文档 / Documentation / ドキュメント
 
-| 言語 / Language | Link |
-|---|---|
-| 🇨🇳 **简体中文** | [docs/README_zh_CN.md](docs/README_zh_CN.md) |
-| 🇺🇸 **English** | [docs/README.md](docs/README.md) |
-| 🇯🇵 **日本語** | [docs/README_ja.md](docs/README_ja.md) |
+文档已移至独立分支 [`docs`](https://github.com/Opluxo/BrightS/tree/docs) → [`index.html`](https://github.com/Opluxo/BrightS/blob/docs/index.html)
 
-各文档包含：用户指南 / 开发者指南 / API 参考 / 运行时文档 / 构建说明
+Documentation moved to [`docs`](https://github.com/Opluxo/BrightS/tree/docs) branch → [`index.html`](https://github.com/Opluxo/BrightS/blob/docs/index.html)
+
+ドキュメントは [`docs`](https://github.com/Opluxo/BrightS/tree/docs) ブランチに移動しました → [`index.html`](https://github.com/Opluxo/BrightS/blob/docs/index.html)
 
 ---
 

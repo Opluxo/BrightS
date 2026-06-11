@@ -12,6 +12,7 @@ docs/
 ├── developer-guide/         # 開発者ガイド
 ├── api-reference/           # APIリファレンス
 ├── runtime/                 # ランタイム
+├── vmware/                  # VMware対応
 ├── CHANGELOG.md             # 変更履歴
 ├── TODO.md                  # ロードマップ
 ├── PROGRESS.md              # 進捗状況
@@ -35,7 +36,7 @@ docs/
 
 ## リソース
 
-- [APIリファレンス](api-reference/API.md) · [ランタイム](runtime/README.md) · [ビルド](build/build.md)
+- [APIリファレンス](api-reference/API.md) · [ランタイム](runtime/README.md)
 - [変更履歴](CHANGELOG.md) · [TODO](TODO.md) · [セキュリティ](SECURITY_STATUS.md)
 
 ---
@@ -51,4 +52,4 @@ GNU GPL v2 — [LICENSE](../LICENSE)
 
 ---
 
-*最終更新: 2026-05-31*
+*最終更新: 2026-06-11*

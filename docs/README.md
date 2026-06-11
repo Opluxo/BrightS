@@ -12,6 +12,7 @@ docs/
 ├── developer-guide/         # Developer guide
 ├── api-reference/           # Kernel API
 ├── runtime/                 # Multi-language runtime
+├── vmware/                  # VMware support
 ├── CHANGELOG.md             # Changelog
 ├── TODO.md                  # Roadmap
 ├── PROGRESS.md              # Progress overview
@@ -35,7 +36,7 @@ docs/
 
 ## Resources
 
-- [API Reference](api-reference/API.md) · [Runtime Guide](runtime/README.md) · [Build Guide](build/build.md)
+- [API Reference](api-reference/API.md) · [Runtime Guide](runtime/README.md)
 - [Changelog](CHANGELOG.md) · [TODO](TODO.md) · [Security Status](SECURITY_STATUS.md)
 
 ---
@@ -51,4 +52,4 @@ GNU GPL v2 — [LICENSE](../LICENSE)
 
 ---
 
-*Last updated: 2026-05-31*
+*Last updated: 2026-06-11*

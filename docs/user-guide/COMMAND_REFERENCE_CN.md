@@ -20,7 +20,7 @@
 
 | 命令 | 描述 | 语法 |
 |------|------|------|
-| `echo` | 显示文本 | `echo <字符串>...` |
+| `echo` | 显示文本（支持 `$VAR`） | `echo <字符串>...` |
 | `grep` | 搜索文件内容 | `grep [选项] <模式> [文件]...` |
 | `find` | 按名称查找文件 | `find <路径> -name <模式>` |
 
@@ -31,12 +31,16 @@
 | `pwd` | 显示当前目录 | `pwd` |
 | `ps` | 显示进程 | `ps` |
 | `jobs` | 显示后台作业 | `jobs` |
+| `uname` | 系统信息 | `uname [-a]` |
+| `bst` | 系统信息（brights） | `bst` |
+| `sysinfo` | 详细系统信息 | `sysinfo` |
 
 ### 网络
 
 | 命令 | 描述 | 语法 |
 |------|------|------|
 | `ping` | ICMP 回显请求 | `ping <主机>` |
+| `netget` | 获取 URL 内容（HTTP） | `netget <url>` |
 
 ### Shell 内置
 
@@ -45,6 +49,8 @@
 | `cd` | 切换目录 | `cd [目录]` |
 | `help` | 显示帮助 | `help [命令]` |
 | `exit` | 退出 Shell | `exit` |
+| `export` | 设置环境变量 | `export <KEY>=<VALUE>` |
+| `env` | 显示环境变量 | `env` |
 
 ### 包管理 (BSPM)
 

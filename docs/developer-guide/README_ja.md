@@ -1,6 +1,6 @@
 # BrightS 開発者ガイド
 
-> v0.1.2.6 | [GitHub](https://github.com/Opluxo/BrightS)
+> v0.1.2.6 | [GitHub](https://github.com/Opluxo/BrightS) | [Docs](https://opluxo.github.io/BrightS/)
 
 [EN](README.md) · [JA](README_ja.md) · [ZH](README_zh_CN.md)
 

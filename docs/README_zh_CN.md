@@ -23,8 +23,8 @@ docs/
 │   └── API.md                   # 内核 API 文档
 ├── runtime/                 # 运行时文档
 │   └── README.md               # 多语言运行时
-├── build/                   # 构建指南
 ├── vmware/                  # VMware 相关
+│   └── README.md               # VMware 支持
 ├── README*.md               # 文档首页（中/英/日）
 ├── CHANGELOG.md             # 变更日志
 ├── TODO.md                  # 开发路线图
@@ -51,7 +51,7 @@ docs/
 
 - [变更日志](CHANGELOG.md) · [TODO](TODO.md) · [项目进展](PROGRESS.md)
 - [优化报告](OPTIMIZATION_REPORT.md) · [i386 移植计划](I386_PORTING_PLAN.md) · [安全状态](SECURITY_STATUS.md)
-- [构建指南](build/build.md) · [运行时文档](runtime/README.md) · [API 参考](api-reference/API.md)
+- [运行时文档](runtime/README.md) · [API 参考](api-reference/API.md)
 
 ---
 
@@ -66,4 +66,4 @@ GNU GPL v2 — 详见 [LICENSE](../LICENSE)
 
 ---
 
-*最后更新：2026-05-31*
+*最后更新：2026-06-11*

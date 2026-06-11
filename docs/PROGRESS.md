@@ -9,11 +9,12 @@ v0.1.2.6
 - **启动**: UEFI → 内核初始化 → Shell
 - **内核**: 抢占式调度、Slab 内存管理、进程管理、信号、SMP
 - **文件系统**: VFS2、Btrfs、RAMFS、DevFS
-- **网络**: TCP/IP、VirtIO-Net、DHCP、DNS、HTTP
-- **Shell**: 命令历史、Tab 补全、管道、重定向、后台作业
+- **网络**: TCP/IP、VirtIO-Net、DHCP（完整握手）、DNS（raw-byte 解析）、HTTP（内核态请求）
+- **Shell**: 命令历史、Tab 补全、管道、重定向、后台作业、环境变量、`$VAR` 展开
 - **多语言**: Rust/Python/C++ 内联执行
 - **存储**: AHCI、NVMe、ramdisk
 - **安全**: SMEP/SMAP、堆安全加固
+- **命令**: `netget`、`export`、`env`、`uname`、`bst`、`sysinfo`
 
 ---
 
@@ -34,7 +35,7 @@ v0.1.2.6
 
 - O(1) 调度器 + Slab 分配器
 - SIMD 加速（memcpy/memset/memcmp）
-- LRU 缓存系统
+- LRU 缓存系统（DNS/路径/inode/buffer）
 - LTO 链接时优化
 - Phase 1-4 全部完成，预计提升 40-60%
 
@@ -47,11 +48,16 @@ BrightS/
 ├── arch/x86_64/        # 64 位架构
 ├── arch/i386/          # 32 位架构
 ├── kernel/             # 内核核心
+│   ├── core/           # 核心子系统
+│   ├── fs/             # 文件系统
+│   ├── net/            # 网络协议栈
+│   └── ipc/            # 进程间通信
 ├── drivers/            # 硬件驱动
-├── user/               # 用户态程序
-└── docs/               # 文档
+├── include/kernel/     # 内核头文件
+├── sys/                # 用户态程序
+└── tools/              # 构建工具
 ```
 
 ---
 
-*最后更新：2026-05-31*
+*最后更新：2026-06-11*

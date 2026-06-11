@@ -20,7 +20,7 @@
 
 | コマンド | 説明 | 構文 |
 |---------|------|------|
-| `echo` | テキストを表示 | `echo <string>...` |
+| `echo` | テキストを表示（`$VAR`対応） | `echo <string>...` |
 | `grep` | ファイル内を検索 | `grep [options] <pattern> [file]...` |
 | `find` | ファイルを名前で検索 | `find <path> -name <pattern>` |
 
@@ -31,12 +31,16 @@
 | `pwd` | カレントディレクトリを表示 | `pwd` |
 | `ps` | プロセスを表示 | `ps` |
 | `jobs` | バックグラウンドジョブを表示 | `jobs` |
+| `uname` | システム情報 | `uname [-a]` |
+| `bst` | システム情報（brights） | `bst` |
+| `sysinfo` | 詳細システム情報 | `sysinfo` |
 
 ### ネットワーク / 网络
 
 | コマンド | 説明 | 構文 |
 |---------|------|------|
 | `ping` | ICMPエコー要求 | `ping <host>` |
+| `netget` | URL内容を取得（HTTP） | `netget <url>` |
 
 ### シェル組み込み / Shell内置
 
@@ -45,6 +49,8 @@
 | `cd` | ディレクトリを移動 | `cd [dir]` |
 | `help` | ヘルプを表示 | `help [command]` |
 | `exit` | シェルを終了 | `exit` |
+| `export` | 環境変数を設定 | `export <KEY>=<VALUE>` |
+| `env` | 環境変数を表示 | `env` |
 
 ### パッケージ管理 (BSPM) / 包管理
 

@@ -36,6 +36,9 @@ int kutil_strncmp(const char *a, const char *b, size_t n);  // 比较前 n 字�
 ```c
 int brights_dns_resolve(const char *hostname, uint32_t *ip_out);  // DNS 解析
 int brights_http_init(void);                                       // HTTP 客户端初始化
+int brights_http_get(const char *url, char *buf, size_t len);     // HTTP GET 请求
+int brights_udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, const void *data, size_t len);  // UDP 发送
+int brights_net_poll_all(void);                                    // 轮询所有 NIC 帧
 ```
 
 ## 错误码
@@ -65,4 +68,4 @@ typedef uint32_t brights_ip_addr_t;   // IPv4
 typedef uint16_t brights_port_t;      // 端口
 ```
 
-*API v1.0 | 最后更新 2026-04-09*
+*API v1.1 | 最后更新 2026-06-11*

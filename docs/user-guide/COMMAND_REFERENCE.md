@@ -20,7 +20,7 @@ Version: 0.1.2.6
 
 | Command | Description | Syntax |
 |---------|-------------|--------|
-| `echo` | Display text | `echo <string>...` |
+| `echo` | Display text (supports `$VAR`) | `echo <string>...` |
 | `grep` | Search patterns in files | `grep [options] <pattern> [file]...` |
 | `find` | Find files by name | `find <path> -name <pattern>` |
 
@@ -31,12 +31,16 @@ Version: 0.1.2.6
 | `pwd` | Print working directory | `pwd` |
 | `ps` | Show processes | `ps` |
 | `jobs` | Show background jobs | `jobs` |
+| `uname` | System information | `uname [-a]` |
+| `bst` | System info (brights) | `bst` |
+| `sysinfo` | Detailed system info | `sysinfo` |
 
 ### Network
 
 | Command | Description | Syntax |
 |---------|-------------|--------|
 | `ping` | ICMP echo request | `ping <host>` |
+| `netget` | Fetch URL content (HTTP) | `netget <url>` |
 
 ### Shell Built-ins
 
@@ -45,6 +49,8 @@ Version: 0.1.2.6
 | `cd` | Change directory | `cd [dir]` |
 | `help` | Show help | `help [command]` |
 | `exit` | Exit shell | `exit` |
+| `export` | Set environment variable | `export <KEY>=<VALUE>` |
+| `env` | Show environment variables | `env` |
 
 ### Package Management (BSPM)
 

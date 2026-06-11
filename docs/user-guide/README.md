@@ -9,7 +9,9 @@ Version: 0.1.2.6
 | Navigation | `pwd`, `ls`, `cd <dir>` | Directory operations |
 | Files | `cat`, `cp`, `mv`, `rm`, `mkdir` | File management |
 | Text | `echo`, `grep <pat> <file>` | Text processing |
-| System | `ps`, `jobs` | Process info |
+| System | `ps`, `jobs`, `uname`, `bst` | Process & system info |
+| Network | `ping`, `netget <url>` | ICMP & HTTP fetch |
+| Environment | `export KEY=VAL`, `env` | Environment variables |
 | Packages | `bspm install/search/update` | Package management |
 | Languages | `rust`, `python`, `cpp` | Run inline code |
 
@@ -22,6 +24,8 @@ Version: 0.1.2.6
 ## Features | 特性 | 機能
 
 - **Shell**: pipes `|`, redirection `>`, background `&`, Tab completion, arrow history
+- **Environment**: `export KEY=VALUE`, `env`, `$VAR` expansion in echo
+- **Network**: `netget <url>` fetches HTTP content directly from shell
 - **BSPM**: install/remove/update/upgrade/search with dependency resolution
 - **Multi-lang**: inline execution for Rust, Python, C++
 

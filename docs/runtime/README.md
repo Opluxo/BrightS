@@ -21,7 +21,13 @@ BrightS 提供完整的用户空间运行时，包括服务管理、守护进程
 
 ### 3. 系统服务
 - **syslogd** — UDP 514 接收日志，写入 `/var/log/system.log`，级别 ERROR/WARN/INFO/DEBUG
-- **dhcpd** — DHCP 客户端，自动获取 IP/掩码/网关/DNS
+- **dhcpd** — DHCP 客户端，自动获取 IP/掩码/网关/DNS（完整 DISCOVER→OFFER→REQUEST→ACK 握手）
+
+### 4. 网络服务
+- **DHCP 客户端** — 完整实现，通过 UDP 发送 DISCOVER，接收 OFFER，发送 REQUEST，接收 ACK
+- **DNS 解析器** — raw-byte 查询构建，名称压缩处理，A 记录解析
+- **HTTP 客户端** — DNS→TCP→GET/POST→recv，内核态 HTTP 请求
+- **netget 命令** — 直接从 Shell 获取 URL 内容
 
 ### 4. Init 系统
 PID 1 进程，按依赖顺序启动服务，持续监控服务状态。启动流程：Init 启动 → 服务系统初始化 → 文件系统创建 → 加载配置 → 启动服务 → 监控循环。

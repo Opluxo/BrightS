@@ -5,10 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BrightS — Modern x86 Kernel</title>
   <script>if(location.hostname==='github.com'||location.hostname==='www.github.com')location.href='https://opluxo.github.io/BrightS/'</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     html{scroll-behavior:smooth}
-    body{font-family:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',sans-serif;color:#1d1d1f;-webkit-font-smoothing:antialiased;background:#000}
+    body{font-family:'Inter',-apple-system,'PingFang SC','Noto Sans SC','Helvetica Neue',sans-serif;color:#1d1d1f;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background:#000;font-feature-settings:'cv01','cv02','cv03','cv04','cv09','cv11','ss01','ss02','ss03','ss04','ss05','ss06','ss07','ss08'}
 
     /* === NAV === */
     nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(0,0,0,0.65);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(255,255,255,0.08)}
@@ -22,7 +25,7 @@
     .hero{margin-top:48px;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem 1.5rem;position:relative;background:#000;overflow:hidden}
     .hero::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:900px;background:radial-gradient(circle,rgba(56,152,255,0.12) 0%,rgba(188,140,255,0.06) 40%,transparent 70%);pointer-events:none}
     .hero .badge{display:inline-block;font-size:0.7rem;font-weight:600;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.06);border-radius:100px;padding:0.25rem 0.75rem;margin-bottom:1.5rem;letter-spacing:0.5px}
-    .hero h1{font-size:5.5rem;font-weight:700;letter-spacing:-1.2px;line-height:1;margin-bottom:1rem;background:linear-gradient(135deg,#fff 0%,#c8d0e0 50%,#8eb0ff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .hero h1{font-size:5.5rem;font-weight:800;letter-spacing:-0.04em;line-height:1;margin-bottom:1rem;background:linear-gradient(135deg,#fff 0%,#c8d0e0 50%,#8eb0ff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
     .hero .tagline{font-size:1.4rem;font-weight:400;color:rgba(255,255,255,0.55);line-height:1.6;max-width:620px;margin-bottom:2.5rem}
     .hero .cta{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
     .hero .cta a{font-size:0.9rem;font-weight:500;text-decoration:none;padding:0.7rem 1.8rem;border-radius:50px;transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
@@ -48,7 +51,7 @@
     .section-dark .label{color:rgba(255,255,255,0.35)}
 
     /* headings */
-    .section h2{font-size:3rem;font-weight:700;letter-spacing:-0.5px;line-height:1.08;margin-bottom:1.25rem}
+    .section h2{font-size:3rem;font-weight:700;letter-spacing:-0.03em;line-height:1.08;margin-bottom:1.25rem}
     .section-dark h2{color:#fff}
     .section .desc{font-size:1.2rem;color:#6e6e73;line-height:1.7;margin-bottom:1.5rem}
     .section-dark .desc{color:rgba(255,255,255,0.55)}
@@ -56,8 +59,8 @@
     .section-dark .desc strong{color:#fff}
     .section .detail{font-size:0.9rem;color:#86868b;line-height:1.6}
     .section-dark .detail{color:rgba(255,255,255,0.35)}
-    .section .detail code{background:#e8e8ed;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.82rem}
-    .section-dark .detail code{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7)}
+    .section .detail code{background:#e8e8ed;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.82rem;font-family:'JetBrains Mono',monospace}
+    .section-dark .detail code{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace}
 
     /* visual blocks */
     .visual-block{border-radius:28px;padding:3rem;text-align:center}
@@ -67,7 +70,7 @@
     .visual-block .emoji-big{font-size:3rem;display:block;margin-bottom:1rem}
     .visual-block .chip-row{display:flex;gap:2.5rem;justify-content:center;flex-wrap:wrap}
     .visual-block .chip{text-align:center}
-    .visual-block .chip .value{font-size:1.8rem;font-weight:700;letter-spacing:-0.3px;color:#1d1d1f}
+    .visual-block .chip .value{font-size:1.8rem;font-weight:700;letter-spacing:-0.02em;color:#1d1d1f}
     .section-dark .visual-block .chip .value{color:#fff}
     .visual-block .chip .lbl{font-size:0.75rem;color:#6e6e73;margin-top:0.15rem}
     .section-dark .visual-block .chip .lbl{color:rgba(255,255,255,0.4)}
@@ -83,7 +86,7 @@
 
     /* === DOCS SECTION === */
     .docs-section{padding:6rem 1.5rem;text-align:center;background:#f5f5f7}
-    .docs-section h2{font-size:2.5rem;font-weight:700;letter-spacing:-0.4px;margin-bottom:0.5rem}
+    .docs-section h2{font-size:2.5rem;font-weight:700;letter-spacing:-0.03em;margin-bottom:0.5rem}
     .docs-section .sub{font-size:1.1rem;color:#6e6e73;margin-bottom:3rem}
     .docs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;max-width:1060px;margin:0 auto}
     .docs-card{background:#fff;border-radius:16px;padding:1.5rem;text-decoration:none;color:inherit;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);text-align:left;border:1px solid rgba(0,0,0,0.04)}

@@ -86,7 +86,20 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/kernel/net/http/http.c
   )
 
+  set(RUST_KERNEL_SRC ${CMAKE_SOURCE_DIR}/kernel/rust)
+  set(RUST_KERNEL_LIB ${RUST_KERNEL_SRC}/target/x86_64-unknown-none/release/librust_kernel.a)
+
   set(RUST_LINK "")
+  find_program(CARGO_BIN cargo)
+  if(CARGO_BIN)
+    add_custom_command(
+      OUTPUT ${RUST_KERNEL_LIB}
+      COMMAND cargo build --release
+      WORKING_DIRECTORY ${RUST_KERNEL_SRC}
+      COMMENT "Building Rust kernel module"
+    )
+    set(RUST_LINK ${RUST_KERNEL_LIB})
+  endif()
 
   add_custom_command(
     OUTPUT ${KERNEL_EFI}

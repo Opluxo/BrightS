@@ -48,7 +48,7 @@ int brights_http_get(const char *host, const char *path,
   }
 
   /* Wait for ESTABLISHED */
-  if (http_wait_state(sock, 2, HTTP_CONNECT_TIMEOUT) < 0) {
+  if (http_wait_state(sock, TCP_STATE_ESTABLISHED, HTTP_CONNECT_TIMEOUT) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "http: connection timeout\n");
     brights_close(sock);
     return -1;
@@ -118,7 +118,7 @@ int brights_http_post(const char *host, const char *path,
     return -1;
   }
 
-  if (http_wait_state(sock, 2, HTTP_CONNECT_TIMEOUT) < 0) {
+  if (http_wait_state(sock, TCP_STATE_ESTABLISHED, HTTP_CONNECT_TIMEOUT) < 0) {
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "http: connection timeout\n");
     brights_close(sock);
     return -1;

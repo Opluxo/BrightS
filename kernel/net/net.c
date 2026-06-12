@@ -14,6 +14,12 @@
 #define BRIGHTS_NET_MAX_SOCKETS 32
 #define BRIGHTS_NET_BUF_SIZE 1518
 #define BRIGHTS_ARP_CACHE_SIZE 64
+#define EPHEMERAL_PORT_START 49152
+#define EPHEMERAL_PORT_END   65535
+#define MAX_UDP_PAYLOAD      1472
+#define TCP_INITIAL_SEQ      1000
+#define TCP_INITIAL_RTO_MS   1000
+#define TCP_MAX_RETRANS      5
 
 /* Ethernet types */
 #define ETH_TYPE_IP   0x0800
@@ -187,9 +193,9 @@ static uint16_t ip_checksum(const void *data, uint32_t len)
 
 static uint16_t alloc_port(void)
 {
-  static uint32_t next_port = 49152;
+  static uint32_t next_port = EPHEMERAL_PORT_START;
   uint16_t p = next_port++;
-  if (next_port > 65535) next_port = 49152;
+  if (next_port > EPHEMERAL_PORT_END) next_port = EPHEMERAL_PORT_START;
   return p;
 }
 
@@ -340,12 +346,12 @@ int brights_ip_send(uint32_t dst_ip, uint8_t protocol, const void *data, uint32_
 
   /* Build IP header */
   ip_hdr_t *ip = (ip_hdr_t *)(frame + sizeof(eth_hdr_t));
-  ip->ver_ihl = 0x45; /* IPv4, 5 words */
+  ip->ver_ihl = IP_VERSION_IHL;
   ip->tos = 0;
   ip->total_len = htons((uint16_t)total_len);
   ip->ident = 0;
   ip->flags_frag = 0;
-  ip->ttl = 64;
+  ip->ttl = IP_DEFAULT_TTL;
   ip->protocol = protocol;
   ip->checksum = 0;
   ip->src_ip = iface->ip_addr;
@@ -359,7 +365,7 @@ int brights_ip_send(uint32_t dst_ip, uint8_t protocol, const void *data, uint32_
 
   /* Find destination MAC */
   uint8_t dst_mac[6];
-  if (dst_ip == 0xFFFFFFFF) {
+  if (dst_ip == 0xFFFFFFFFu) {
     kutil_memset(dst_mac, 0xFF, 6);
   } else if (brights_arp_resolve(dst_ip, dst_mac) < 0) {
     brights_arp_request(dst_ip);
@@ -485,7 +491,7 @@ static uint16_t udp_checksum(uint32_t src_ip, uint32_t dst_ip, const void *data,
 int brights_udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, const void *data, uint32_t len)
 {
   /* Bounds check to prevent stack overflow */
-  if (len > 1472) len = 1472;  /* Max UDP payload: MTU(1500) - IP(20) - UDP(8) */
+  if (len > MAX_UDP_PAYLOAD) len = MAX_UDP_PAYLOAD;
   
   /* Get source IP from first active interface */
   uint32_t src_ip = 0;
@@ -495,7 +501,7 @@ int brights_udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, cons
   
   udp_hdr_t udp;
   uint32_t total = sizeof(udp_hdr_t) + len;
-  uint8_t buf[sizeof(udp_hdr_t) + 1472];  /* Fixed max size */
+  uint8_t buf[sizeof(udp_hdr_t) + MAX_UDP_PAYLOAD];  /* Fixed max size */
   udp.src_port = htons(src_port);
   udp.dst_port = htons(dst_port);
   udp.length = htons((uint16_t)total);
@@ -561,11 +567,11 @@ int brights_tcp_connect(uint32_t dst_ip, uint16_t dst_port)
   sock->remote_port = dst_port;
   sock->local_port = alloc_port();
   sock->tcp_state = TCP_STATE_SYN_SENT;
-  sock->tcp_seq = 1000; /* Initial sequence number */
+  sock->tcp_seq = TCP_INITIAL_SEQ;
   sock->tcp_ack = 0;
   sock->recv_len = 0;
   sock->last_send_tick = 0;
-  sock->rto_ms = 1000;  /* 1 second initial RTO */
+  sock->rto_ms = TCP_INITIAL_RTO_MS;
   sock->retransmit_count = 0;
 
   if (netif_count > 0) {
@@ -578,9 +584,9 @@ int brights_tcp_connect(uint32_t dst_ip, uint16_t dst_port)
   tcp.src_port = htons(sock->local_port);
   tcp.dst_port = htons(dst_port);
   tcp.seq = htonl(sock->tcp_seq);
-  tcp.data_off = 0x50; /* 5 words, no options */
+  tcp.data_off = TCP_DATA_OFFSET_5WORDS;
   tcp.flags = TCP_SYN;
-  tcp.window = 0xFFFF;
+  tcp.window = TCP_MAX_WINDOW;
 
   brights_ip_send(dst_ip, IP_PROTO_TCP, &tcp, sizeof(tcp));
   return sockfd;
@@ -615,9 +621,9 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
       reply.dst_port = tcp->src_port;
       reply.seq = htonl(sock->tcp_seq);
       reply.ack = htonl(sock->tcp_ack);
-      reply.data_off = 0x50;
+      reply.data_off = TCP_DATA_OFFSET_5WORDS;
       reply.flags = TCP_SYN | TCP_ACK;
-      reply.window = 0xFFFF;
+      reply.window = TCP_MAX_WINDOW;
 
       brights_ip_send(src_ip, IP_PROTO_TCP, &reply, sizeof(reply));
     } else if (tcp->flags & TCP_ACK) {
@@ -639,9 +645,9 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
       reply.dst_port = tcp->src_port;
       reply.seq = htonl(sock->tcp_seq);
       reply.ack = htonl(sock->tcp_ack);
-      reply.data_off = 0x50;
-      reply.flags = TCP_ACK;
-      reply.window = 0xFFFF;
+        reply.data_off = TCP_DATA_OFFSET_5WORDS;
+        reply.flags = TCP_ACK;
+        reply.window = TCP_MAX_WINDOW;
 
       brights_ip_send(src_ip, IP_PROTO_TCP, &reply, sizeof(reply));
     } else if (tcp->flags & TCP_PSH || (tcp->flags & TCP_ACK && len > sizeof(tcp_hdr_t))) {
@@ -663,9 +669,9 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
           reply.dst_port = tcp->src_port;
           reply.seq = htonl(sock->tcp_seq);
           reply.ack = htonl(sock->tcp_ack);
-          reply.data_off = 0x50;
+          reply.data_off = TCP_DATA_OFFSET_5WORDS;
           reply.flags = TCP_ACK;
-          reply.window = 0xFFFF;
+          reply.window = TCP_MAX_WINDOW;
 
           brights_ip_send(src_ip, IP_PROTO_TCP, &reply, sizeof(reply));
         }
@@ -760,7 +766,7 @@ int brights_send(int sockfd, const void *buf, uint32_t len)
     return brights_udp_send(sock->remote_ip, sock->local_port,
                             sock->remote_port, buf, len);
   } else if (sock->type == 1) { /* SOCK_STREAM */
-    if (sock->tcp_state != 2) return -1;
+    if (sock->tcp_state != TCP_STATE_ESTABLISHED) return -1;
 
     /* Build TCP segment: header + payload */
     uint8_t tcp_seg[sizeof(tcp_hdr_t) + BRIGHTS_NET_BUF_SIZE];
@@ -770,9 +776,9 @@ int brights_send(int sockfd, const void *buf, uint32_t len)
     tcp->dst_port = htons(sock->remote_port);
     tcp->seq = htonl(sock->tcp_seq);
     tcp->ack = htonl(sock->tcp_ack);
-    tcp->data_off = 0x50;
+    tcp->data_off = TCP_DATA_OFFSET_5WORDS;
     tcp->flags = TCP_ACK | TCP_PSH;
-    tcp->window = 0xFFFF;
+    tcp->window = TCP_MAX_WINDOW;
 
     uint32_t seg_len = sizeof(tcp_hdr_t) + (len > BRIGHTS_NET_BUF_SIZE ? BRIGHTS_NET_BUF_SIZE : len);
     kutil_memcpy(tcp_seg + sizeof(tcp_hdr_t), buf, seg_len - sizeof(tcp_hdr_t));
@@ -782,7 +788,7 @@ int brights_send(int sockfd, const void *buf, uint32_t len)
       sock->tcp_seq += len;
       sock->last_send_tick = brights_sched_ticks();
       sock->retransmit_count = 0;
-      sock->rto_ms = 1000;  /* Reset RTO on successful send */
+      sock->rto_ms = TCP_INITIAL_RTO_MS;
     }
     return ret == 0 ? (int)len : -1;
   }
@@ -822,9 +828,9 @@ int brights_close(int sockfd)
     tcp.dst_port = htons(sock->remote_port);
     tcp.seq = htonl(sock->tcp_seq);
     tcp.ack = htonl(sock->tcp_ack);
-    tcp.data_off = 0x50;
+    tcp.data_off = TCP_DATA_OFFSET_5WORDS;
     tcp.flags = TCP_FIN | TCP_ACK;
-    tcp.window = 0xFFFF;
+    tcp.window = TCP_MAX_WINDOW;
 
     brights_ip_send(sock->remote_ip, IP_PROTO_TCP, &tcp, sizeof(tcp));
   }
@@ -847,7 +853,7 @@ static void tcp_check_timeouts(void)
     if (sock->last_send_tick > 0 && 
         (now - sock->last_send_tick) * 10 > sock->rto_ms) {
       
-      if (sock->retransmit_count < 5) {  /* Max 5 retransmits */
+      if (sock->retransmit_count < TCP_MAX_RETRANS) {
         /* Retransmit the last segment */
         tcp_hdr_t tcp;
         kutil_memset(&tcp, 0, sizeof(tcp));
@@ -855,9 +861,9 @@ static void tcp_check_timeouts(void)
         tcp.dst_port = htons(sock->remote_port);
         tcp.seq = htonl(sock->tcp_seq);
         tcp.ack = htonl(sock->tcp_ack);
-        tcp.data_off = 0x50;
+        tcp.data_off = TCP_DATA_OFFSET_5WORDS;
         tcp.flags = TCP_ACK | TCP_PSH;
-        tcp.window = 0xFFFF;
+        tcp.window = TCP_MAX_WINDOW;
         
         brights_ip_send(sock->remote_ip, IP_PROTO_TCP, &tcp, sizeof(tcp));
         
@@ -866,9 +872,9 @@ static void tcp_check_timeouts(void)
         sock->last_send_tick = now;
       } else {
         /* Too many retransmits - connection lost */
-        sock->tcp_state = TCP_STATE_CLOSED;  /* Back to closed */
+        sock->tcp_state = TCP_STATE_CLOSED;
         sock->retransmit_count = 0;
-        sock->rto_ms = 1000;
+        sock->rto_ms = TCP_INITIAL_RTO_MS;
       }
     }
   }

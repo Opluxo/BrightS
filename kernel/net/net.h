@@ -22,6 +22,31 @@ static inline uint32_t ntohl(uint32_t v) { return htonl(v); }
 #define BRIGHTS_NET_MAX_DRIVERS 4
 #define BRIGHTS_NET_BUF_SIZE 1518
 
+/* Socket option levels */
+#define SOL_SOCKET  1
+#define IPPROTO_IP  2
+
+/* SOL_SOCKET option names */
+#define SO_REUSEADDR 1
+#define SO_KEEPALIVE 4
+#define SO_LINGER    8
+#define SO_BROADCAST 13
+#define SO_SNDBUF    32
+#define SO_RCVBUF    33
+
+/* IPPROTO_IP option names */
+#define IP_TOS      1
+#define IP_TTL      2
+#define IP_HDRINCL  3
+
+/* IP header constants */
+#define IP_VERSION_IHL  0x45
+#define IP_DEFAULT_TTL  64
+
+/* TCP header constants */
+#define TCP_DATA_OFFSET_5WORDS 0x50
+#define TCP_MAX_WINDOW         0xFFFF
+
 /* TCP states */
 #define TCP_STATE_CLOSED      0
 #define TCP_STATE_LISTEN      1

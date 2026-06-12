@@ -43,7 +43,17 @@ static int64_t sys_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, ui
 static int64_t sys_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5) \
 { body }
 
-// Helper for string comparison
+/* Hardware port constants */
+#define KBD_CTRL_PORT    0x64u
+#define KBD_RESET_CMD    0xFEu
+#define KBD_STATUS_BIT   0x02u
+#define ACPI_PM1a_CNT_PORT 0x604u
+#define ACPI_SLEEP_TYPE   0x2000u
+#define APM_PORT          0xB2u
+#define APM_SHUTDOWN_CMD  0x01u
+
+/* utsname field length */
+#define UTS_FIELD_LEN 65
 static int str_compare(const char *a, const char *b)
 {
   while (*a && *b && *a == *b) { ++a; ++b; }
@@ -376,7 +386,7 @@ static int64_t sys_kill(uint64_t pid, uint64_t signo, uint64_t a2, uint64_t a3, 
   if (!table) return -1;
   
   uint32_t idx = brights_proc_index((uint32_t)pid);
-  if (idx >= 64) return -1;
+  if (idx >= BRIGHTS_PROC_MAX) return -1;
   
   if (table[idx].state == BRIGHTS_PROC_UNUSED) return -1;
   
@@ -430,7 +440,7 @@ static int64_t sys_pipe(uint64_t fildes, uint64_t a1, uint64_t a2, uint64_t a3, 
   }
 
   int read_fd = -1, write_fd = -1;
-  for (int i = 3; i < BRIGHTS_PROC_MAX_FDS; i += 2) {
+  for (int i = 3; i + 1 < BRIGHTS_PROC_MAX_FDS; i += 2) {
     if (!ft[i] && !ft[i + 1]) {
       read_fd = i;
       write_fd = i + 1;
@@ -476,6 +486,7 @@ static int64_t sys_dup2(uint64_t fd1, uint64_t fd2, uint64_t a2, uint64_t a3, ui
   if (!ft) return -1;
   vfs_file_t *f = brights_vfs2_fd_get(ft, (int)fd1);
   if (!f) return -1;
+  if ((int)fd2 < 0 || (int)fd2 >= BRIGHTS_PROC_MAX_FDS) return -1;
   /* Close fd2 if open */
   if (ft[(int)fd2]) {
     brights_vfs2_close(ft[(int)fd2]);
@@ -536,6 +547,9 @@ static int64_t sys_readdir(uint64_t fd, uint64_t buf, uint64_t count, uint64_t a
   if (!ft) return -1;
   vfs_file_t *f = brights_vfs2_fd_get(ft, (int)fd);
   if (!f) return -1;
+  if (f->fops && f->fops->readdir) {
+    return f->fops->readdir(f, (char *)(uintptr_t)buf, count);
+  }
   return brights_vfs2_readdir("/", (char *)(uintptr_t)buf, count);
 }
 
@@ -564,11 +578,11 @@ static int64_t sys_reboot(uint64_t cmd, uint64_t a1, uint64_t a2, uint64_t a3, u
 {
   (void)cmd; (void)a1; (void)a2; (void)a3; (void)a4; (void)a5;
   
-  /* Try keyboard controller reset first (port 0x64) */
-  uint8_t good = 0x02;
-  while (good & 0x02)
-    good = *(uint8_t *)(uintptr_t)0x64;
-  *(uint8_t *)(uintptr_t)0x64 = 0xFE;
+  /* Try keyboard controller reset first */
+  uint8_t good = KBD_STATUS_BIT;
+  while (good & KBD_STATUS_BIT)
+    good = *(uint8_t *)(uintptr_t)KBD_CTRL_PORT;
+  *(uint8_t *)(uintptr_t)KBD_CTRL_PORT = KBD_RESET_CMD;
   
   /* Fallback: triple fault */
 #ifdef __x86_64__
@@ -587,12 +601,10 @@ static int64_t sys_shutdown(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, 
   (void)a0; (void)a1; (void)a2; (void)a3; (void)a4; (void)a5;
   
   /* ACPI shutdown: write to PM1a_CNT register */
-  /* Standard ACPI PM1a_CNT is at 0x404 (from FADT) or 0x600+0x04 */
-  /* For QEMU/Bochs: write 0x2000 to 0x604 */
-  *(uint16_t *)(uintptr_t)0x604 = 0x2000;
+  *(uint16_t *)(uintptr_t)ACPI_PM1a_CNT_PORT = ACPI_SLEEP_TYPE;
   
-  /* Fallback: APM shutdown via port 0xB2 */
-  *(uint8_t *)(uintptr_t)0xB2 = 0x0001;
+  /* Fallback: APM shutdown */
+  *(uint8_t *)(uintptr_t)APM_PORT = APM_SHUTDOWN_CMD;
   
   /* Final fallback: halt */
   __asm__ __volatile__("cli; hlt");
@@ -626,11 +638,11 @@ static int64_t sys_uname(uint64_t buf, uint64_t a1, uint64_t a2, uint64_t a3, ui
 {
   (void)a1; (void)a2; (void)a3; (void)a4; (void)a5;
   struct {
-    char sysname[65];
-    char nodename[65];
-    char release[65];
-    char version[65];
-    char machine[65];
+    char sysname[UTS_FIELD_LEN];
+    char nodename[UTS_FIELD_LEN];
+    char release[UTS_FIELD_LEN];
+    char version[UTS_FIELD_LEN];
+    char machine[UTS_FIELD_LEN];
   } *uts = (void *)(uintptr_t)buf;
   
   if (!uts) {
@@ -640,19 +652,19 @@ static int64_t sys_uname(uint64_t buf, uint64_t a1, uint64_t a2, uint64_t a3, ui
   // Copy strings
   const char *sysname = "BrightS";
   const char *nodename = "brights";
-  const char *release = "0.1.2.6";
-  const char *version = "BrightS v0.1.2.6";
+  const char *release = "0.1.2.8";
+  const char *version = "BrightS v0.1.2.8";
 #ifdef __i386__
   const char *machine = "i386";
 #else
   const char *machine = "x86_64";
 #endif
   
-  for (int i = 0; i < 64 && sysname[i]; ++i) uts->sysname[i] = sysname[i];
-  for (int i = 0; i < 64 && nodename[i]; ++i) uts->nodename[i] = nodename[i];
-  for (int i = 0; i < 64 && release[i]; ++i) uts->release[i] = release[i];
-  for (int i = 0; i < 64 && version[i]; ++i) uts->version[i] = version[i];
-  for (int i = 0; i < 64 && machine[i]; ++i) uts->machine[i] = machine[i];
+  for (int i = 0; i < UTS_FIELD_LEN - 1 && sysname[i]; ++i) uts->sysname[i] = sysname[i];
+  for (int i = 0; i < UTS_FIELD_LEN - 1 && nodename[i]; ++i) uts->nodename[i] = nodename[i];
+  for (int i = 0; i < UTS_FIELD_LEN - 1 && release[i]; ++i) uts->release[i] = release[i];
+  for (int i = 0; i < UTS_FIELD_LEN - 1 && version[i]; ++i) uts->version[i] = version[i];
+  for (int i = 0; i < UTS_FIELD_LEN - 1 && machine[i]; ++i) uts->machine[i] = machine[i];
   
   return 0;
 }
@@ -666,9 +678,11 @@ static int64_t sys_hostname(uint64_t name, uint64_t len, uint64_t a2, uint64_t a
     return -1;
   }
   const char *hostname = "brights";
-  for (uint64_t i = 0; i < len && hostname[i]; ++i) {
+  uint64_t i = 0;
+  for (; i < len - 1 && hostname[i]; ++i) {
     dst[i] = hostname[i];
   }
+  dst[i] = 0;
   return 0;
 }
 
@@ -723,7 +737,7 @@ static int64_t sys_env_set(uint64_t name, uint64_t value, uint64_t a2, uint64_t 
   if (!table) return -1;
   
   uint32_t idx = brights_proc_index(brights_proc_current());
-  if (idx >= 64) return -1;
+  if (idx >= BRIGHTS_PROC_MAX) return -1;
   
   brights_proc_info_t *proc = &table[idx];
   
@@ -842,6 +856,7 @@ static int64_t sys_socket(uint64_t domain, uint64_t type, uint64_t protocol, uin
 static int64_t sys_bind(uint64_t sockfd, uint64_t addr_ptr, uint64_t port, uint64_t a3, uint64_t a4, uint64_t a5)
 {
   (void)a3; (void)a4; (void)a5;
+  if (!addr_ptr) return -1;
   return brights_bind((int)sockfd, *(uint32_t *)(uintptr_t)addr_ptr, (uint16_t)port);
 }
 
@@ -902,34 +917,32 @@ static int64_t sys_setsockopt(uint64_t sockfd, uint64_t level, uint64_t optname,
   if (sockfd >= BRIGHTS_NET_MAX_SOCKETS) return -1;
   if (!sockets[sockfd].in_use) return -1;
   
-  // SOL_SOCKET level options
-  if (level == 1) { // SOL_SOCKET
+  if (level == SOL_SOCKET) {
     switch (optname) {
-      case 1: // SO_REUSEADDR
-      case 4: // SO_KEEPALIVE
-      case 8: // SO_LINGER
-      case 13: // SO_BROADCAST
-      case 32: // SO_SNDBUF
-      case 33: // SO_RCVBUF
-        return 0; // Acknowledged
-      default:
-        return -1;
-    }
-  }
-  
-  // IP level options (level=2 for IP)
-  if (level == 2) {
-    switch (optname) {
-      case 1: // IP_TOS
-      case 2: // IP_TTL
-      case 3: // IP_HDRINCL
+      case SO_REUSEADDR:
+      case SO_KEEPALIVE:
+      case SO_LINGER:
+      case SO_BROADCAST:
+      case SO_SNDBUF:
+      case SO_RCVBUF:
         return 0;
       default:
         return -1;
     }
   }
   
-  return 0;
+  if (level == IPPROTO_IP) {
+    switch (optname) {
+      case IP_TOS:
+      case IP_TTL:
+      case IP_HDRINCL:
+        return 0;
+      default:
+        return -1;
+    }
+  }
+  
+  return -1;
 }
 
 // sys_ifconfig(cmd) - 0=init, 1=print
@@ -965,6 +978,7 @@ static int64_t sys_ip_parse(uint64_t str, uint64_t a1, uint64_t a2, uint64_t a3,
 static int64_t sys_ip_to_str(uint64_t ip, uint64_t buf, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
 {
   (void)a2; (void)a3; (void)a4; (void)a5;
+  if (!buf) return -1;
   brights_ip_to_str((uint32_t)ip, (char *)(uintptr_t)buf);
   return 0;
 }
@@ -1110,6 +1124,7 @@ SYSCALL3(readv,
   if (!f) return -1;
   struct iovec { void *base; uint64_t len; } *iov = (struct iovec *)(uintptr_t)a1;
   int iovcnt = (int)a2;
+  if (iovcnt < 0 || iovcnt > 16) return -1;
   int64_t total = 0;
   for (int i = 0; i < iovcnt; ++i) {
     int64_t n = brights_vfs2_read(f, iov[i].base, iov[i].len);
@@ -1128,6 +1143,7 @@ SYSCALL3(writev,
   if (!f) return -1;
   struct iovec { const void *base; uint64_t len; } *iov = (struct iovec *)(uintptr_t)a1;
   int iovcnt = (int)a2;
+  if (iovcnt < 0 || iovcnt > 16) return -1;
   int64_t total = 0;
   for (int i = 0; i < iovcnt; ++i) {
     int64_t n = brights_vfs2_write(f, iov[i].base, iov[i].len);
@@ -1168,7 +1184,7 @@ static int64_t sys_getsockname_impl(uint64_t sockfd, uint64_t addr_ptr, uint64_t
   extern int brights_netif_count(void);
   extern brights_netif_t netifs[];
   
-  if (sockfd >= 32) return -1;
+  if (sockfd >= BRIGHTS_NET_MAX_SOCKETS) return -1;
   if (!sockets[sockfd].in_use) return -1;
   
   uint32_t *addr = (uint32_t *)(uintptr_t)addr_ptr;
@@ -1195,7 +1211,7 @@ static int64_t sys_getpeername_impl(uint64_t sockfd, uint64_t addr_ptr, uint64_t
   (void)a3; (void)a4; (void)a5;
   extern brights_socket_t sockets[];
   
-  if (sockfd >= 32) return -1;
+  if (sockfd >= BRIGHTS_NET_MAX_SOCKETS) return -1;
   if (!sockets[sockfd].in_use) return -1;
   
   uint32_t *addr = (uint32_t *)(uintptr_t)addr_ptr;
@@ -1212,17 +1228,73 @@ static int64_t sys_getpeername_impl(uint64_t sockfd, uint64_t addr_ptr, uint64_t
 }
 
 // sys_getsockopt(sockfd, level, optname, optval, optlen) - get socket options
-SYSCALL5(getsockopt,
+static int64_t sys_getsockopt(uint64_t sockfd, uint64_t level, uint64_t optname, uint64_t optval, uint64_t optlen, uint64_t a5)
 {
-  return 0;
-})
-
-// sys_link(oldpath, newpath) - create a hard link
-SYSCALL2(link,
-{
-  (void)a0; (void)a1;
+  (void)optval; (void)optlen; (void)a5;
+  if (sockfd >= BRIGHTS_NET_MAX_SOCKETS) return -1;
+  if (!sockets[sockfd].in_use) return -1;
+  
+  if (level == SOL_SOCKET) {
+    switch (optname) {
+      case SO_REUSEADDR:
+      case SO_KEEPALIVE:
+      case SO_LINGER:
+      case SO_BROADCAST:
+      case SO_SNDBUF:
+      case SO_RCVBUF:
+        return 0;
+      default:
+        return -1;
+    }
+  }
+  
+  if (level == IPPROTO_IP) {
+    switch (optname) {
+      case IP_TOS:
+      case IP_TTL:
+      case IP_HDRINCL:
+        return 0;
+      default:
+        return -1;
+    }
+  }
+  
   return -1;
-})
+}
+
+// sys_link(oldpath, newpath) - create a link (copy content for ramfs)
+static int64_t sys_link(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
+{
+  (void)a2; (void)a3; (void)a4; (void)a5;
+  const char *oldp = (const char *)(uintptr_t)a0;
+  const char *newp = (const char *)(uintptr_t)a1;
+  if (!oldp || !newp) return -1;
+  char old_res[256];
+  char new_res[256];
+  if (brights_proc_resolve_path(oldp, old_res, sizeof(old_res)) != 0) return -1;
+  if (brights_proc_resolve_path(newp, new_res, sizeof(new_res)) != 0) return -1;
+  uint64_t size = 0;
+  uint32_t mode = 0;
+  if (brights_vfs2_stat(old_res, &size, &mode) != 0) return -1;
+  vfs_file_t *oldf = 0;
+  if (brights_vfs2_open(old_res, VFS_O_RDONLY, &oldf) != 0) return -1;
+  if (brights_vfs2_create(new_res) != 0) { brights_vfs2_close(oldf); return -1; }
+  vfs_file_t *newf = 0;
+  if (brights_vfs2_open(new_res, VFS_O_WRONLY, &newf) != 0) { brights_vfs2_close(oldf); return -1; }
+  uint8_t rbuf[512];
+  uint64_t remain = size;
+  while (remain > 0) {
+    uint64_t chunk = remain > sizeof(rbuf) ? sizeof(rbuf) : remain;
+    int64_t n = brights_vfs2_read(oldf, rbuf, chunk);
+    if (n <= 0) break;
+    int64_t w = brights_vfs2_write(newf, rbuf, (uint64_t)n);
+    if (w <= 0) break;
+    remain -= (uint64_t)w;
+  }
+  brights_vfs2_close(oldf);
+  brights_vfs2_close(newf);
+  return 0;
+}
 
 // System call table
 // Numbers follow Linux convention where possible

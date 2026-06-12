@@ -1,6 +1,6 @@
 # 性能指标 | Performance Metrics
 
-> v0.1.2.6 · 目标硬件: Intel i5 1135G7 · 8GB RAM
+> v0.1.2.7 · 目标硬件: Intel i5 1135G7 · 8GB RAM
 
 ## 关键指标 | Key Metrics
 
@@ -20,12 +20,18 @@
 | 项目 | 特性 | 复杂度 |
 |------|------|--------|
 | 内存分配 | Slab分配器，固定大小块 | O(1) 最坏情况 |
-| 调度器 | Round-robin，10-tick量子 | O(1) |
+| 多页分配 | 提示缓存，跳过已扫描区域 | O(n) 最坏，O(1) 平均 |
+| 调度器 | Round-robin，优先级动态调整 | O(1) |
+| PID分配 | 位图 + BSF | O(1) |
+| slab释放 | 页→类哈希表查找 | O(1) |
 | RAMFS | 零拷贝优化 | O(1) |
 | 路径解析 | VFS路径缓存（16条目） | O(n) |
 | 字符串操作 | 内联实现，边界检查 | O(n) |
 | DNS解析 | LRU缓存 | O(1) 缓存命中 |
+| ARP缓存 | TTL过期（30秒） | O(1) |
 | 数据包处理 | VirtIO-Net，批量处理 | O(1) |
+| TCP重传 | 指数退避，最多5次重试 | O(1) |
+| 时钟精度 | RDTSCP序列化，纳秒级 | O(1) |
 
 ## SIMD 优化 | SIMD Optimizations
 

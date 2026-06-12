@@ -1,5 +1,29 @@
 # 更新日志 | Changelog
 
+## [v0.1.2.7] — 2026-06-12
+
+### 性能优化 | Performance Optimizations
+- pmem: 多页分配提示缓存，跳过已扫描区域
+- kmalloc: O(1) slab 释放（页→类哈希表）
+- proc: O(1) PID 分配（位图 + BSF）
+- clock: RDTSCP 序列化，纳秒精度提升
+
+### 网络改进 | Network Improvements
+- net.h: htons/ntohs/htonl/ntohl 字节序辅助函数
+- ARP 缓存: TTL 过期（30 秒），防止陈旧条目
+- ICMP: 正常 ident/seq 追踪，ping 显示 min/avg/max 统计
+- TCP: 重传超时，指数退避（最多 5 次重试）
+
+### Shell 命令 | Shell Commands
+- 新增 19 个命令: top, df, which, type, tree, killall, nice, renice, bg, fg, wait, disown, umask, ulimit, realpath, seq, yes, ps
+- ping: 使用 sleep 代替 spin-wait，显示统计信息
+
+### 代码质量 | Code Quality
+- 消除 ~100 行重复字节交换代码
+- 修复调度器老化优先级检查
+
+---
+
 ## [v0.1.2.6] — 2026-06-11
 
 ### 网络协议栈 | Network Stack (Real Implementation)

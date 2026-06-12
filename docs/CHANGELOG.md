@@ -1,5 +1,35 @@
 # 更新日志 | Changelog
 
+## [v0.1.2.8] — 2026-06-12
+
+### 安全修复 | Security Fixes
+- sys_kill: 信号现在发送到目标进程，而非当前进程
+- UDP VLA: 替换为固定大小缓冲区 + 边界检查
+- sys_reboot: 正确的键盘控制器复位（端口 0x64）
+- sys_shutdown: ACPI 关机（PM1a_CNT 寄存器）
+
+### 系统调用 | Syscalls
+- sys_env_set: 进程级环境变量存储（32 个变量）
+- sys_getsockname/sys_getpeername: 返回真实套接字地址
+- sys_system_load: 使用定点数代替 double（符合 AGENTS.md）
+- sys_get_system_info: 查询真实 CPU/内存信息
+- sys_process_list: 遍历实际进程表
+
+### 网络改进 | Network
+- TCP 状态常量: 所有魔数替换为命名常量
+- UDP 校验和: 伪头部 + 数据校验和计算
+- ARP 缓存: 增加到 64 条目，LRU 淘汰
+
+### Shell 命令 | Shell
+- nice: 设置当前进程调度优先级
+- renice: 按 PID 更改任何进程优先级
+
+### 代码质量 | Code Quality
+- 移除 kernel_main.c 中的调试打印
+- File_Struct_Define: 完整的文件系统结构文档
+
+---
+
 ## [v0.1.2.7] — 2026-06-12
 
 ### 性能优化 | Performance Optimizations

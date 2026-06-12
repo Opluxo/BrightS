@@ -184,6 +184,41 @@ static inline int kutil_itoa(int64_t val, char *buf)
     return kutil_utoa((uint64_t)val, buf, 10);
 }
 
+/* ===== Format printing (minimal sprintf) ===== */
+
+static inline int kutil_sprintf(char *buf, const char *fmt, ...)
+{
+    __builtin_va_list ap;
+    __builtin_va_start(ap, fmt);
+    int pos = 0;
+    const char *f = fmt;
+    while (*f) {
+        if (*f != '%') { buf[pos++] = *f++; continue; }
+        f++;
+        if (*f == 'd' || *f == 'i') {
+            int64_t v = __builtin_va_arg(ap, int64_t);
+            pos += kutil_itoa(v, buf + pos);
+        } else if (*f == 'u') {
+            uint64_t v = __builtin_va_arg(ap, uint64_t);
+            pos += kutil_utoa(v, buf + pos, 10);
+        } else if (*f == 'x') {
+            uint64_t v = __builtin_va_arg(ap, uint64_t);
+            pos += kutil_utoa(v, buf + pos, 16);
+        } else if (*f == 's') {
+            const char *s = __builtin_va_arg(ap, const char *);
+            if (s) { while (*s) buf[pos++] = *s++; }
+        } else if (*f == 'c') {
+            buf[pos++] = (char)__builtin_va_arg(ap, int);
+        } else if (*f == '%') {
+            buf[pos++] = '%';
+        }
+        f++;
+    }
+    buf[pos] = 0;
+    __builtin_va_end(ap);
+    return pos;
+}
+
 /* ===== Network byte order ===== */
 
 static inline uint16_t kutil_htons(uint16_t val)

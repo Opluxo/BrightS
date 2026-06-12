@@ -32,7 +32,6 @@ static int has_tsc(void)
   return (edx >> 4) & 1; // TSC bit
 }
 
-// Check if invariant TSC is available (constant rate)
 void brights_clock_init(void)
 {
   clock_ticks = 0;

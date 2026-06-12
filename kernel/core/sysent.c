@@ -571,7 +571,11 @@ static int64_t sys_reboot(uint64_t cmd, uint64_t a1, uint64_t a2, uint64_t a3, u
   *(uint8_t *)(uintptr_t)0x64 = 0xFE;
   
   /* Fallback: triple fault */
+#ifdef __x86_64__
   __asm__ __volatile__("lidt (%%rax)" : : "a"((uintptr_t)&(struct {uint16_t limit; uint64_t base;}){0, 0}));
+#else
+  __asm__ __volatile__("lidt (%%eax)" : : "a"((uintptr_t)&(struct {uint16_t limit; uint32_t base;}){0, 0}));
+#endif
   __asm__ __volatile__("ud2");
   
   return 0;

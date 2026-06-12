@@ -116,6 +116,11 @@ typedef struct {
 brights_netif_t netifs[BRIGHTS_NET_MAX_IF];
 static int netif_count = 0;
 
+int brights_netif_count(void)
+{
+  return netif_count;
+}
+
 /* ===== Network drivers ===== */
 static brights_net_driver_t *net_drivers[BRIGHTS_NET_MAX_DRIVERS];
 static int net_driver_count = 0;
@@ -483,8 +488,6 @@ int brights_udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, cons
   if (len > 1472) len = 1472;  /* Max UDP payload: MTU(1500) - IP(20) - UDP(8) */
   
   /* Get source IP from first active interface */
-  extern brights_netif_t netifs[];
-  extern int netif_count;
   uint32_t src_ip = 0;
   if (netif_count > 0) {
     src_ip = netifs[0].ip_addr;

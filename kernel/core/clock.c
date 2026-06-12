@@ -33,15 +33,6 @@ static int has_tsc(void)
 }
 
 // Check if invariant TSC is available (constant rate)
-static int has_invariant_tsc(void)
-{
-  uint32_t eax, ebx, ecx, edx;
-  __asm__ __volatile__("cpuid"
-                        : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-                        : "a"(0x80000007));
-  return (edx >> 8) & 1; // Invariant TSC bit
-}
-
 void brights_clock_init(void)
 {
   clock_ticks = 0;

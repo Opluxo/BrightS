@@ -27,6 +27,7 @@
 #define DHCP_OPT_END        255
 
 #define DHCP_RETRY 3
+#define DHCP_TIMEOUT_MS 4000
 
 extern brights_netif_t netifs[BRIGHTS_NET_MAX_IF];
 

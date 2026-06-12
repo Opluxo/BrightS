@@ -25,11 +25,10 @@ static uint32_t current_pid = 0;
 
 static uint32_t proc_alloc_pid(void)
 {
-  /* O(1) PID allocation using bitmap + BSF */
+  /* O(1) PID allocation using bitmap + count-trailing-zeros */
   uint64_t avail = ~pid_bitmap & 0xFFFFFFFFULL; /* PIDs 1-31 */
   if (avail == 0) return 0;
-  uint32_t pid;
-  __asm__ __volatile__("bsf %1, %0" : "=r"(pid) : "r"(avail) : "cc");
+  uint32_t pid = (uint32_t)__builtin_ctzll(avail);
   if (pid == 0 || pid >= 256) return 0;
   pid_bitmap |= (1ULL << pid);
   return pid;

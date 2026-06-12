@@ -11,7 +11,6 @@
 #endif
 #include "../drivers/serial.h"
 
-#define BRIGHTS_PROC_MAX 64u
 #define BRIGHTS_PATH_MAX_SEG 16u
 #define BRIGHTS_PATH_SEG_LEN 64u
 #define BRIGHTS_PATH_COMBINED_LEN 256u

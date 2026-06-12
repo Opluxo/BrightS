@@ -184,31 +184,6 @@ static inline int kutil_itoa(int64_t val, char *buf)
     return kutil_utoa((uint64_t)val, buf, 10);
 }
 
-/* ===== Network byte order ===== */
-
-static inline uint16_t kutil_htons(uint16_t val)
-{
-    return (val >> 8) | (val << 8);
-}
-
-static inline uint32_t kutil_htonl(uint32_t val)
-{
-    return ((val >> 24) & 0xFF) |
-           ((val >> 8) & 0xFF00) |
-           ((val << 8) & 0xFF0000) |
-           ((val << 24) & 0xFF000000);
-}
-
-static inline uint16_t kutil_ntohs(uint16_t val)
-{
-    return kutil_htons(val);
-}
-
-static inline uint32_t kutil_ntohl(uint32_t val)
-{
-    return kutil_htonl(val);
-}
-
 /* ===== IP address parsing ===== */
 
 static inline int kutil_parse_ipv4(const char *str, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d)

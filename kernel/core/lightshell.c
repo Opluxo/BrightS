@@ -203,7 +203,7 @@ static const cmd_entry_t *cmd_find(const char *name)
 static char current_user[LIGHTSHELL_MAX_USER] = "guest";
 static char current_dir[LIGHTSHELL_MAX_PATH] = "/";
 static int is_root = 0;
-static char version[20] = "v0.1.2.6";
+static char version[20] = "v0.1.2.8";
 
 // Command history
 static char history[LIGHTSHELL_HISTORY_SIZE][LIGHTSHELL_MAX_LINE];
@@ -979,7 +979,7 @@ static void print_system_info(void)
   uint64_t free_mem = brights_pmem_free_bytes() / (1024 * 1024);
   uint32_t proc_count = brights_proc_total();
 
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS v0.1.2.6\033[0m\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS v0.1.2.8\033[0m\r\n");
 
   char buf[64];
   char numbuf[16];
@@ -3156,7 +3156,7 @@ int brights_boot_login(void)
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "+---------------------------------------------+\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS v0.1.2.6               |\r\n");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS v0.1.2.8               |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              System Console Login            |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
@@ -3305,7 +3305,7 @@ void brights_lightshell_run(void)
     for (int tj = 0; current_user[tj] && ti < (int)sizeof(title_right) - 1; ++tj)
       title_right[ti++] = current_user[tj];
     title_right[ti] = 0;
-    tui_draw_title_bar("BrightS v0.1.2.6", title_right);
+    tui_draw_title_bar("BrightS v0.1.2.8", title_right);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J\033[H");
   }
 

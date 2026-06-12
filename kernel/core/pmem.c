@@ -118,8 +118,15 @@ void *brights_pmem_alloc_page(void)
       /* At least one bit is 0 (free). Find it with BSF on inverted word. */
       uint64_t free_bits = ~word;
       if (free_bits == 0) continue; /* Shouldn't happen, but safety */
+      uint32_t bit_lo = (uint32_t)free_bits;
+      uint32_t bit_hi = (uint32_t)(free_bits >> 32);
       uint64_t bit;
-      __asm__ __volatile__("bsf %1, %0" : "=r"(bit) : "r"(free_bits) : "cc");
+      if (bit_lo != 0) {
+        __asm__ __volatile__("bsf %1, %0" : "=r"(bit) : "r"((uint32_t)bit_lo) : "cc");
+      } else {
+        __asm__ __volatile__("bsf %1, %0" : "=r"(bit) : "r"((uint32_t)bit_hi) : "cc");
+        bit += 32;
+      }
       uint64_t idx = i * 64 + bit;
       if (idx >= pmem_total_pages) return 0;
       bitmap_set(idx);

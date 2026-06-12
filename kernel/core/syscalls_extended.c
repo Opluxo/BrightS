@@ -10,10 +10,7 @@ int64_t sys_monitor_get_stats(void *stats_buf, size_t buf_size)
         return -EIO;
     }
 
-    if (kernel_memcpy(stats_buf, &stats, sizeof(performance_stats_t)) != stats_buf) {
-        return -EFAULT;
-    }
-
+    kutil_memcpy(stats_buf, &stats, sizeof(performance_stats_t));
     return 0;
 }
 
@@ -29,10 +26,7 @@ int64_t sys_monitor_get_health(void *health_buf, size_t buf_size)
         return -EIO;
     }
 
-    if (kernel_memcpy(health_buf, health, sizeof(system_health_t)) != health_buf) {
-        return -EFAULT;
-    }
-
+    kutil_memcpy(health_buf, health, sizeof(system_health_t));
     return 0;
 }
 
@@ -65,19 +59,19 @@ int64_t sys_get_system_info(void *info_buf, size_t buf_size)
     char *buf = (char *)info_buf;
 
     /* Collect basic system information */
-    kernel_strcpy(buf, "BrightS Operating System\n");
-    buf += kernel_strlen(buf);
+    kutil_strcpy(buf, "BrightS Operating System\n");
+    buf += kutil_strlen(buf);
 
     /* CPU info */
     extern const brights_cpu_info_t *brights_hwinfo_cpu(void);
     const brights_cpu_info_t *cpu = brights_hwinfo_cpu();
     if (cpu) {
-        kernel_strcpy(buf, "CPU: ");
-        buf += kernel_strlen(buf);
-        kernel_strcpy(buf, cpu->vendor);
-        buf += kernel_strlen(buf);
-        kernel_strcpy(buf, "\n");
-        buf += kernel_strlen(buf);
+        kutil_strcpy(buf, "CPU: ");
+        buf += kutil_strlen(buf);
+        kutil_strcpy(buf, cpu->vendor);
+        buf += kutil_strlen(buf);
+        kutil_strcpy(buf, "\n");
+        buf += kutil_strlen(buf);
     }
 
     /* Memory info */
@@ -85,12 +79,12 @@ int64_t sys_get_system_info(void *info_buf, size_t buf_size)
     extern uint64_t brights_pmem_free_bytes(void);
     uint64_t total_mb = brights_pmem_total_bytes() / (1024 * 1024);
     uint64_t free_mb = brights_pmem_free_bytes() / (1024 * 1024);
-    kernel_sprintf(buf, "Memory: %d MB total, %d MB free\n", (int)total_mb, (int)free_mb);
-    buf += kernel_strlen(buf);
+    kutil_sprintf(buf, "Memory: %d MB total, %d MB free\n", (int)total_mb, (int)free_mb);
+    buf += kutil_strlen(buf);
 
     /* Kernel info */
-    kernel_strcpy(buf, "Kernel: BrightS v0.1.2.7\n");
-    buf += kernel_strlen(buf);
+    kutil_strcpy(buf, "Kernel: BrightS v0.1.2.7\n");
+    buf += kutil_strlen(buf);
 
     return 0;
 }
@@ -105,8 +99,8 @@ int64_t sys_process_list(void *proc_buf, size_t buf_size, int *count_out)
     char *buf = (char *)proc_buf;
     int pos = 0;
 
-    kernel_strcpy(buf, "PID\tPPID\tSTATE\tNAME\n");
-    pos += kernel_strlen(buf);
+    kutil_strcpy(buf, "PID\tPPID\tSTATE\tNAME\n");
+    pos += kutil_strlen(buf);
 
     extern brights_proc_info_t *brights_proc_table_ptr(void);
     brights_proc_info_t *table = brights_proc_table_ptr();
@@ -121,11 +115,11 @@ int64_t sys_process_list(void *proc_buf, size_t buf_size, int *count_out)
     for (int i = 0; i < 64 && pos < (int)(buf_size - 128); i++) {
         if (table[i].state == 0) continue;  /* BRIGHTS_PROC_UNUSED */
         
-        kernel_sprintf(buf + pos, "%d\t%d\t%s\t%s\n", 
+        kutil_sprintf(buf + pos, "%d\t%d\t%s\t%s\n", 
             table[i].pid, table[i].ppid,
             state_names[table[i].state],
             table[i].name);
-        pos += kernel_strlen(buf + pos);
+        pos += kutil_strlen(buf + pos);
         count++;
     }
 

@@ -89,7 +89,7 @@ void brights_pat_init(void)
   wrmsr(IA32_PAT, pat);
 
   /* Flush TLB to apply new PAT */
-  uint64_t cr3;
+  uint32_t cr3;
   __asm__ __volatile__("mov %%cr3, %0" : "=r"(cr3));
   __asm__ __volatile__("mov %0, %%cr3" :: "r"(cr3) : "memory");
 }

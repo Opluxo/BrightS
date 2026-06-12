@@ -22,6 +22,19 @@ static inline uint32_t ntohl(uint32_t v) { return htonl(v); }
 #define BRIGHTS_NET_MAX_DRIVERS 4
 #define BRIGHTS_NET_BUF_SIZE 1518
 
+/* TCP states */
+#define TCP_STATE_CLOSED      0
+#define TCP_STATE_LISTEN      1
+#define TCP_STATE_SYN_SENT    2
+#define TCP_STATE_SYN_RCVD    3
+#define TCP_STATE_ESTABLISHED 4
+#define TCP_STATE_FIN_WAIT_1  5
+#define TCP_STATE_FIN_WAIT_2  6
+#define TCP_STATE_CLOSING     7
+#define TCP_STATE_TIME_WAIT   8
+#define TCP_STATE_CLOSE_WAIT  9
+#define TCP_STATE_LAST_ACK    10
+
 /* Network driver operations */
 typedef struct {
   int (*init)(void);

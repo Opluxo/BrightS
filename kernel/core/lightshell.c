@@ -3923,15 +3923,101 @@ static int cmd_killall_handler(const char *arg)
 
 static int cmd_nice_handler(const char *arg)
 {
-  (void)arg;
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "nice: priority adjustment not yet supported\n");
+  arg = skip_spaces(arg);
+  if (*arg == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: nice [-n priority] <command>\n");
+    return 1;
+  }
+  
+  int nice_val = 10;  /* Default nice value */
+  
+  /* Parse -n flag */
+  if (arg[0] == '-' && arg[1] == 'n') {
+    arg += 2;
+    arg = skip_spaces(arg);
+    nice_val = 0;
+    int neg = 0;
+    if (*arg == '-') { neg = 1; arg++; }
+    else if (*arg == '+') { arg++; }
+    while (*arg >= '0' && *arg <= '9') {
+      nice_val = nice_val * 10 + (*arg - '0');
+      arg++;
+    }
+    if (neg) nice_val = -nice_val;
+    arg = skip_spaces(arg);
+  }
+  
+  /* Clamp to valid range */
+  if (nice_val < -20) nice_val = -20;
+  if (nice_val > 19) nice_val = 19;
+  
+  /* Set nice for current process */
+  extern int brights_sched_set_nice(uint32_t pid, int32_t nice);
+  extern uint32_t brights_proc_current(void);
+  uint32_t pid = brights_proc_current();
+  if (pid > 0) {
+    brights_sched_set_nice(pid, nice_val);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "nice: priority set to ");
+    print_u64(nice_val);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  }
+  
   return 1;
 }
 
 static int cmd_renice_handler(const char *arg)
 {
-  (void)arg;
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "renice: priority adjustment not yet supported\n");
+  arg = skip_spaces(arg);
+  if (*arg == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "usage: renice [-n priority] <pid>\n");
+    return 1;
+  }
+  
+  int nice_val = 10;
+  uint32_t pid = 0;
+  
+  /* Parse -n flag */
+  if (arg[0] == '-' && arg[1] == 'n') {
+    arg += 2;
+    arg = skip_spaces(arg);
+    nice_val = 0;
+    int neg = 0;
+    if (*arg == '-') { neg = 1; arg++; }
+    else if (*arg == '+') { arg++; }
+    while (*arg >= '0' && *arg <= '9') {
+      nice_val = nice_val * 10 + (*arg - '0');
+      arg++;
+    }
+    if (neg) nice_val = -nice_val;
+    arg = skip_spaces(arg);
+  }
+  
+  /* Parse PID */
+  while (*arg >= '0' && *arg <= '9') {
+    pid = pid * 10 + (*arg - '0');
+    arg++;
+  }
+  
+  if (pid == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "renice: invalid PID\n");
+    return 1;
+  }
+  
+  /* Clamp to valid range */
+  if (nice_val < -20) nice_val = -20;
+  if (nice_val > 19) nice_val = 19;
+  
+  extern int brights_sched_set_nice(uint32_t pid, int32_t nice);
+  if (brights_sched_set_nice(pid, nice_val) == 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "renice: process ");
+    print_u64(pid);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " priority set to ");
+    print_u64(nice_val);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  } else {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "renice: failed to set priority\n");
+  }
+  
   return 1;
 }
 

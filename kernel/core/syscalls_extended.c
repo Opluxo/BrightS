@@ -59,7 +59,7 @@ int64_t sys_simd_memcpy(void *dst, const void *src, size_t n)
 int64_t sys_get_system_info(void *info_buf, size_t buf_size)
 {
     if (!info_buf || buf_size < 256) {
-        return -EINVAL;
+        return -1;
     }
 
     char *buf = (char *)info_buf;
@@ -69,23 +69,27 @@ int64_t sys_get_system_info(void *info_buf, size_t buf_size)
     buf += kernel_strlen(buf);
 
     /* CPU info */
-    kernel_strcpy(buf, "CPU: BrightS Virtual CPU @ 2.0GHz\n");
-    buf += kernel_strlen(buf);
+    extern const brights_cpu_info_t *brights_hwinfo_cpu(void);
+    const brights_cpu_info_t *cpu = brights_hwinfo_cpu();
+    if (cpu) {
+        kernel_strcpy(buf, "CPU: ");
+        buf += kernel_strlen(buf);
+        kernel_strcpy(buf, cpu->vendor);
+        buf += kernel_strlen(buf);
+        kernel_strcpy(buf, "\n");
+        buf += kernel_strlen(buf);
+    }
 
     /* Memory info */
-    kernel_sprintf(buf, "Memory: %d MB available\n", 1024);
-    buf += kernel_strlen(buf);
-
-    /* Disk info */
-    kernel_sprintf(buf, "Disk: %d GB available\n", 50);
-    buf += kernel_strlen(buf);
-
-    /* Network info */
-    kernel_strcpy(buf, "Network: Ethernet (10.0.2.15)\n");
+    extern uint64_t brights_pmem_total_bytes(void);
+    extern uint64_t brights_pmem_free_bytes(void);
+    uint64_t total_mb = brights_pmem_total_bytes() / (1024 * 1024);
+    uint64_t free_mb = brights_pmem_free_bytes() / (1024 * 1024);
+    kernel_sprintf(buf, "Memory: %d MB total, %d MB free\n", (int)total_mb, (int)free_mb);
     buf += kernel_strlen(buf);
 
     /* Kernel info */
-    kernel_strcpy(buf, "Kernel: BrightS v0.1.2.6\n");
+    kernel_strcpy(buf, "Kernel: BrightS v0.1.2.7\n");
     buf += kernel_strlen(buf);
 
     return 0;
@@ -95,36 +99,81 @@ int64_t sys_get_system_info(void *info_buf, size_t buf_size)
 int64_t sys_process_list(void *proc_buf, size_t buf_size, int *count_out)
 {
     if (!proc_buf || !count_out || buf_size < 1024) {
-        return -EINVAL;
+        return -1;
     }
 
-    /* This is a simplified implementation */
     char *buf = (char *)proc_buf;
+    int pos = 0;
 
     kernel_strcpy(buf, "PID\tPPID\tSTATE\tNAME\n");
-    buf += kernel_strlen(buf);
+    pos += kernel_strlen(buf);
 
-    kernel_strcpy(buf, "1\t0\trunning\tinit\n");
-    buf += kernel_strlen(buf);
+    extern brights_proc_info_t *brights_proc_table_ptr(void);
+    brights_proc_info_t *table = brights_proc_table_ptr();
+    if (!table) {
+        *count_out = 0;
+        return 0;
+    }
 
-    kernel_strcpy(buf, "2\t1\trunning\tshell\n");
-    buf += kernel_strlen(buf);
+    int count = 0;
+    const char *state_names[] = {"unused", "runnable", "running", "sleeping", "zombie"};
+    
+    for (int i = 0; i < 64 && pos < (int)(buf_size - 128); i++) {
+        if (table[i].state == 0) continue;  /* BRIGHTS_PROC_UNUSED */
+        
+        kernel_sprintf(buf + pos, "%d\t%d\t%s\t%s\n", 
+            table[i].pid, table[i].ppid,
+            state_names[table[i].state],
+            table[i].name);
+        pos += kernel_strlen(buf + pos);
+        count++;
+    }
 
-    *count_out = 2;
+    *count_out = count;
     return 0;
 }
 
-/* System call: sys_system_load */
-int64_t sys_system_load(double *load1, double *load5, double *load15)
+/* System call: sys_system_load
+ * Uses fixed-point representation: load * 100 (e.g., 0.5 = 50)
+ * Returns load averages scaled by 100 for 1min, 5min, 15min
+ */
+int64_t sys_system_load(uint32_t *load1, uint32_t *load5, uint32_t *load15)
 {
     if (!load1 || !load5 || !load15) {
-        return -EINVAL;
+        return -1;
     }
 
-    /* Simplified load averages */
-    *load1 = 0.5;
-    *load5 = 0.3;
-    *load15 = 0.2;
+    /* Calculate real load averages from run queue */
+    extern uint32_t brights_proc_count(uint32_t state);
+    extern uint64_t brights_sched_ticks(void);
+    
+    uint32_t running = brights_proc_count(2);  /* BRIGHTS_PROC_RUNNING */
+    uint32_t runnable = brights_proc_count(1); /* BRIGHTS_PROC_RUNNABLE */
+    uint32_t load = running + runnable;
+    
+    /* Scale by 100 for fixed-point (e.g., 1.5 = 150) */
+    /* Simple exponential moving average approximation */
+    static uint32_t avg1 = 0, avg5 = 0, avg15 = 0;
+    static uint64_t last_tick = 0;
+    
+    uint64_t now = brights_sched_ticks();
+    if (last_tick == 0) {
+        avg1 = avg5 = avg15 = load * 100;
+        last_tick = now;
+    } else if (now > last_tick) {
+        /* Decay factor: 1 - 1/interval */
+        /* For 1min: factor = 1 - 1/60*100 = 98/100 */
+        /* For 5min: factor = 1 - 1/300*100 = 9967/10000 */
+        /* For 15min: factor = 1 - 1/900*100 = 9989/10000 */
+        avg1 = (avg1 * 98 + load * 100 * 2) / 100;
+        avg5 = (avg5 * 9967 + load * 100 * 33) / 10000;
+        avg15 = (avg15 * 9989 + load * 100 * 11) / 10000;
+        last_tick = now;
+    }
+    
+    *load1 = avg1;
+    *load5 = avg5;
+    *load15 = avg15;
 
     return 0;
 }

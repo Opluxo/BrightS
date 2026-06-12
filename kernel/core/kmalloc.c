@@ -32,6 +32,15 @@ typedef struct {
 static slab_class_t slab_classes[SLAB_CLASSES];
 static slab_page_t *recent_pages[SLAB_CLASSES];
 
+/* Page-to-class lookup for O(1) free() */
+#define SLAB_PAGE_HASH_SIZE 256
+typedef struct slab_page_entry {
+  uint64_t page_addr;
+  int class_idx;
+  struct slab_page_entry *next;
+} slab_page_entry_t;
+static slab_page_entry_t *slab_page_hash[SLAB_PAGE_HASH_SIZE];
+
 static size_t kmalloc_total_used = 0;
 static size_t kmalloc_slab_used = 0;
 static size_t kmalloc_heap_used = 0;
@@ -58,6 +67,38 @@ static inline size_t align_up(size_t v, size_t a)
 static inline void zero_mem(void *ptr, size_t len)
 {
   __builtin_memset(ptr, 0, len);
+}
+
+static inline uint32_t slab_page_hash_fn(uint64_t page_addr)
+{
+  return (uint32_t)((page_addr >> 12) ^ (page_addr >> 24)) & (SLAB_PAGE_HASH_SIZE - 1);
+}
+
+static void slab_page_hash_insert(uint64_t page_addr, int class_idx)
+{
+  uint32_t h = slab_page_hash_fn(page_addr);
+  for (slab_page_entry_t *e = slab_page_hash[h]; e; e = e->next) {
+    if (e->page_addr == page_addr) { e->class_idx = class_idx; return; }
+  }
+  /* Allocate entry in the page itself (slab_page_t is at the start) */
+  /* Use a small static pool instead */
+  static slab_page_entry_t entry_pool[SLAB_CLASSES * 32];
+  static int entry_pool_used = 0;
+  if (entry_pool_used >= SLAB_CLASSES * 32) return;
+  slab_page_entry_t *ne = &entry_pool[entry_pool_used++];
+  ne->page_addr = page_addr;
+  ne->class_idx = class_idx;
+  ne->next = slab_page_hash[h];
+  slab_page_hash[h] = ne;
+}
+
+static int slab_page_hash_find(uint64_t page_addr)
+{
+  uint32_t h = slab_page_hash_fn(page_addr);
+  for (slab_page_entry_t *e = slab_page_hash[h]; e; e = e->next) {
+    if (e->page_addr == page_addr) return e->class_idx;
+  }
+  return -1;
 }
 
 #ifdef BRIGHTS_RUST_ENABLED
@@ -104,6 +145,7 @@ static slab_page_t *slab_page_init(int class_idx)
   }
   sp->free_list = head;
 
+  slab_page_hash_insert((uint64_t)(uintptr_t)page, class_idx);
   return sp;
 }
 
@@ -127,6 +169,7 @@ void brights_kmalloc_init(void)
     slab_classes[i].pages = 0;
     recent_pages[i] = 0;
   }
+  for (int i = 0; i < SLAB_PAGE_HASH_SIZE; ++i) slab_page_hash[i] = 0;
 
   free_list = (kmalloc_block_t *)kmalloc_heap;
   free_list->size = KMALLOC_HEAP_SIZE;
@@ -280,25 +323,19 @@ void brights_kfree(void *ptr)
     }
   }
 #else
-  for (int i = 0; i < SLAB_CLASSES; ++i) {
-    size_t block_size = slab_sizes[i];
-    for (slab_page_t *sp = slab_classes[i].pages; sp; sp = sp->next) {
-      uint8_t *page_start = (uint8_t *)sp;
-      uint8_t *page_end = page_start + 4096;
-      if ((uint8_t *)ptr >= page_start && (uint8_t *)ptr < page_end) {
+  /* C slab free path - use hash table for O(1) lookup */
+  uint64_t page_addr = (uint64_t)(uintptr_t)ptr & ~0xFFFULL;
+  int class_idx = slab_page_hash_find(page_addr);
+  if (class_idx >= 0 && class_idx < SLAB_CLASSES) {
+    size_t block_size = slab_sizes[class_idx];
+    slab_page_t *sp = (slab_page_t *)page_addr;
+    uint8_t *header_start = (uint8_t *)sp + align_up(sizeof(slab_page_t), 16);
+    uint8_t *block_ptr = (uint8_t *)ptr;
+
+    if (block_ptr >= header_start && block_ptr < (uint8_t *)sp + 4096) {
+      size_t block_offset = block_ptr - header_start;
+      if (block_offset % block_size == 0) {
         slab_free_t *block = (slab_free_t *)ptr;
-        uint8_t *header_start = (uint8_t *)sp + align_up(sizeof(slab_page_t), 16);
-        uint8_t *block_ptr = (uint8_t *)block;
-
-        if (block_ptr < header_start || block_ptr >= (uint8_t *)sp + 4096) return;
-        size_t block_offset = block_ptr - header_start;
-        if (block_offset % block_size != 0) return;
-
-        uint64_t *p64 = (uint64_t *)block_ptr;
-        size_t qwords = block_size / 8;
-        for (size_t j = 0; j < qwords; ++j) p64[j] = 0xCCCCCCCCCCCCCCCCULL;
-        for (size_t j = qwords * 8; j < block_size; ++j) block_ptr[j] = 0xCC;
-
         block->next = sp->free_list;
         sp->free_list = block;
         sp->free_count++;

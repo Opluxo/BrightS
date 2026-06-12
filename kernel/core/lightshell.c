@@ -3650,6 +3650,9 @@ static int cmd_ping_handler(const char *arg)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, ip_str);
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
   
+  uint64_t min_time = 999999, max_time = 0, total_time = 0;
+  uint32_t received = 0;
+  
   for (int i = 0; i < 4; i++) {
     uint64_t start = brights_clock_ms();
     int ret = brights_icmp_echo_request(ip);
@@ -3663,14 +3666,38 @@ static int cmd_ping_handler(const char *arg)
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, " time=");
       print_u64(elapsed);
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "ms\n");
+      if (elapsed < min_time) min_time = elapsed;
+      if (elapsed > max_time) max_time = elapsed;
+      total_time += elapsed;
+      received++;
     } else {
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Request timeout\n");
     }
     
-    for (volatile int j = 0; j < 1000000; j++);
+    brights_sleep_ms(1000);
   }
   
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "--- ping statistics ---\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n--- ");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, ip_str);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ping statistics ---\n");
+  print_u64(4);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " packets transmitted, ");
+  print_u64(received);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, " received, ");
+  if (4 > 0) {
+    print_u64(((4 - received) * 100) / 4);
+  }
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "% packet loss\n");
+  
+  if (received > 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "rtt min/avg/max = ");
+    print_u64(min_time);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "/");
+    print_u64(total_time / received);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "/");
+    print_u64(max_time);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ms\n");
+  }
   
   return 1;
 }

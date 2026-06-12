@@ -13,7 +13,7 @@
 #define BRIGHTS_NET_MAX_IF 4
 #define BRIGHTS_NET_MAX_SOCKETS 32
 #define BRIGHTS_NET_BUF_SIZE 1518
-#define BRIGHTS_ARP_CACHE_SIZE 16
+#define BRIGHTS_ARP_CACHE_SIZE 64
 
 /* Ethernet types */
 #define ETH_TYPE_IP   0x0800
@@ -148,6 +148,7 @@ typedef struct {
   uint8_t mac[6];
   int valid;
   uint64_t expire_tick;
+  uint64_t last_access;  /* LRU tracking */
 } arp_entry_t;
 
 static arp_entry_t arp_cache[BRIGHTS_ARP_CACHE_SIZE];
@@ -198,6 +199,7 @@ static int arp_cache_find(uint32_t ip)
         arp_cache[i].valid = 0;  /* Expired */
         return -1;
       }
+      arp_cache[i].last_access = brights_sched_ticks();  /* Update LRU */
       return i;
     }
   }
@@ -206,16 +208,34 @@ static int arp_cache_find(uint32_t ip)
 
 static int arp_cache_add(uint32_t ip, const uint8_t *mac)
 {
+  /* First try to find an empty slot */
   for (int i = 0; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
     if (!arp_cache[i].valid) {
       arp_cache[i].ip = ip;
       kutil_memcpy(arp_cache[i].mac, mac, 6);
       arp_cache[i].valid = 1;
       arp_cache[i].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
+      arp_cache[i].last_access = brights_sched_ticks();
       return 0;
     }
   }
-  return -1; /* Cache full */
+  
+  /* Cache full - evict LRU entry (oldest last_access) */
+  int lru_idx = 0;
+  uint64_t lru_time = arp_cache[0].last_access;
+  for (int i = 1; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
+    if (arp_cache[i].last_access < lru_time) {
+      lru_time = arp_cache[i].last_access;
+      lru_idx = i;
+    }
+  }
+  
+  arp_cache[lru_idx].ip = ip;
+  kutil_memcpy(arp_cache[lru_idx].mac, mac, 6);
+  arp_cache[lru_idx].valid = 1;
+  arp_cache[lru_idx].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
+  arp_cache[lru_idx].last_access = brights_sched_ticks();
+  return 0;
 }
 
 int brights_arp_resolve(uint32_t target_ip, uint8_t *mac_out)
@@ -414,11 +434,65 @@ void icmp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
 
 /* ===== UDP ===== */
 
+/* UDP checksum with pseudo-header */
+static uint16_t udp_checksum(uint32_t src_ip, uint32_t dst_ip, const void *data, uint32_t len)
+{
+  /* Pseudo-header for checksum */
+  typedef struct {
+    uint32_t src_ip;
+    uint32_t dst_ip;
+    uint8_t zero;
+    uint8_t protocol;
+    uint16_t udp_len;
+  } __attribute__((packed)) pseudo_hdr_t;
+  
+  pseudo_hdr_t pseudo;
+  pseudo.src_ip = src_ip;
+  pseudo.dst_ip = dst_ip;
+  pseudo.zero = 0;
+  pseudo.protocol = 17;  /* UDP */
+  pseudo.udp_len = htons((uint16_t)len);
+  
+  /* Calculate checksum over pseudo-header + UDP data */
+  uint32_t sum = 0;
+  const uint16_t *p = (const uint16_t *)&pseudo;
+  for (int i = 0; i < sizeof(pseudo) / 2; i++) {
+    sum += p[i];
+  }
+  
+  p = (const uint16_t *)data;
+  uint32_t udp_len = len;
+  while (udp_len > 1) {
+    sum += *p++;
+    udp_len -= 2;
+  }
+  if (udp_len) {
+    sum += *(const uint8_t *)p;
+  }
+  
+  while (sum >> 16) {
+    sum = (sum & 0xFFFF) + (sum >> 16);
+  }
+  
+  return (uint16_t)(~sum);
+}
+
 int brights_udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, const void *data, uint32_t len)
 {
+  /* Bounds check to prevent stack overflow */
+  if (len > 1472) len = 1472;  /* Max UDP payload: MTU(1500) - IP(20) - UDP(8) */
+  
+  /* Get source IP from first active interface */
+  extern brights_netif_t netifs[];
+  extern int netif_count;
+  uint32_t src_ip = 0;
+  if (netif_count > 0) {
+    src_ip = netifs[0].ip_addr;
+  }
+  
   udp_hdr_t udp;
   uint32_t total = sizeof(udp_hdr_t) + len;
-  uint8_t buf[sizeof(udp_hdr_t) + len];
+  uint8_t buf[sizeof(udp_hdr_t) + 1472];  /* Fixed max size */
   udp.src_port = htons(src_port);
   udp.dst_port = htons(dst_port);
   udp.length = htons((uint16_t)total);
@@ -426,6 +500,11 @@ int brights_udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, cons
   kutil_memcpy(buf, &udp, sizeof(udp_hdr_t));
   if (data && len > 0)
     kutil_memcpy(buf + sizeof(udp_hdr_t), data, len);
+  
+  /* Calculate checksum over pseudo-header + UDP segment */
+  udp.checksum = udp_checksum(src_ip, dst_ip, buf, total);
+  kutil_memcpy(buf + 6, &udp.checksum, 2);  /* Update checksum in buffer */
+  
   return brights_ip_send(dst_ip, IP_PROTO_UDP, buf, total);
 }
 
@@ -478,7 +557,7 @@ int brights_tcp_connect(uint32_t dst_ip, uint16_t dst_port)
   sock->remote_ip = dst_ip;
   sock->remote_port = dst_port;
   sock->local_port = alloc_port();
-  sock->tcp_state = 1; /* SYN_SENT */
+  sock->tcp_state = TCP_STATE_SYN_SENT;
   sock->tcp_seq = 1000; /* Initial sequence number */
   sock->tcp_ack = 0;
   sock->recv_len = 0;
@@ -524,7 +603,7 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
 
     if (tcp->flags & TCP_SYN) {
       /* SYN received - send SYN+ACK */
-      sock->tcp_state = 2; /* ESTABLISHED */
+      sock->tcp_state = TCP_STATE_ESTABLISHED;
       sock->tcp_ack = seq + 1;
 
       tcp_hdr_t reply;
@@ -540,14 +619,14 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
       brights_ip_send(src_ip, IP_PROTO_TCP, &reply, sizeof(reply));
     } else if (tcp->flags & TCP_ACK) {
       /* ACK received */
-      if (sock->tcp_state == 1) {
+      if (sock->tcp_state == TCP_STATE_SYN_SENT) {
         /* SYN-ACK received - connection established */
-        sock->tcp_state = 2;
+        sock->tcp_state = TCP_STATE_ESTABLISHED;
         sock->tcp_ack = seq;
       }
     } else if (tcp->flags & TCP_FIN) {
       /* FIN received */
-      sock->tcp_state = 3;
+      sock->tcp_state = TCP_STATE_FIN_WAIT_1;
       sock->tcp_ack = seq + 1;
 
       /* Send ACK */
@@ -607,7 +686,7 @@ int brights_socket(int domain, int type, int protocol)
       sockets[i].local_port = 0;
       sockets[i].remote_ip = 0;
       sockets[i].remote_port = 0;
-      sockets[i].tcp_state = 0;
+        sockets[i].tcp_state = TCP_STATE_CLOSED;
       sockets[i].recv_len = 0;
       if (netif_count > 0) {
         sockets[i].local_ip = netifs[0].ip_addr;
@@ -634,7 +713,7 @@ int brights_listen(int sockfd, int backlog)
   if (sockfd < 0 || sockfd >= BRIGHTS_NET_MAX_SOCKETS) return -1;
   if (!sockets[sockfd].in_use) return -1;
 
-  sockets[sockfd].tcp_state = 0; /* LISTEN state (simplified) */
+  sockets[sockfd].tcp_state = TCP_STATE_LISTEN; /* LISTEN state */
   return 0;
 }
 
@@ -645,7 +724,7 @@ int brights_accept(int sockfd, uint32_t *addr, uint16_t *port)
   if (!sockets[sockfd].in_use) return -1;
 
   /* Return the same socket for now (simplified) */
-  if (sockets[sockfd].tcp_state == 2) {
+  if (sockets[sockfd].tcp_state == TCP_STATE_ESTABLISHED) {
     if (addr) *addr = sockets[sockfd].remote_ip;
     if (port) *port = sockets[sockfd].remote_port;
     return sockfd;
@@ -732,7 +811,7 @@ int brights_close(int sockfd)
 
   brights_socket_t *sock = &sockets[sockfd];
 
-  if (sock->type == 1 && sock->tcp_state == 2) {
+  if (sock->type == 1 && sock->tcp_state == TCP_STATE_ESTABLISHED) {
     /* Send FIN */
     tcp_hdr_t tcp;
     kutil_memset(&tcp, 0, sizeof(tcp));
@@ -759,7 +838,7 @@ static void tcp_check_timeouts(void)
   for (int i = 0; i < BRIGHTS_NET_MAX_SOCKETS; ++i) {
     brights_socket_t *sock = &sockets[i];
     if (!sock->in_use || sock->type != 1) continue;  /* SOCK_STREAM only */
-    if (sock->tcp_state == 0 || sock->tcp_state == 3) continue;  /* Not connecting/connected */
+    if (sock->tcp_state == TCP_STATE_CLOSED || sock->tcp_state == TCP_STATE_FIN_WAIT_1) continue;  /* Not connecting/connected */
     
     /* Check if we need to retransmit */
     if (sock->last_send_tick > 0 && 
@@ -784,7 +863,7 @@ static void tcp_check_timeouts(void)
         sock->last_send_tick = now;
       } else {
         /* Too many retransmits - connection lost */
-        sock->tcp_state = 0;  /* Back to closed */
+        sock->tcp_state = TCP_STATE_CLOSED;  /* Back to closed */
         sock->retransmit_count = 0;
         sock->rto_ms = 1000;
       }

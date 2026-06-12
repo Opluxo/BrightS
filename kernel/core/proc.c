@@ -125,6 +125,8 @@ void brights_proc_init(void)
     proc_table[i].brk_start = 0;
     proc_table[i].kernel_stack = 0;
     proc_sched_zero(&proc_table[i].sched);
+    brights_signal_proc_init(&proc_table[i].signal);
+    proc_table[i].env_count = 0;
   }
   next_pid = 1;
   current_pid = 0;

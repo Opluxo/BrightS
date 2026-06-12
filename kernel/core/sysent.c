@@ -372,10 +372,15 @@ static int64_t sys_kill(uint64_t pid, uint64_t signo, uint64_t a2, uint64_t a3, 
   (void)a2; (void)a3; (void)a4; (void)a5;
   if (signo >= BRIGHTS_SIGNAL_MAX) return -1;
   
-  brights_proc_info_t info;
-  if (brights_proc_get_by_pid((uint32_t)pid, &info) != 0) return -1;
+  brights_proc_info_t *table = brights_proc_table_ptr();
+  if (!table) return -1;
   
-  return brights_signal_raise((uint32_t)signo);
+  uint32_t idx = brights_proc_index((uint32_t)pid);
+  if (idx >= 64) return -1;
+  
+  if (table[idx].state == BRIGHTS_PROC_UNUSED) return -1;
+  
+  return brights_signal_raise_proc(&table[idx].signal, (uint32_t)signo);
 }
 
 // sys_yield() - Yield CPU to next process
@@ -558,17 +563,35 @@ static int64_t sys_umount(uint64_t target, uint64_t a1, uint64_t a2, uint64_t a3
 static int64_t sys_reboot(uint64_t cmd, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
 {
   (void)cmd; (void)a1; (void)a2; (void)a3; (void)a4; (void)a5;
-  // Triple fault to reboot
+  
+  /* Try keyboard controller reset first (port 0x64) */
+  uint8_t good = 0x02;
+  while (good & 0x02)
+    good = *(uint8_t *)(uintptr_t)0x64;
+  *(uint8_t *)(uintptr_t)0x64 = 0xFE;
+  
+  /* Fallback: triple fault */
+  __asm__ __volatile__("lidt (%%rax)" : : "a"((uintptr_t)&(struct {uint16_t limit; uint64_t base;}){0, 0}));
   __asm__ __volatile__("ud2");
+  
   return 0;
 }
 
-// sys_shutdown() - Shutdown system
+// sys_shutdown() - Shutdown system (ACPI power off)
 static int64_t sys_shutdown(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
 {
   (void)a0; (void)a1; (void)a2; (void)a3; (void)a4; (void)a5;
-  // ACPI shutdown
-  __asm__ __volatile__("hlt");
+  
+  /* ACPI shutdown: write to PM1a_CNT register */
+  /* Standard ACPI PM1a_CNT is at 0x404 (from FADT) or 0x600+0x04 */
+  /* For QEMU/Bochs: write 0x2000 to 0x604 */
+  *(uint16_t *)(uintptr_t)0x604 = 0x2000;
+  
+  /* Fallback: APM shutdown via port 0xB2 */
+  *(uint8_t *)(uintptr_t)0xB2 = 0x0001;
+  
+  /* Final fallback: halt */
+  __asm__ __volatile__("cli; hlt");
   return 0;
 }
 
@@ -692,8 +715,45 @@ static int64_t sys_env_set(uint64_t name, uint64_t value, uint64_t a2, uint64_t 
     return -1;
   }
   
-  // Simplified: store in process env area if available
-  // For now, just acknowledge the set operation
+  brights_proc_info_t *table = brights_proc_table_ptr();
+  if (!table) return -1;
+  
+  uint32_t idx = brights_proc_index(brights_proc_current());
+  if (idx >= 64) return -1;
+  
+  brights_proc_info_t *proc = &table[idx];
+  
+  /* Check if variable already exists, update it */
+  for (int i = 0; i < proc->env_count; i++) {
+    int match = 1;
+    for (int j = 0; j < BRIGHTS_PROC_ENV_KEY_LEN; j++) {
+      if (proc->env_keys[i][j] != varname[j]) { match = 0; break; }
+      if (varname[j] == 0) break;
+    }
+    if (match) {
+      /* Update value */
+      for (int j = 0; j < BRIGHTS_PROC_ENV_VAL_LEN; j++) {
+        proc->env_vals[i][j] = varvalue[j];
+        if (varvalue[j] == 0) break;
+      }
+      return 0;
+    }
+  }
+  
+  /* Add new variable */
+  if (proc->env_count >= BRIGHTS_PROC_ENV_MAX) return -1;
+  
+  int ci = proc->env_count;
+  for (int j = 0; j < BRIGHTS_PROC_ENV_KEY_LEN; j++) {
+    proc->env_keys[ci][j] = varname[j];
+    if (varname[j] == 0) break;
+  }
+  for (int j = 0; j < BRIGHTS_PROC_ENV_VAL_LEN; j++) {
+    proc->env_vals[ci][j] = varvalue[j];
+    if (varvalue[j] == 0) break;
+  }
+  proc->env_count++;
+  
   return 0;
 }
 
@@ -1097,18 +1157,55 @@ SYSCALL3(fcntl,
 })
 
 // sys_getsockname(sockfd, addr_ptr, port_ptr) - get socket name
-SYSCALL3(getsockname,
+static int64_t sys_getsockname_impl(uint64_t sockfd, uint64_t addr_ptr, uint64_t port_ptr, uint64_t a3, uint64_t a4, uint64_t a5)
 {
-  (void)a1; (void)a2;
+  (void)a3; (void)a4; (void)a5;
+  extern brights_socket_t sockets[];
+  extern int brights_netif_count(void);
+  extern brights_netif_t netifs[];
+  
+  if (sockfd >= 32) return -1;
+  if (!sockets[sockfd].in_use) return -1;
+  
+  uint32_t *addr = (uint32_t *)(uintptr_t)addr_ptr;
+  uint16_t *port = (uint16_t *)(uintptr_t)port_ptr;
+  
+  if (addr) {
+    /* Get local IP from first active interface */
+    if (brights_netif_count() > 0) {
+      *addr = netifs[0].ip_addr;
+    } else {
+      *addr = 0;
+    }
+  }
+  if (port) {
+    *port = sockets[sockfd].local_port;
+  }
+  
   return 0;
-})
+}
 
 // sys_getpeername(sockfd, addr_ptr, port_ptr) - get peer name
-SYSCALL3(getpeername,
+static int64_t sys_getpeername_impl(uint64_t sockfd, uint64_t addr_ptr, uint64_t port_ptr, uint64_t a3, uint64_t a4, uint64_t a5)
 {
-  (void)a1; (void)a2;
+  (void)a3; (void)a4; (void)a5;
+  extern brights_socket_t sockets[];
+  
+  if (sockfd >= 32) return -1;
+  if (!sockets[sockfd].in_use) return -1;
+  
+  uint32_t *addr = (uint32_t *)(uintptr_t)addr_ptr;
+  uint16_t *port = (uint16_t *)(uintptr_t)port_ptr;
+  
+  if (addr) {
+    *addr = sockets[sockfd].remote_ip;
+  }
+  if (port) {
+    *port = sockets[sockfd].remote_port;
+  }
+  
   return 0;
-})
+}
 
 // sys_getsockopt(sockfd, level, optname, optval, optlen) - get socket options
 SYSCALL5(getsockopt,
@@ -1209,8 +1306,8 @@ brights_sysent_t brights_sysent_table[] = {
   {3, sys_readv},              // 80: readv
   {3, sys_writev},             // 81: writev
   {3, sys_fcntl},              // 82: fcntl
-  {3, sys_getsockname},        // 83: getsockname
-  {3, sys_getpeername},        // 84: getpeername
+  {3, sys_getsockname_impl},     // 83: getsockname
+  {3, sys_getpeername_impl},    // 84: getpeername
   {5, sys_getsockopt},         // 85: getsockopt
   {2, sys_link},               // 86: link
 };

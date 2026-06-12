@@ -81,7 +81,6 @@ void brights_kernel_main(void *gop)
 {
   brights_console_t con;
   brights_serial_console_init(&con, BRIGHTS_COM1_PORT);
-  brights_print(&con, u"DEBUG: Kernel main started\r\n");
   brights_tty_init();
 
   if (gop && brights_fb_init(gop) == 0) {
@@ -234,7 +233,6 @@ void brights_kernel_main(void *gop)
   brights_signal_init();
   brights_syshook_init();
   brights_print(&con, u"syshook: init ok (32 hook slots)\r\n");
-  brights_print(&con, u"DEBUG: Syshook initialized\r\n");
 
   brights_print(&con, u"pmem: ");
   print_u64( brights_pmem_total_bytes() / (1024 * 1024));
@@ -301,7 +299,6 @@ void brights_kernel_main(void *gop)
   brights_vmware_backdoor_init();
   brights_print(&con, u"rtc: checking...\r\n");
   brights_rtc_time_t rt;
-  brights_print(&con, u"DEBUG: About to call rtc_read\r\n");
   if (brights_rtc_read(&rt) == 0) {
     brights_print(&con, u"rtc: ");
     /* Print date/time */
@@ -323,10 +320,8 @@ void brights_kernel_main(void *gop)
   }
 
   /* ---- VFS2 + User mode ---- */
-  brights_print(&con, u"DEBUG: About to init user mode\r\n");
   brights_print(&con, u"user: initializing...\r\n");
   brights_userinit();
-  brights_print(&con, u"DEBUG: userinit() returned\r\n");
 
   /* ---- Network (simplified for faster boot) ---- */
   brights_print(&con, u"net: init...\r\n");

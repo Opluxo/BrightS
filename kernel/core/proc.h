@@ -4,10 +4,14 @@
 #include <stdint.h>
 #include "../fs/vfs2.h"
 #include "elf.h"
+#include "signal.h"
 
 #define BRIGHTS_PROC_NAME_LEN 32
 #define BRIGHTS_PROC_CWD_LEN 128
 #define BRIGHTS_PROC_MAX_FDS VFS_MAX_FDS
+#define BRIGHTS_PROC_ENV_MAX 32
+#define BRIGHTS_PROC_ENV_KEY_LEN 64
+#define BRIGHTS_PROC_ENV_VAL_LEN 128
 
 /* Kernel stack per process: 8KB */
 #define BRIGHTS_PROC_KSTACK_SIZE 8192
@@ -63,6 +67,12 @@ typedef struct {
   uint64_t kernel_stack;          /* Kernel stack top for this process */
   brights_proc_ctx_t ctx;         /* Saved context */
   brights_proc_sched_t sched;     /* Scheduling stats and priority */
+  brights_signal_state_t signal;  /* Per-process signal state */
+  
+  /* Per-process environment variables */
+  char env_keys[BRIGHTS_PROC_ENV_MAX][BRIGHTS_PROC_ENV_KEY_LEN];
+  char env_vals[BRIGHTS_PROC_ENV_MAX][BRIGHTS_PROC_ENV_VAL_LEN];
+  int env_count;
 } brights_proc_info_t;
 
 // Initialize process subsystem

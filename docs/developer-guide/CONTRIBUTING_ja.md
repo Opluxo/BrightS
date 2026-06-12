@@ -19,7 +19,17 @@ docs: ドキュメント
 refactor: リファクタリング
 perf: パフォーマンス
 test: テスト
+style: フォーマット
+ci: CI/CD
+chore: メンテナンス
 ```
+
+## コードスタイル
+
+- 既存のコード規則に従う
+- 公共APIには `brights_` プレフィックスを使用
+- 関数は小さく焦点を絞る
+- 複雑なロジックにはコメントを追加
 
 ## ライセンス
 
@@ -27,4 +37,4 @@ test: テスト
 
 ---
 
-[GitHub](https://github.com/Opluxo/BrightS)
+[GitHub](https://github.com/Opluxo/BrightS) · [Docs](https://opluxo.github.io/BrightS/)

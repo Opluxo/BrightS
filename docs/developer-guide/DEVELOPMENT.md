@@ -38,18 +38,41 @@ ls /usr/share/OVMF/OVMF_CODE.fd
 ```bash
 git clone https://github.com/Opluxo/BrightS.git
 cd BrightS
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
+```
+
+## 构建 | Build
+
+### x86_64 UEFI
+
+```bash
+CC=clang LD=lld cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+./tools/make-iso.sh                      # → build/brights.iso
+```
+
+### i386 BIOS
+
+```bash
+bash scripts/build-i386.sh               # → build/floppy.img
 ```
 
 ## 运行 | Run
 
+### x86_64 UEFI
+
 ```bash
 qemu-system-x86_64 \
   -bios /usr/share/OVMF/OVMF_CODE.fd \
-  -drive file=fat:rw:build,format=raw \
+  -drive file=build/brights.iso,format=raw \
   -serial stdio -m 512
+```
+
+### i386 BIOS
+
+```bash
+qemu-system-i386 \
+  -drive file=build/floppy.img,format=raw \
+  -serial stdio
 ```
 
 ## 调试 | Debug
@@ -57,7 +80,7 @@ qemu-system-x86_64 \
 ```bash
 # 终端1: QEMU GDB 服务
 qemu-system-x86_64 -bios /usr/share/OVMF/OVMF_CODE.fd \
-  -drive file=fat:rw:build,format=raw \
+  -drive file=build/brights.iso,format=raw \
   -serial stdio -m 512 -s -S
 
 # 终端2: GDB 连接
@@ -77,3 +100,12 @@ export CXX="ccache clang++"
 # KVM 加速
 qemu-system-x86_64 ... -enable-kvm
 ```
+
+## 测试 | Tests
+
+```bash
+# 运行所有测试
+cd build && ctest
+```
+
+*最后更新：2026-06-11*

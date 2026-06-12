@@ -19,7 +19,17 @@ docs: documentation
 refactor: refactoring
 perf: performance
 test: tests
+style: formatting
+ci: CI/CD
+chore: maintenance
 ```
+
+## Code Style
+
+- Follow existing code conventions
+- Use `brights_` prefix for public APIs
+- Keep functions small and focused
+- Add comments for complex logic
 
 ## License
 
@@ -27,4 +37,4 @@ By contributing, you agree to GPL v2.
 
 ---
 
-[GitHub](https://github.com/Opluxo/BrightS)
+[GitHub](https://github.com/Opluxo/BrightS) · [Docs](https://opluxo.github.io/BrightS/)

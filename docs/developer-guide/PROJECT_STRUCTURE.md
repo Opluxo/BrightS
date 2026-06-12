@@ -62,23 +62,16 @@ BrightS/
 │   │   ├── simd.c                 # SIMD
 │   │   ├── syshook.c              # 系统钩子
 │   │   ├── vmware.c               # VMware
+│   │   ├── boot_splash.c          # 启动画面
 │   │   └── lightshell_cmds/       # Shell命令
-│   │       ├── netget.c
-│   │       └── fileops.c
+│   │       ├── netget.c           # HTTP获取
+│   │       └── fileops.c          # 文件操作
 │   ├── fs/                        # 文件系统
-│   │   ├── vfs.c / vfs2.c         # VFS抽象层
+│   │   ├── vfs2.c / vfs2.h        # VFS抽象层
 │   │   ├── ramfs.c / ramfs_vfs.c  # RAMFS
 │   │   ├── devfs.c / devfs_vfs.c  # 设备文件系统
-│   │   └── btrfs.c                # Btrfs
-│   ├── dev/                       # 设备驱动
-│   │   ├── ahci.c                 # AHCI
-│   │   ├── nvme.c                 # NVMe
-│   │   ├── block.c                # 块设备
-│   │   ├── ps2kbd.c               # PS/2键盘
-│   │   ├── tty.c                  # TTY
-│   │   ├── serial.c               # 串口
-│   │   ├── ramdisk.c              # RAM磁盘
-│   │   └── rtc.c                  # 实时时钟
+│   │   ├── btrfs.c                # Btrfs
+│   │   └── boot_fs.c              # 引导文件系统
 │   ├── ipc/                       # 进程间通信
 │   │   ├── pipe.c                 # 管道
 │   │   └── pipe_vfs.c             # 管道VFS
@@ -86,72 +79,105 @@ BrightS/
 │       ├── net.c                  # 网络核心
 │       ├── virtionet.c            # VirtIO-Net
 │       ├── wifi.c                 # WiFi
-│       ├── dhcp/dhcp.c            # DHCP
-│       ├── dns/dns.c              # DNS
-│       └── http/http.c            # HTTP
+│       ├── dhcp/
+│       │   ├── dhcp.c             # DHCP客户端
+│       │   └── dhcp.h
+│       ├── dns/
+│       │   ├── dns.c              # DNS解析器
+│       │   └── dns.h
+│       └── http/
+│           ├── http.c             # HTTP客户端
+│           └── http.h
 │
-├── drivers/                       # 显示/GPU驱动
-│   ├── display.c/h                # 显示驱动
-│   ├── fb.c/h                     # Framebuffer
-│   ├── font.c/h                   # 字体
-│   ├── gpu_hal.c/h                # GPU HAL
-│   ├── render.c/h                 # 渲染器
-│   ├── shader.c/h                 # 着色器
-│   ├── vulkan.c/h                 # Vulkan
-│   └── im.c/h                     # 输入管理
+├── drivers/                       # 设备驱动
+│   ├── ahci.c / ahci.h           # AHCI
+│   ├── nvme.c / nvme.h           # NVMe
+│   ├── block.c / block.h         # 块设备
+│   ├── ps2kbd.c / ps2kbd.h       # PS/2键盘
+│   ├── tty.c / tty.h             # TTY
+│   ├── serial.c / serial.h       # 串口
+│   ├── ramdisk.c / ramdisk.h     # RAM磁盘
+│   ├── rtc.c / rtc.h             # 实时时钟
+│   ├── display.c / display.h     # 显示驱动
+│   ├── fb.c / fb.h               # Framebuffer
+│   ├── font.c / font.h           # 字体
+│   ├── gpu_hal.c / gpu_hal.h     # GPU HAL
+│   ├── render.c / render.h       # 渲染器
+│   ├── shader.c / shader.h       # 着色器
+│   ├── vulkan.c / vulkan.h       # Vulkan
+│   ├── im.c / im.h               # 输入管理
+│   ├── tui.c / tui.h             # 文本UI
+│   ├── uhci.c / uhci.h           # USB UHCI
+│   ├── usb_core.c                # USB核心
+│   ├── usb_hid.c                 # USB HID
+│   └── usb_msc.c                 # USB MSC
 │
-├── user/                          # 用户态程序
-│   ├── shell.c                    # Shell
-│   ├── command.c/h                # 命令框架
-│   ├── cmd_*.c                    # 命令实现
-│   ├── libc.c/h                   # 标准C库
-│   ├── init.c                     # init进程
-│   ├── daemon.c/h                 # 守护进程
-│   ├── service.c/h                # 服务管理
-│   ├── syslogd.c / dhcpd.c        # 系统服务
-│   ├── sysinfo.c                  # 系统信息
-│   └── {rust,python,cpp}_runtime.c # 语言运行时
+├── sys/                           # 用户态程序
+│   ├── kernel/
+│   │   └── CMakeLists.txt         # 内核CMake
+│   └── user/
+│       ├── shell.c                # Shell
+│       ├── command.c / command.h  # 命令框架
+│       ├── cmd_*.c                # 命令实现
+│       ├── libc.c / libc.h       # 标准C库
+│       ├── init.c                 # init进程
+│       ├── daemon.c / daemon.h   # 守护进程
+│       ├── service.c / service.h # 服务管理
+│       ├── syslogd.c             # 系统日志
+│       ├── dhcpd.c               # DHCP服务
+│       ├── sysinfo.c             # 系统信息
+│       ├── echo.c                # echo命令
+│       ├── ping.c                # ping命令
+│       ├── lang_runtime.c / .h   # 语言运行时
+│       ├── rust_runtime.c / .h   # Rust运行时
+│       ├── python_runtime.c / .h # Python运行时
+│       └── cpp_runtime.c / .h    # C++运行时
 │
 ├── include/kernel/                # 内核头文件
-│   ├── kmalloc.h, sched.h, proc.h ...
-│   ├── vfs2.h, btrfs.h ...
-│   ├── apic.h, ioapic.h ...
+│   ├── kmalloc.h, sched.h, proc.h
+│   ├── vfs2.h, btrfs.h
+│   ├── apic.h, ioapic.h
+│   ├── net.h, dhcp.h, dns.h, http.h
 │   └── ...
 │
-├── docs/                          # 文档
-│   ├── README.md                  # 文档首页
-│   ├── CHANGELOG.md               # 更新日志
-│   ├── TODO.md                    # 路线图
-│   ├── PROGRESS.md                # 进展
-│   ├── SECURITY_STATUS.md         # 安全状态
-│   ├── OPTIMIZATION_REPORT.md     # 优化报告
-│   ├── I386_PORTING_PLAN.md       # i386移植
-│   ├── build/build.md             # 构建指南
+├── scripts/                       # 构建脚本
+│   ├── build-i386.sh              # i386构建
+│   └── build-x86_64.sh            # x86_64构建
+│
+├── tools/                         # 工具
+│   ├── create-disk-img.py         # 磁盘镜像
+│   ├── create-efi-img.py          # EFI镜像
+│   ├── make-iso.sh                # ISO创建
+│   ├── run-qemu.sh                # QEMU运行
+│   └── run-qemu-kernel.sh         # QEMU内核运行
+│
+├── tests/                         # 测试
+│   ├── CMakeLists.txt
+│   ├── test_ramfs.c
+│   ├── test_benchmark.c
+│   ├── test_extended.c
+│   ├── test_kmalloc.c
+│   ├── test_sched.c
+│   └── test_stubs.c
+│
+├── config/                        # 配置
+│   └── userspace/
+│       └── example.pf
+│
+├── docs/                          # 文档（独立分支）
+│   ├── index.html                 # 着陆页
+│   ├── view.html                  # Markdown渲染器
 │   ├── user-guide/                # 用户指南
 │   ├── developer-guide/           # 开发者指南
 │   ├── api-reference/             # API参考
-│   └── runtime/                   # 运行时文档
+│   ├── runtime/                   # 运行时文档
+│   └── vmware/                    # VMware文档
 │
-├── scripts/                       # 构建脚本
-│   ├── run-qemu.sh / run-qemu-kernel.sh
-│   ├── make-iso.sh / build-i386.sh
-│   ├── create-disk-img.py
-│   └── create-efi-img.py
-│
-├── tests/                         # 测试
-│   ├── test_ramfs.c
-│   ├── test_benchmark.c
-│   └── test_extended.c
-│
-├── config/                        # 配置
-│   └── userspace/example.pf
-│
-├── build/                         # 构建输出
 ├── CMakeLists.txt                 # 顶层CMake
 ├── Makefile                       # 构建入口
 ├── README.md                      # 项目介绍
-├── AGENTS.md                      # 开发规范(禁止修改)
+├── AGENTS.md                      # 开发规范
 ├── LICENSE                        # GPL v2
-├── File_Struct_Define             # 文件系统结构定义
-└── CONTRIBUTING_zh_CN.md          # 贡献指南
+├── LICENSE_COMPATIBILITY.md       # 许可证兼容性
+└── File_Struct_Define             # 文件系统结构定义
 ```

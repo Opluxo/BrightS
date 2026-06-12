@@ -3,6 +3,20 @@
 
 #include <stdint.h>
 
+/* ===== Byte-order helpers ===== */
+static inline uint16_t htons(uint16_t v)
+{
+  return (uint16_t)((v >> 8) | (v << 8));
+}
+static inline uint16_t ntohs(uint16_t v) { return htons(v); }
+
+static inline uint32_t htonl(uint32_t v)
+{
+  return ((v >> 24) & 0xFF) | ((v >> 8) & 0xFF00) |
+         ((v << 8) & 0xFF0000) | (v << 24);
+}
+static inline uint32_t ntohl(uint32_t v) { return htonl(v); }
+
 /* Network constants */
 #define BRIGHTS_NET_MAX_IF 4
 #define BRIGHTS_NET_MAX_DRIVERS 4
@@ -59,6 +73,9 @@ typedef struct {
   uint32_t tcp_state;
   uint32_t tcp_seq;
   uint32_t tcp_ack;
+  uint64_t last_send_tick;   /* For retransmission timeout */
+  uint32_t rto_ms;           /* Retransmission timeout in ms */
+  uint32_t retransmit_count; /* Number of retransmissions */
 } brights_socket_t;
 
 extern brights_socket_t sockets[BRIGHTS_NET_MAX_SOCKETS];

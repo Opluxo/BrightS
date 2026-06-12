@@ -141,10 +141,13 @@ brights_net_driver_t *brights_net_get_driver(int if_idx)
 }
 
 /* ===== ARP cache ===== */
+#define ARP_CACHE_TTL_TICKS 3000  /* ~30 seconds at 100Hz */
+
 typedef struct {
   uint32_t ip;
   uint8_t mac[6];
   int valid;
+  uint64_t expire_tick;
 } arp_entry_t;
 
 static arp_entry_t arp_cache[BRIGHTS_ARP_CACHE_SIZE];
@@ -185,11 +188,18 @@ static uint16_t alloc_port(void)
 }
 
 /* ===== ARP ===== */
+extern uint64_t brights_sched_ticks(void);
 
 static int arp_cache_find(uint32_t ip)
 {
   for (int i = 0; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
-    if (arp_cache[i].valid && arp_cache[i].ip == ip) return i;
+    if (arp_cache[i].valid && arp_cache[i].ip == ip) {
+      if (arp_cache[i].expire_tick > 0 && brights_sched_ticks() > arp_cache[i].expire_tick) {
+        arp_cache[i].valid = 0;  /* Expired */
+        return -1;
+      }
+      return i;
+    }
   }
   return -1;
 }
@@ -201,6 +211,7 @@ static int arp_cache_add(uint32_t ip, const uint8_t *mac)
       arp_cache[i].ip = ip;
       kutil_memcpy(arp_cache[i].mac, mac, 6);
       arp_cache[i].valid = 1;
+      arp_cache[i].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
       return 0;
     }
   }
@@ -229,15 +240,15 @@ int brights_arp_request(uint32_t target_ip)
   eth_hdr_t *eth = (eth_hdr_t *)frame;
   kutil_memset(eth->dst, 0xFF, 6); /* Broadcast */
   kutil_memcpy(eth->src, iface->mac, 6);
-  eth->type = 0x0608; /* ETH_TYPE_ARP (little-endian) */
+  eth->type = htons(ETH_TYPE_ARP);
 
   /* ARP payload */
   arp_hdr_t *arp = (arp_hdr_t *)(frame + sizeof(eth_hdr_t));
-  arp->hw_type = 0x0100; /* Ethernet (little-endian) */
-  arp->proto_type = 0x0008; /* IPv4 (little-endian) */
+  arp->hw_type = htons(1);  /* Ethernet */
+  arp->proto_type = htons(0x0800); /* IPv4 */
   arp->hw_size = 6;
   arp->proto_size = 4;
-  arp->opcode = 0x0100; /* ARP_REQUEST (little-endian) */
+  arp->opcode = htons(ARP_REQUEST);
   kutil_memcpy(arp->sender_mac, iface->mac, 6);
   arp->sender_ip = iface->ip_addr;
   kutil_memset(arp->target_mac, 0, 6);
@@ -261,7 +272,7 @@ static void arp_handle(uint8_t *frame, uint32_t len)
   /* Cache sender info */
   arp_cache_add(arp->sender_ip, arp->sender_mac);
 
-  if (opcode == 0x0100) { /* ARP_REQUEST (little-endian) */
+  if (opcode == htons(ARP_REQUEST)) { /* ARP_REQUEST */
     if (arp->target_ip == iface->ip_addr) {
       /* Send ARP reply */
       uint8_t reply[BRIGHTS_NET_BUF_SIZE];
@@ -270,14 +281,14 @@ static void arp_handle(uint8_t *frame, uint32_t len)
       eth_hdr_t *eth = (eth_hdr_t *)reply;
       kutil_memcpy(eth->dst, arp->sender_mac, 6);
       kutil_memcpy(eth->src, iface->mac, 6);
-      eth->type = 0x0608;
+      eth->type = htons(ETH_TYPE_ARP);
 
       arp_hdr_t *rarp = (arp_hdr_t *)(reply + sizeof(eth_hdr_t));
-      rarp->hw_type = 0x0100;
-      rarp->proto_type = 0x0008;
+      rarp->hw_type = htons(1);
+      rarp->proto_type = htons(0x0800);
       rarp->hw_size = 6;
       rarp->proto_size = 4;
-      rarp->opcode = 0x0200; /* ARP_REPLY (little-endian) */
+      rarp->opcode = htons(ARP_REPLY);
       kutil_memcpy(rarp->sender_mac, iface->mac, 6);
       rarp->sender_ip = iface->ip_addr;
       kutil_memcpy(rarp->target_mac, arp->sender_mac, 6);
@@ -306,7 +317,7 @@ int brights_ip_send(uint32_t dst_ip, uint8_t protocol, const void *data, uint32_
   ip_hdr_t *ip = (ip_hdr_t *)(frame + sizeof(eth_hdr_t));
   ip->ver_ihl = 0x45; /* IPv4, 5 words */
   ip->tos = 0;
-  ip->total_len = (uint16_t)((total_len >> 8) | (total_len << 8)); /* Big-endian */
+  ip->total_len = htons((uint16_t)total_len);
   ip->ident = 0;
   ip->flags_frag = 0;
   ip->ttl = 64;
@@ -332,7 +343,7 @@ int brights_ip_send(uint32_t dst_ip, uint8_t protocol, const void *data, uint32_
 
   /* Build Ethernet header */
   eth_hdr_t *eth = (eth_hdr_t *)frame;
-  net_set_eth_header(eth, dst_mac, iface->mac, 0x0008); /* ETH_TYPE_IP (big-endian) */
+  net_set_eth_header(eth, dst_mac, iface->mac, htons(ETH_TYPE_IP));
 
   uint32_t frame_len = sizeof(eth_hdr_t) + total_len;
   brights_net_send(frame, frame_len);
@@ -345,7 +356,7 @@ static void ip_handle(uint8_t *frame, uint32_t len)
 
   ip_hdr_t *ip = (ip_hdr_t *)(frame + sizeof(eth_hdr_t));
   uint32_t ip_hdr_len = (ip->ver_ihl & 0x0F) * 4;
-  uint32_t payload_len = ((ip->total_len >> 8) | (ip->total_len << 8)) - ip_hdr_len;
+  uint32_t payload_len = ntohs(ip->total_len) - ip_hdr_len;
   uint8_t *payload = frame + sizeof(eth_hdr_t) + ip_hdr_len;
 
   if (netif_count == 0) return;
@@ -371,12 +382,15 @@ static void ip_handle(uint8_t *frame, uint32_t len)
 
 int brights_icmp_echo_request(uint32_t dst_ip)
 {
+  static uint16_t icmp_ident = 0x1234;
+  static uint16_t icmp_seq = 0;
+
   icmp_hdr_t icmp;
   icmp.type = ICMP_ECHO_REQUEST;
   icmp.code = 0;
   icmp.checksum = 0;
-  icmp.ident = 0x1234;
-  icmp.seq = 0x0001;
+  icmp.ident = htons(icmp_ident);
+  icmp.seq = htons(++icmp_seq);
   icmp.checksum = ip_checksum(&icmp, sizeof(icmp));
 
   return brights_ip_send(dst_ip, IP_PROTO_ICMP, &icmp, sizeof(icmp));
@@ -405,9 +419,9 @@ int brights_udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, cons
   udp_hdr_t udp;
   uint32_t total = sizeof(udp_hdr_t) + len;
   uint8_t buf[sizeof(udp_hdr_t) + len];
-  udp.src_port = (uint16_t)((src_port >> 8) | (src_port << 8));
-  udp.dst_port = (uint16_t)((dst_port >> 8) | (dst_port << 8));
-  udp.length = (uint16_t)((total >> 8) | (total << 8));
+  udp.src_port = htons(src_port);
+  udp.dst_port = htons(dst_port);
+  udp.length = htons((uint16_t)total);
   udp.checksum = 0;
   kutil_memcpy(buf, &udp, sizeof(udp_hdr_t));
   if (data && len > 0)
@@ -420,7 +434,7 @@ void udp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
   if (len < sizeof(udp_hdr_t)) return;
 
   udp_hdr_t *udp = (udp_hdr_t *)data;
-  uint16_t dst_port = (uint16_t)((udp->dst_port >> 8) | (udp->dst_port << 8));
+  uint16_t dst_port = ntohs(udp->dst_port);
 
   /* Find socket listening on this port */
   for (int i = 0; i < BRIGHTS_NET_MAX_SOCKETS; ++i) {
@@ -436,7 +450,7 @@ void udp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
                      data + sizeof(udp_hdr_t), payload_len);
         sockets[i].recv_len += payload_len;
         sockets[i].remote_ip = src_ip;
-        sockets[i].remote_port = (uint16_t)((udp->src_port >> 8) | (udp->src_port << 8));
+        sockets[i].remote_port = ntohs(udp->src_port);
       }
       return;
     }
@@ -468,6 +482,9 @@ int brights_tcp_connect(uint32_t dst_ip, uint16_t dst_port)
   sock->tcp_seq = 1000; /* Initial sequence number */
   sock->tcp_ack = 0;
   sock->recv_len = 0;
+  sock->last_send_tick = 0;
+  sock->rto_ms = 1000;  /* 1 second initial RTO */
+  sock->retransmit_count = 0;
 
   if (netif_count > 0) {
     sock->local_ip = netifs[0].ip_addr;
@@ -476,10 +493,9 @@ int brights_tcp_connect(uint32_t dst_ip, uint16_t dst_port)
   /* Send SYN */
   tcp_hdr_t tcp;
   kutil_memset(&tcp, 0, sizeof(tcp));
-  tcp.src_port = (uint16_t)((sock->local_port >> 8) | (sock->local_port << 8));
-  tcp.dst_port = (uint16_t)((dst_port >> 8) | (dst_port << 8));
-  tcp.seq = (uint32_t)((sock->tcp_seq >> 24) | ((sock->tcp_seq >> 8) & 0xFF00) |
-                       ((sock->tcp_seq << 8) & 0xFF0000) | (sock->tcp_seq << 24));
+  tcp.src_port = htons(sock->local_port);
+  tcp.dst_port = htons(dst_port);
+  tcp.seq = htonl(sock->tcp_seq);
   tcp.data_off = 0x50; /* 5 words, no options */
   tcp.flags = TCP_SYN;
   tcp.window = 0xFFFF;
@@ -493,10 +509,9 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
   if (len < sizeof(tcp_hdr_t)) return;
 
   tcp_hdr_t *tcp = (tcp_hdr_t *)data;
-  uint16_t dst_port = (uint16_t)((tcp->dst_port >> 8) | (tcp->dst_port << 8));
-  uint16_t src_port = (uint16_t)((tcp->src_port >> 8) | (tcp->src_port << 8));
-  uint32_t seq = (uint32_t)((tcp->seq >> 24) | ((tcp->seq >> 8) & 0xFF00) |
-                            ((tcp->seq << 8) & 0xFF0000) | (tcp->seq << 24));
+  uint16_t dst_port = ntohs(tcp->dst_port);
+  uint16_t src_port = ntohs(tcp->src_port);
+  uint32_t seq = ntohl(tcp->seq);
 
   /* Find matching socket */
   for (int i = 0; i < BRIGHTS_NET_MAX_SOCKETS; ++i) {
@@ -516,10 +531,8 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
       kutil_memset(&reply, 0, sizeof(reply));
       reply.src_port = tcp->dst_port;
       reply.dst_port = tcp->src_port;
-      reply.seq = (uint32_t)((sock->tcp_seq >> 24) | ((sock->tcp_seq >> 8) & 0xFF00) |
-                             ((sock->tcp_seq << 8) & 0xFF0000) | (sock->tcp_seq << 24));
-      reply.ack = (uint32_t)((sock->tcp_ack >> 24) | ((sock->tcp_ack >> 8) & 0xFF00) |
-                             ((sock->tcp_ack << 8) & 0xFF0000) | (sock->tcp_ack << 24));
+      reply.seq = htonl(sock->tcp_seq);
+      reply.ack = htonl(sock->tcp_ack);
       reply.data_off = 0x50;
       reply.flags = TCP_SYN | TCP_ACK;
       reply.window = 0xFFFF;
@@ -542,10 +555,8 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
       kutil_memset(&reply, 0, sizeof(reply));
       reply.src_port = tcp->dst_port;
       reply.dst_port = tcp->src_port;
-      reply.seq = (uint32_t)((sock->tcp_seq >> 24) | ((sock->tcp_seq >> 8) & 0xFF00) |
-                             ((sock->tcp_seq << 8) & 0xFF0000) | (sock->tcp_seq << 24));
-      reply.ack = (uint32_t)((sock->tcp_ack >> 24) | ((sock->tcp_ack >> 8) & 0xFF00) |
-                             ((sock->tcp_ack << 8) & 0xFF0000) | (sock->tcp_ack << 24));
+      reply.seq = htonl(sock->tcp_seq);
+      reply.ack = htonl(sock->tcp_ack);
       reply.data_off = 0x50;
       reply.flags = TCP_ACK;
       reply.window = 0xFFFF;
@@ -568,10 +579,8 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
           kutil_memset(&reply, 0, sizeof(reply));
           reply.src_port = tcp->dst_port;
           reply.dst_port = tcp->src_port;
-          reply.seq = (uint32_t)((sock->tcp_seq >> 24) | ((sock->tcp_seq >> 8) & 0xFF00) |
-                                 ((sock->tcp_seq << 8) & 0xFF0000) | (sock->tcp_seq << 24));
-          reply.ack = (uint32_t)((sock->tcp_ack >> 24) | ((sock->tcp_ack >> 8) & 0xFF00) |
-                                 ((sock->tcp_ack << 8) & 0xFF0000) | (sock->tcp_ack << 24));
+          reply.seq = htonl(sock->tcp_seq);
+          reply.ack = htonl(sock->tcp_ack);
           reply.data_off = 0x50;
           reply.flags = TCP_ACK;
           reply.window = 0xFFFF;
@@ -675,12 +684,10 @@ int brights_send(int sockfd, const void *buf, uint32_t len)
     uint8_t tcp_seg[sizeof(tcp_hdr_t) + BRIGHTS_NET_BUF_SIZE];
     tcp_hdr_t *tcp = (tcp_hdr_t *)tcp_seg;
     kutil_memset(tcp, 0, sizeof(tcp_hdr_t));
-    tcp->src_port = (uint16_t)((sock->local_port >> 8) | (sock->local_port << 8));
-    tcp->dst_port = (uint16_t)((sock->remote_port >> 8) | (sock->remote_port << 8));
-    tcp->seq = (uint32_t)((sock->tcp_seq >> 24) | ((sock->tcp_seq >> 8) & 0xFF00) |
-                         ((sock->tcp_seq << 8) & 0xFF0000) | (sock->tcp_seq << 24));
-    tcp->ack = (uint32_t)((sock->tcp_ack >> 24) | ((sock->tcp_ack >> 8) & 0xFF00) |
-                         ((sock->tcp_ack << 8) & 0xFF0000) | (sock->tcp_ack << 24));
+    tcp->src_port = htons(sock->local_port);
+    tcp->dst_port = htons(sock->remote_port);
+    tcp->seq = htonl(sock->tcp_seq);
+    tcp->ack = htonl(sock->tcp_ack);
     tcp->data_off = 0x50;
     tcp->flags = TCP_ACK | TCP_PSH;
     tcp->window = 0xFFFF;
@@ -691,6 +698,9 @@ int brights_send(int sockfd, const void *buf, uint32_t len)
     int ret = brights_ip_send(sock->remote_ip, IP_PROTO_TCP, tcp_seg, seg_len);
     if (ret == 0) {
       sock->tcp_seq += len;
+      sock->last_send_tick = brights_sched_ticks();
+      sock->retransmit_count = 0;
+      sock->rto_ms = 1000;  /* Reset RTO on successful send */
     }
     return ret == 0 ? (int)len : -1;
   }
@@ -726,12 +736,10 @@ int brights_close(int sockfd)
     /* Send FIN */
     tcp_hdr_t tcp;
     kutil_memset(&tcp, 0, sizeof(tcp));
-    tcp.src_port = (uint16_t)((sock->local_port >> 8) | (sock->local_port << 8));
-    tcp.dst_port = (uint16_t)((sock->remote_port >> 8) | (sock->remote_port << 8));
-    tcp.seq = (uint32_t)((sock->tcp_seq >> 24) | ((sock->tcp_seq >> 8) & 0xFF00) |
-                         ((sock->tcp_seq << 8) & 0xFF0000) | (sock->tcp_seq << 24));
-    tcp.ack = (uint32_t)((sock->tcp_ack >> 24) | ((sock->tcp_ack >> 8) & 0xFF00) |
-                         ((sock->tcp_ack << 8) & 0xFF0000) | (sock->tcp_ack << 24));
+    tcp.src_port = htons(sock->local_port);
+    tcp.dst_port = htons(sock->remote_port);
+    tcp.seq = htonl(sock->tcp_seq);
+    tcp.ack = htonl(sock->tcp_ack);
     tcp.data_off = 0x50;
     tcp.flags = TCP_FIN | TCP_ACK;
     tcp.window = 0xFFFF;
@@ -743,10 +751,53 @@ int brights_close(int sockfd)
   return 0;
 }
 
+/* ===== TCP retransmission timeout check ===== */
+static void tcp_check_timeouts(void)
+{
+  uint64_t now = brights_sched_ticks();
+  
+  for (int i = 0; i < BRIGHTS_NET_MAX_SOCKETS; ++i) {
+    brights_socket_t *sock = &sockets[i];
+    if (!sock->in_use || sock->type != 1) continue;  /* SOCK_STREAM only */
+    if (sock->tcp_state == 0 || sock->tcp_state == 3) continue;  /* Not connecting/connected */
+    
+    /* Check if we need to retransmit */
+    if (sock->last_send_tick > 0 && 
+        (now - sock->last_send_tick) * 10 > sock->rto_ms) {
+      
+      if (sock->retransmit_count < 5) {  /* Max 5 retransmits */
+        /* Retransmit the last segment */
+        tcp_hdr_t tcp;
+        kutil_memset(&tcp, 0, sizeof(tcp));
+        tcp.src_port = htons(sock->local_port);
+        tcp.dst_port = htons(sock->remote_port);
+        tcp.seq = htonl(sock->tcp_seq);
+        tcp.ack = htonl(sock->tcp_ack);
+        tcp.data_off = 0x50;
+        tcp.flags = TCP_ACK | TCP_PSH;
+        tcp.window = 0xFFFF;
+        
+        brights_ip_send(sock->remote_ip, IP_PROTO_TCP, &tcp, sizeof(tcp));
+        
+        sock->retransmit_count++;
+        sock->rto_ms *= 2;  /* Exponential backoff */
+        sock->last_send_tick = now;
+      } else {
+        /* Too many retransmits - connection lost */
+        sock->tcp_state = 0;  /* Back to closed */
+        sock->retransmit_count = 0;
+        sock->rto_ms = 1000;
+      }
+    }
+  }
+}
+
 /* ===== Network poll: drain all pending frames from all drivers ===== */
 
 void brights_net_poll_all(void)
 {
+  tcp_check_timeouts();
+  
   for (int i = 0; i < netif_count; i++) {
     brights_net_driver_t *drv = brights_net_get_driver(i);
     if (!drv || !drv->initialized) continue;
@@ -766,7 +817,7 @@ void brights_net_recv(const uint8_t *frame, uint32_t len)
   if (len < sizeof(eth_hdr_t)) return;
 
   eth_hdr_t *eth = (eth_hdr_t *)frame;
-  uint16_t type = (uint16_t)((eth->type >> 8) | (eth->type << 8)); /* Big-endian */
+  uint16_t type = ntohs(eth->type);
 
   switch (type) {
     case ETH_TYPE_ARP:

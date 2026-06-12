@@ -19,19 +19,20 @@
 static brights_proc_info_t proc_table[BRIGHTS_PROC_MAX];
 static uint32_t pid_to_index[256];
 static uint64_t free_slots_bitmap;
+static uint64_t pid_bitmap;       /* O(1) PID allocation */
 static uint32_t next_pid = 1;
 static uint32_t current_pid = 0;
 
 static uint32_t proc_alloc_pid(void)
 {
-  uint32_t tries = 0;
-  while (tries < 256) {
-    uint32_t pid = next_pid++;
-    if (next_pid >= 256) next_pid = 1;
-    if (pid_to_index[pid] == BRIGHTS_PROC_MAX) return pid;
-    ++tries;
-  }
-  return 0;
+  /* O(1) PID allocation using bitmap + BSF */
+  uint64_t avail = ~pid_bitmap & 0xFFFFFFFFULL; /* PIDs 1-31 */
+  if (avail == 0) return 0;
+  uint32_t pid;
+  __asm__ __volatile__("bsf %1, %0" : "=r"(pid) : "r"(avail) : "cc");
+  if (pid == 0 || pid >= 256) return 0;
+  pid_bitmap |= (1ULL << pid);
+  return pid;
 }
 
 brights_proc_info_t *brights_proc_table_ptr(void)
@@ -102,6 +103,7 @@ static inline void proc_sched_zero(brights_proc_sched_t *s)
 void brights_proc_init(void)
 {
   free_slots_bitmap = 0;
+  pid_bitmap = (1ULL << 0); /* PID 0 is reserved */
   for (uint32_t i = 0; i < 256; ++i) pid_to_index[i] = BRIGHTS_PROC_MAX;
 
   for (uint32_t i = 0; i < BRIGHTS_PROC_MAX; ++i) {
@@ -256,6 +258,8 @@ int brights_proc_reap(uint32_t pid)
   /* Free proc table slot */
   pid_to_index[pid] = BRIGHTS_PROC_MAX;
   proc_free_slot((int)idx);
+  /* Free PID in bitmap */
+  pid_bitmap &= ~(1ULL << pid);
   return 0;
 }
 

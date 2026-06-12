@@ -26,6 +26,9 @@ static uint64_t pmem_base;        /* Lowest usable physical address */
 static uint64_t pmem_total_pages; /* Total pages tracked */
 static uint64_t pmem_free_pages;  /* Currently free pages */
 
+/* Multi-page allocation hint: skip scanned regions */
+static uint64_t pmem_alloc_hint;  /* Last allocated page index + 1 */
+
 static inline void bitmap_set(uint64_t page_idx)
 {
   pmem_bitmap[page_idx / 64] |= (1ULL << (page_idx % 64));
@@ -56,6 +59,7 @@ void brights_pmem_init(const brights_mem_region_t *regions, uint32_t count)
   pmem_total_pages = 0;
   pmem_free_pages = 0;
   pmem_base = ~0ULL;
+  pmem_alloc_hint = 0;
 
   if (!regions || count == 0) return;
 
@@ -144,20 +148,42 @@ void *brights_pmem_alloc_pages(uint32_t count)
   if (count == 0) return 0;
   if (count == 1) return brights_pmem_alloc_page();
 
-  /* First-fit contiguous search */
+  /* First-fit contiguous search with hint cache */
   uint32_t found = 0;
   uint64_t start_idx = 0;
+  uint64_t max_pages = (pmem_total_pages < PMEM_MAX_PAGES) ? pmem_total_pages : PMEM_MAX_PAGES;
 
-  for (uint64_t i = 0; i < PMEM_MAX_PAGES; ++i) {
+  /* Start from hint to skip already-scanned regions */
+  for (uint64_t i = pmem_alloc_hint; i < max_pages; ++i) {
     if (!bitmap_test(i)) {
       if (found == 0) start_idx = i;
       ++found;
       if (found == count) {
-        /* Mark all pages as used */
         for (uint64_t j = start_idx; j < start_idx + count; ++j) {
           bitmap_set(j);
         }
         pmem_free_pages -= count;
+        pmem_alloc_hint = start_idx + count;
+        if (pmem_alloc_hint >= max_pages) pmem_alloc_hint = 0;
+        return (void *)(uintptr_t)(pmem_base + start_idx * BRIGHTS_PAGE_SIZE);
+      }
+    } else {
+      found = 0;
+    }
+  }
+
+  /* Wrap around from beginning if hint didn't find space */
+  for (uint64_t i = 0; i < pmem_alloc_hint && i < max_pages; ++i) {
+    if (!bitmap_test(i)) {
+      if (found == 0) start_idx = i;
+      ++found;
+      if (found == count) {
+        for (uint64_t j = start_idx; j < start_idx + count; ++j) {
+          bitmap_set(j);
+        }
+        pmem_free_pages -= count;
+        pmem_alloc_hint = start_idx + count;
+        if (pmem_alloc_hint >= max_pages) pmem_alloc_hint = 0;
         return (void *)(uintptr_t)(pmem_base + start_idx * BRIGHTS_PAGE_SIZE);
       }
     } else {

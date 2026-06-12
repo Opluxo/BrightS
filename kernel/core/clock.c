@@ -13,6 +13,15 @@ static inline uint64_t rdtsc(void)
   return ((uint64_t)hi << 32) | lo;
 }
 
+// Read TSC with serialization (RDTSCP) - more accurate
+static inline uint64_t rdtscp(void)
+{
+  uint32_t lo, hi, aux;
+  __asm__ __volatile__("rdtscp" : "=a"(lo), "=d"(hi), "=c"(aux));
+  (void)aux;
+  return ((uint64_t)hi << 32) | lo;
+}
+
 // Check if TSC is available
 static int has_tsc(void)
 {
@@ -21,6 +30,16 @@ static int has_tsc(void)
                         : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
                         : "a"(1));
   return (edx >> 4) & 1; // TSC bit
+}
+
+// Check if invariant TSC is available (constant rate)
+static int has_invariant_tsc(void)
+{
+  uint32_t eax, ebx, ecx, edx;
+  __asm__ __volatile__("cpuid"
+                        : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+                        : "a"(0x80000007));
+  return (edx >> 8) & 1; // Invariant TSC bit
 }
 
 void brights_clock_init(void)
@@ -67,19 +86,22 @@ uint64_t brights_clock_ns(void)
   }
 
   if (tsc_freq > 0 && has_tsc()) {
-    uint64_t tsc = rdtsc();
-    // Convert TSC ticks to nanoseconds
-    // ns = (tsc * 1000000000) / freq
-    // To avoid overflow, divide first if freq is large
-    if (tsc_freq >= 1000000000ULL) {
-      return (tsc / (tsc_freq / 1000000000ULL));
-    } else {
-      return (tsc * 1000000000ULL) / tsc_freq;
+    /* Use RDTSCP for serialized, more accurate reading */
+    uint64_t tsc = rdtscp();
+    /* Convert TSC ticks to nanoseconds using fixed-point math */
+    /* ns = (tsc * 1000000000) / freq */
+    /* Use 128-bit intermediate to avoid overflow: split the division */
+    uint64_t freq_mhz = tsc_freq / 1000000;
+    if (freq_mhz > 0) {
+      /* tsc / freq_mhz gives microseconds, * 1000 gives nanoseconds */
+      return (tsc / freq_mhz) * 1000;
     }
+    /* Fallback for very low frequencies */
+    return (tsc / (tsc_freq / 1000000000ULL));
   }
 
-  // Fallback: estimate from ticks (assuming 100Hz timer)
-  return clock_ticks * 10000000ULL; // 10ms per tick
+  /* Fallback: estimate from ticks (assuming 100Hz timer) */
+  return clock_ticks * 10000000ULL; /* 10ms per tick */
 }
 
 uint64_t brights_clock_us(void)

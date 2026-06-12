@@ -167,7 +167,7 @@ void brights_sched_tick(void)
         uint64_t ticks_since_sched = sched_ticks - table[pid_idx].sched.last_sched_tick;
         uint8_t cur_prio = slot_table[i].priority;
 
-        if (cur_prio > BRIGHTS_SCHED_PRIO_HIGH &&
+        if (cur_prio != BRIGHTS_SCHED_PRIO_HIGH &&
             ticks_since_sched > AGING_BOOST_TICKS) {
           uint8_t new_prio = cur_prio - 1; /* boost one level */
           clear_runnable(i, cur_prio);

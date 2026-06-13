@@ -801,24 +801,25 @@ uint32_t brights_color_to_hex(brights_color_t color)
   return ((uint32_t)color.r << 16) | ((uint32_t)color.g << 8) | color.b;
 }
 
-brights_color_t brights_color_lighten(brights_color_t color, float factor)
+brights_color_t brights_color_lighten(brights_color_t color, int factor_pct)
 {
-  if (factor < 0) factor = 0;
-  if (factor > 1) factor = 1;
-  float inv = 1.0f - factor;
-  color.r = (uint8_t)(color.r * inv + 255 * factor);
-  color.g = (uint8_t)(color.g * inv + 255 * factor);
-  color.b = (uint8_t)(color.b * inv + 255 * factor);
+  if (factor_pct < 0) factor_pct = 0;
+  if (factor_pct > 100) factor_pct = 100;
+  int inv = 100 - factor_pct;
+  color.r = (uint8_t)((int)color.r * inv / 100 + 255 * factor_pct / 100);
+  color.g = (uint8_t)((int)color.g * inv / 100 + 255 * factor_pct / 100);
+  color.b = (uint8_t)((int)color.b * inv / 100 + 255 * factor_pct / 100);
   return color;
 }
 
-brights_color_t brights_color_darken(brights_color_t color, float factor)
+brights_color_t brights_color_darken(brights_color_t color, int factor_pct)
 {
-  if (factor < 0) factor = 0;
-  if (factor > 1) factor = 1;
-  color.r = (uint8_t)(color.r * (1.0f - factor));
-  color.g = (uint8_t)(color.g * (1.0f - factor));
-  color.b = (uint8_t)(color.b * (1.0f - factor));
+  if (factor_pct < 0) factor_pct = 0;
+  if (factor_pct > 100) factor_pct = 100;
+  int rem = 100 - factor_pct;
+  color.r = (uint8_t)((int)color.r * rem / 100);
+  color.g = (uint8_t)((int)color.g * rem / 100);
+  color.b = (uint8_t)((int)color.b * rem / 100);
   return color;
 }
 

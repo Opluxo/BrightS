@@ -157,8 +157,8 @@ brights_color_t brights_rgb(uint8_t r, uint8_t g, uint8_t b);
 brights_color_t brights_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 brights_color_t brights_color_from_hex(uint32_t hex);
 uint32_t brights_color_to_hex(brights_color_t color);
-brights_color_t brights_color_lighten(brights_color_t color, float factor);
-brights_color_t brights_color_darken(brights_color_t color, float factor);
+brights_color_t brights_color_lighten(brights_color_t color, int factor_pct);
+brights_color_t brights_color_darken(brights_color_t color, int factor_pct);
 int brights_color_equal(brights_color_t c1, brights_color_t c2);
 
 /* Anti-aliased drawing */

@@ -20,6 +20,8 @@ const uint8_t* brights_get_chinese_glyph(uint32_t codepoint);
 
 void brights_font_draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color);
 
+void brights_font_draw_codepoint(int x, int y, uint32_t cp, uint32_t fg_color, uint32_t bg_color);
+
 void brights_font_draw_string(int x, int y, const char *str, uint32_t fg_color, uint32_t bg_color);
 
 int brights_font_string_width(const char *str);

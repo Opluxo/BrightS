@@ -30,6 +30,7 @@
 #include "kernel_util.h"
 #include "userinit.h"
 #include "smp.h"
+#include "../drivers/im.h"
 #ifdef __i386__
 #include "../arch/i386/apic.h"
 #include "../arch/i386/ioapic.h"
@@ -203,7 +204,7 @@ static const cmd_entry_t *cmd_find(const char *name)
 static char current_user[LIGHTSHELL_MAX_USER] = "guest";
 static char current_dir[LIGHTSHELL_MAX_PATH] = "/";
 static int is_root = 0;
-static char version[20] = "v0.1.2.8";
+static char version[20] = "v0.1.2.9";
 
 // Command history
 static char history[LIGHTSHELL_HISTORY_SIZE][LIGHTSHELL_MAX_LINE];
@@ -979,7 +980,7 @@ static void print_system_info(void)
   uint64_t free_mem = brights_pmem_free_bytes() / (1024 * 1024);
   uint32_t proc_count = brights_proc_total();
 
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS v0.1.2.8\033[0m\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS v0.1.2.9\033[0m\r\n");
 
   char buf[64];
   char numbuf[16];
@@ -3156,7 +3157,7 @@ int brights_boot_login(void)
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "+---------------------------------------------+\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS v0.1.2.8               |\r\n");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS v0.1.2.9               |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              System Console Login            |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
@@ -3291,6 +3292,7 @@ void brights_lightshell_run(void)
   int escape_state = 0;
   int escape_param = 0;
   int old_tty = brights_tty_get_mode();
+  brights_im_init();
 
   brights_tty_set_mode(TTY_MODE_RAW);
   env_init();
@@ -3305,7 +3307,7 @@ void brights_lightshell_run(void)
     for (int tj = 0; current_user[tj] && ti < (int)sizeof(title_right) - 1; ++tj)
       title_right[ti++] = current_user[tj];
     title_right[ti] = 0;
-    tui_draw_title_bar("BrightS v0.1.2.8", title_right);
+    tui_draw_title_bar("BrightS v0.1.2.9", title_right);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J\033[H");
   }
 
@@ -3501,10 +3503,23 @@ void brights_lightshell_run(void)
 
     // === Backspace ===
     if ((ch == 0x08 || ch == 0x7F) && pos > 0) {
-      kutil_memmove(line + pos - 1, line + pos, (uint64_t)(len - pos));
-      --len; --pos;
+      /* Remove previous codepoint (may be multi-byte UTF-8) */
+      int del = 1;
+      if (pos > 0 && ((unsigned char)line[pos - 1] & 0xC0) == 0x80) {
+        /* Previous byte is a continuation byte - find the leading byte */
+        del = 0;
+        for (int i = pos - 1; i >= 0 && i >= pos - 4; i--) {
+          del++;
+          if (((unsigned char)line[i] & 0xC0) != 0x80) break;
+        }
+      }
+      kutil_memmove(line + pos - del, line + pos, (uint64_t)(len - pos));
+      len -= del; pos -= del;
       line[len] = 0;
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b");
+      /* Erase display: backspace + spaces + backspace for the character width */
+      for (int i = 0; i < del; i++) {
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\b \b");
+      }
       line_redraw_all(line, len, pos);
       continue;
     }
@@ -3516,20 +3531,86 @@ void brights_lightshell_run(void)
       continue;
     }
 
-    // === Printable characters ===
-    if (ch >= 32 && ch < 127 && len < LIGHTSHELL_MAX_LINE - 1) {
-      int old_pos = pos;
-      if (old_pos < len) {
-        kutil_memmove(line + old_pos + 1, line + old_pos,
-                      (uint64_t)(len - old_pos));
+    // === IME toggle: backtick (`) toggles Chinese input ===
+    if (ch == 0x60) {
+      brights_im_toggle();
+      if (brights_fb_available()) {
+        fb_console_t *con = fb_console_get_info();
+        if (con) {
+          int status_y = con->work_y + con->work_h;
+          fb_console_goto(0, status_y);
+          if (brights_im_is_active()) {
+            fb_console_set_colors(tui_clr_bright_yellow(), brights_rgb(0, 30, 60));
+            fb_console_write_str(" [CN] ");
+          } else {
+            fb_console_set_colors(tui_clr_bright_green(), brights_rgb(0, 30, 60));
+            fb_console_write_str("                              ");
+          }
+        }
+        brights_im_draw_candidates();
       }
-      line[old_pos] = (char)ch;
-      ++len; ++pos;
-      line[len] = 0;
-      line_update(line, len, old_pos);
-      char echo[2] = {(char)ch, 0};
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
       continue;
+    }
+
+    // === IME active: intercept keys for Chinese input ===
+    if (brights_im_is_active()) {
+      int handled = 0;
+
+      if (ch >= 'a' && ch <= 'z') {
+        brights_im_handle_char((char)ch);
+        handled = 1;
+      } else if (ch >= '1' && ch <= '9') {
+        brights_im_handle_special(ch);
+        handled = 1;
+      } else if (ch == '0') {
+        brights_im_handle_special('0');
+        handled = 1;
+      } else if (ch == ' ') {
+        brights_im_handle_char(' ');
+        handled = 1;
+      } else if (ch == 0x1B) {
+        brights_im_toggle();
+        if (brights_fb_available()) {
+          fb_console_t *con = fb_console_get_info();
+          if (con) {
+            int status_y = con->work_y + con->work_h;
+            fb_console_goto(0, status_y);
+            fb_console_set_colors(tui_clr_bright_green(), brights_rgb(0, 30, 60));
+            fb_console_write_str("                              ");
+          }
+        }
+        brights_im_draw_candidates();
+        handled = 1;
+      } else if ((ch == 0x08 || ch == 0x7F)) {
+        brights_im_backspace();
+        handled = 1;
+      }
+
+      if (brights_im_is_active()) {
+        brights_im_draw_candidates();
+      }
+
+      if (handled) continue;
+    }
+
+    // === Printable characters (ASCII) or UTF-8 bytes ===
+    if (len < LIGHTSHELL_MAX_LINE - 1) {
+      int is_ascii_printable = (ch >= 32 && ch < 127);
+      int is_utf8_byte = (ch >= 0x80);  /* UTF-8 continuation or leading bytes */
+      if (is_ascii_printable || is_utf8_byte) {
+        int old_pos = pos;
+        if (old_pos < len) {
+          kutil_memmove(line + old_pos + 1, line + old_pos,
+                        (uint64_t)(len - old_pos));
+        }
+        line[old_pos] = (char)ch;
+        ++len; ++pos;
+        line[len] = 0;
+        line_update(line, len, old_pos);
+        char echo[2] = {(char)ch, 0};
+        brights_serial_write_ascii(BRIGHTS_COM1_PORT, echo);
+        continue;
+      }
     }
   }
 }

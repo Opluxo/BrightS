@@ -2,7 +2,9 @@
 #include "fb.h"
 #include "font.h"
 #include "tty.h"
+#include "tui.h"
 #include "serial.h"
+#include "../kernel/core/kernel_util.h"
 #include <stddef.h>
 
 #define BRIGHTS_COM1_PORT 0x3F8
@@ -490,61 +492,113 @@ int brights_im_cursor_pos(void)
 void brights_im_draw_candidates(void)
 {
     if (!brights_fb_available()) return;
-    
+    if (!im_active || candidate_count == 0) return;
+
     brights_fb_info_t *fb = brights_fb_get_info();
     if (!fb) return;
-    
-    int screen_width = fb->width;
-    int screen_height = fb->height;
-    
-    brights_color_t bg_color = {208, 255, 255, 255};
-    brights_color_t fg_color = {0, 0, 0, 255};
-    brights_color_t sel_fg = {255, 255, 255, 255};
-    brights_color_t sel_bg = {170, 0, 0, 255};
-    brights_color_t gray = {136, 136, 136, 255};
-    
-    int y = screen_height - FONT_HEIGHT - 2;
-    
-    brights_fb_fill_rect(0, y, screen_width, FONT_HEIGHT + 4, bg_color);
-    
-    if (pinyin_len > 0) {
-        brights_font_draw_string(4, y + 2, pinyin_buf, fg_color.r | (fg_color.g << 8) | (fg_color.b << 16), bg_color.r | (bg_color.g << 8) | (bg_color.b << 16));
-        
-        char pinyin_display[IM_MAX_PINYIN + 4];
-        int pd = 0;
-        while (pd < pinyin_len && pd < IM_MAX_PINYIN) {
-            pinyin_display[pd] = pinyin_buf[pd];
-            pd++;
-        }
-        pinyin_display[pd++] = ' ';
-        pinyin_display[pd++] = ' ';
-        pinyin_display[pd] = 0;
-        
-        int x_offset = brights_font_string_width(pinyin_display) + 8;
-        
-        for (int i = 0; i < candidate_count; i++) {
-            int x = x_offset + i * IM_CANDIDATE_WIDTH;
-            if (x + IM_CANDIDATE_WIDTH > screen_width) break;
-            
-            uint32_t fg = fg_color.r | (fg_color.g << 8) | (fg_color.b << 16);
-            uint32_t bg = bg_color.r | (bg_color.g << 8) | (bg_color.b << 16);
-            
-            if (i == selected_candidate) {
-                uint32_t sfg = sel_fg.r | (sel_fg.g << 8) | (sel_fg.b << 16);
-                uint32_t sbg = sel_bg.r | (sel_bg.g << 8) | (sel_bg.b << 16);
-                brights_fb_fill_rect(x, y + 2, IM_CANDIDATE_WIDTH - 4, FONT_HEIGHT, sel_bg);
-                brights_font_draw_string(x + 4, y + 2, candidates[i], sfg, sbg);
-            } else {
-                char num[4];
-                num[0] = '1' + i;
-                num[1] = '.';
-                num[2] = 0;
-                uint32_t gr = gray.r | (gray.g << 8) | (gray.b << 16);
-                brights_font_draw_string(x + 2, y + 2, num, gr, bg);
-                brights_font_draw_string(x + 20, y + 2, candidates[i], fg, bg);
-            }
+
+    int cols = fb->width / 8;
+    int rows = fb->height / 16;
+
+    int win_w = 34;
+    int cands_per_row = 4;
+    int cand_rows = (candidate_count + cands_per_row - 1) / cands_per_row;
+    if (cand_rows < 1) cand_rows = 1;
+    int win_h = 3 + cand_rows + 1;
+
+    int win_x = (cols - win_w) / 2;
+    int win_y = rows - win_h - 1;
+
+    brights_color_t bg       = {0x0A, 0x16, 0x28, 0xFF};
+    brights_color_t border   = {0x00, 0xAA, 0xFF, 0xFF};
+    brights_color_t hdr_bg   = {0x0D, 0x22, 0x40, 0xFF};
+    brights_color_t sep_clr  = {0x00, 0x55, 0xAA, 0xFF};
+    brights_color_t sel_bg_c = {0x00, 0x55, 0xAA, 0xFF};
+
+    uint32_t fg_w     = 0xFFFFFF;
+    uint32_t fg_cyan  = 0x55FFFF;
+    uint32_t fg_yellow= 0xFFFF55;
+    uint32_t fg_dim   = 0x555555;
+    uint32_t bg32     = 0x0A1628;
+    uint32_t hdr_bg32 = 0x0D2240;
+    uint32_t sel_bg32 = 0x0055AA;
+
+    brights_fb_fill_rect(win_x * 8 - 2, win_y * 16 - 2,
+                         win_w * 8 + 4, win_h * 16 + 4, bg);
+
+    brights_fb_draw_hline(win_x * 8 - 2, win_y * 16 - 3,
+                          win_w * 8 + 4, border);
+    brights_fb_draw_hline(win_x * 8 - 2, (win_y + win_h) * 16 + 1,
+                          win_w * 8 + 4, border);
+
+    {
+        uint32_t *fb_ptr = (uint32_t *)fb->framebuffer;
+        uint32_t stride = fb->pitch / 4;
+        uint32_t bdr32 = (border.r << 16) | (border.g << 8) | border.b;
+        for (int r = win_y; r < win_y + win_h; r++) {
+            int lx = win_x * 8 - 2;
+            int rx = (win_x + win_w) * 8 + 1;
+            int ly = r * 16 - 2;
+            if (lx >= 0 && lx < (int)fb->width && ly >= 0 && ly < (int)fb->height)
+                fb_ptr[ly * stride + lx] = bdr32;
+            if (rx >= 0 && rx < (int)fb->width && ly >= 0 && ly < (int)fb->height)
+                fb_ptr[ly * stride + rx] = bdr32;
         }
     }
+
+    brights_fb_fill_rect(win_x * 8, win_y * 16, win_w * 8, 16, hdr_bg);
+    brights_font_draw_string(win_x * 8 + 8, win_y * 16 + 2, "PY",
+                             fg_cyan, hdr_bg32);
+    if (pinyin_len > 0) {
+        char pbuf[IM_MAX_PINYIN + 1];
+        int i;
+        for (i = 0; i < pinyin_len && i < IM_MAX_PINYIN; i++)
+            pbuf[i] = pinyin_buf[i];
+        pbuf[i] = 0;
+        int pw = brights_font_string_width("PY  ");
+        brights_font_draw_string(win_x * 8 + 8 + pw, win_y * 16 + 2, pbuf,
+                                 fg_yellow, hdr_bg32);
+    } else {
+        int pw = brights_font_string_width("PY  ");
+        brights_font_draw_string(win_x * 8 + 8 + pw, win_y * 16 + 2, "-",
+                                 fg_dim, hdr_bg32);
+    }
+
+    brights_fb_draw_hline(win_x * 8, (win_y + 1) * 16 - 1, win_w * 8, sep_clr);
+
+    for (int i = 0; i < candidate_count && i < IM_MAX_CANDIDATES; i++) {
+        int row_off = i / cands_per_row;
+        int col_off = i % cands_per_row;
+
+        int cx = win_x + 1 + col_off * 8;
+        int cy = win_y + 2 + row_off;
+
+        int is_sel = (i == selected_candidate);
+
+        if (is_sel) {
+            brights_fb_fill_rect(cx * 8 - 2, cy * 16, 8 * 8, 16, sel_bg_c);
+        }
+
+        char num_buf[3];
+        num_buf[0] = (char)('1' + i);
+        num_buf[1] = '.';
+        num_buf[2] = 0;
+        brights_font_draw_string(cx * 8, cy * 16 + 2, num_buf,
+                                 is_sel ? fg_w : fg_dim,
+                                 is_sel ? sel_bg32 : bg32);
+
+        int nw = brights_font_string_width(num_buf);
+        brights_font_draw_string(cx * 8 + nw + 2, cy * 16 + 2, candidates[i],
+                                 is_sel ? fg_w : fg_cyan,
+                                 is_sel ? sel_bg32 : bg32);
+    }
+
+    brights_fb_draw_hline(win_x * 8, (win_y + 2 + cand_rows) * 16 - 1,
+                          win_w * 8, sep_clr);
+
+    int footer_y = (win_y + 2 + cand_rows) * 16 + 2;
+    brights_font_draw_string(win_x * 8 + 8, footer_y,
+                             "ESC quit  1-9 select", fg_dim, bg32);
 }
 
 const char* brights_im_convert_punc(char en_punc)

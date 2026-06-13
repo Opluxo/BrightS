@@ -11,6 +11,11 @@ void *brights_pmem_alloc_page(void)
   return p;
 }
 
+void brights_pmem_free_page(void *phys_addr)
+{
+  (void)phys_addr;
+}
+
 typedef struct {
   char vendor[13];
   char brand[49];

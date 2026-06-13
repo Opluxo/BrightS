@@ -156,6 +156,7 @@ brights_net_driver_t *brights_net_get_driver(int if_idx)
 }
 
 /* ===== ARP cache ===== */
+extern uint64_t brights_sched_ticks(void);
 #define ARP_CACHE_TTL_TICKS 3000  /* ~30 seconds at 100Hz */
 
 typedef struct {
@@ -343,7 +344,6 @@ static uint16_t alloc_port(void)
 }
 
 /* ===== ARP ===== */
-extern uint64_t brights_sched_ticks(void);
 
 int brights_arp_request(uint32_t target_ip)
 {

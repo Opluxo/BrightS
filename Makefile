@@ -6,6 +6,7 @@
 # Build configuration
 BUILD_DIR ?= build
 BUILD_TYPE ?= Release
+export PATH := /usr/lib/llvm21/bin:$(PATH)
 
 # Default target
 all: build

@@ -302,4 +302,118 @@ static inline int kutil_ringbuf_pop(kutil_ringbuf_t *rb, uint8_t *byte)
 void *memcpy(void *dst, const void *src, size_t n);
 void __chkstk(void);
 
+/* ===== UTF-8 utility functions ===== */
+
+/* Decode UTF-8 sequence to Unicode codepoint.
+   Returns the codepoint and sets *byte_len to the number of bytes consumed.
+   Returns 0 on error with *byte_len = 1. */
+static inline uint32_t kutil_utf8_decode(const char *str, int *byte_len)
+{
+  if (!str || !byte_len) { if (byte_len) *byte_len = 1; return 0; }
+  unsigned char c = (unsigned char)str[0];
+
+  if (c < 0x80) { *byte_len = 1; return c; }
+  if ((c & 0xE0) == 0xC0) { *byte_len = 2; return ((uint32_t)(c & 0x1F) << 6) | (unsigned char)(str[1] & 0x3F); }
+  if ((c & 0xF0) == 0xE0) { *byte_len = 3; return ((uint32_t)(c & 0x0F) << 12) | ((uint32_t)(str[1] & 0x3F) << 6) | (unsigned char)(str[2] & 0x3F); }
+  if ((c & 0xF8) == 0xF0) { *byte_len = 4; return ((uint32_t)(c & 0x07) << 18) | ((uint32_t)(str[1] & 0x3F) << 12) | ((uint32_t)(str[2] & 0x3F) << 6) | (unsigned char)(str[3] & 0x3F); }
+  *byte_len = 1;
+  return c;
+}
+
+/* Encode a Unicode codepoint to UTF-8. Returns number of bytes written (1-4). */
+static inline int kutil_utf8_encode(uint32_t cp, char *out)
+{
+  if (cp < 0x80) { out[0] = (char)cp; return 1; }
+  if (cp < 0x800) {
+    out[0] = (char)(0xC0 | (cp >> 6));
+    out[1] = (char)(0x80 | (cp & 0x3F));
+    return 2;
+  }
+  if (cp < 0x10000) {
+    out[0] = (char)(0xE0 | (cp >> 12));
+    out[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+    out[2] = (char)(0x80 | (cp & 0x3F));
+    return 3;
+  }
+  out[0] = (char)(0xF0 | (cp >> 18));
+  out[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+  out[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+  out[3] = (char)(0x80 | (cp & 0x3F));
+  return 4;
+}
+
+/* Check if a byte is a UTF-8 continuation byte (0x80-0xBF). */
+static inline int kutil_utf8_is_continuation(unsigned char c)
+{
+  return (c & 0xC0) == 0x80;
+}
+
+/* Get the expected byte length of a UTF-8 leading byte.
+   Returns 0 if the byte is not a valid leading byte. */
+static inline int kutil_utf8_lead_len(unsigned char c)
+{
+  if (c < 0x80) return 1;
+  if ((c & 0xE0) == 0xC0) return 2;
+  if ((c & 0xF0) == 0xE0) return 3;
+  if ((c & 0xF8) == 0xF0) return 4;
+  return 0;
+}
+
+/* Count the number of Unicode codepoints in a UTF-8 string. */
+static inline int kutil_utf8_strlen(const char *str)
+{
+  if (!str) return 0;
+  int count = 0;
+  int pos = 0;
+  while (str[pos]) {
+    int len = kutil_utf8_lead_len((unsigned char)str[pos]);
+    if (len == 0) len = 1;
+    pos += len;
+    count++;
+  }
+  return count;
+}
+
+/* Get display width of a codepoint (1 for ASCII, 2 for CJK, 0 for combining). */
+static inline int kutil_codepoint_width(uint32_t cp)
+{
+  if (cp == 0) return 0;
+  if (cp < 0x20) return 0;  /* Control chars */
+  if (cp < 0x80) return 1;  /* ASCII */
+
+  /* CJK Unified Ideographs and extensions */
+  if ((cp >= 0x1100 && cp <= 0x115F) ||  /* Hangul Jamo */
+      (cp >= 0x2E80 && cp <= 0xA4CF && cp != 0x303F) ||  /* CJK ... Yi */
+      (cp >= 0xAC00 && cp <= 0xD7A3) ||  /* Hangul Syllables */
+      (cp >= 0xF900 && cp <= 0xFAFF) ||  /* CJK Compatibility Ideographs */
+      (cp >= 0xFE30 && cp <= 0xFE4F) ||  /* CJK Compatibility Forms */
+      (cp >= 0xFF01 && cp <= 0xFF60) ||  /* Fullwidth Forms */
+      (cp >= 0xFFE0 && cp <= 0xFFE6) ||  /* Fullwidth Signs */
+      (cp >= 0x20000 && cp <= 0x2FA1F))  /* CJK Unified Ideographs Extension B+ */
+    return 2;
+
+  return 1;
+}
+
+/* Get display width of a UTF-8 string in terminal columns. */
+static inline int kutil_utf8_strwidth(const char *str)
+{
+  if (!str) return 0;
+  int width = 0;
+  int pos = 0;
+  while (str[pos]) {
+    int len;
+    uint32_t cp = kutil_utf8_decode(str + pos, &len);
+    width += kutil_codepoint_width(cp);
+    pos += len;
+  }
+  return width;
+}
+
+/* Check if a byte is a valid UTF-8 leading byte (not continuation). */
+static inline int kutil_utf8_is_lead(unsigned char c)
+{
+  return c < 0x80 || (c >= 0xC0 && c <= 0xFD);
+}
+
 #endif

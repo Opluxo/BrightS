@@ -4,6 +4,7 @@
 #include "usb.h"
 #include "font.h"
 #include "../kernel/printf.h"
+#include "../kernel/core/kernel_util.h"
 
 static brights_console_t tty_console;
 static int tty_ready = 0;
@@ -204,6 +205,8 @@ void fb_console_init(void)
   fb_con.cursor_visible = 1;
   fb_con.work_y = 0;
   fb_con.work_h = fb_con.height;
+  fb_con.utf8_len = 0;
+  fb_con.utf8_expected = 0;
   
   fb_con_initialized = 1;
   fb_console_clear();
@@ -279,40 +282,133 @@ void fb_console_scroll(void)
   }
 }
 
+static void fb_console_render_codepoint(uint32_t cp)
+{
+  if (!fb_con_initialized) return;
+
+  int px = fb_con.cursor_x * FONT_WIDTH;
+  int py = fb_con.cursor_y * 16;
+  uint32_t fg = (uint32_t)(fb_con.fg_color.r << 16 | fb_con.fg_color.g << 8 | fb_con.fg_color.b);
+  uint32_t bg = (uint32_t)(fb_con.bg_color.r << 16 | fb_con.bg_color.g << 8 | fb_con.bg_color.b);
+
+  brights_font_draw_codepoint(px, py, cp, fg, bg);
+}
+
+void fb_console_put_codepoint(uint32_t cp)
+{
+  if (!fb_con_initialized) fb_console_init();
+
+  int w = kutil_codepoint_width(cp);
+  if (w == 0) return;
+
+  if (w == 2 && fb_con.cursor_x + 2 > fb_con.width) {
+    fb_console_newline();
+  }
+
+  int px = fb_con.cursor_x * FONT_WIDTH;
+  int py = fb_con.cursor_y * 16;
+
+  if (cp == '\n') {
+    fb_console_newline();
+    return;
+  }
+  if (cp == '\r') {
+    fb_con.cursor_x = 0;
+    return;
+  }
+  if (cp == '\t') {
+    fb_con.cursor_x = (fb_con.cursor_x + fb_con.tab_width) & ~(fb_con.tab_width - 1);
+    if (fb_con.cursor_x >= fb_con.width) fb_console_newline();
+    return;
+  }
+  if (cp == '\b') {
+    if (fb_con.cursor_x > 0) {
+      fb_con.cursor_x--;
+      brights_fb_fill_rect(fb_con.cursor_x * 8, py, 8, 16, fb_con.bg_color);
+    }
+    return;
+  }
+
+  fb_console_render_codepoint(cp);
+  fb_con.cursor_x += w;
+  if (fb_con.cursor_x >= fb_con.width) fb_console_newline();
+}
+
 void fb_console_put_char(char c)
 {
   if (!fb_con_initialized) fb_console_init();
-  
-  int px = fb_con.cursor_x * 8;
-  int py = fb_con.cursor_y * 16;
-  
+
+  unsigned char uc = (unsigned char)c;
+
   switch (c) {
     case '\n':
-      fb_console_newline();
-      break;
     case '\r':
-      fb_con.cursor_x = 0;
-      break;
     case '\t':
-      fb_con.cursor_x = (fb_con.cursor_x + fb_con.tab_width) & ~(fb_con.tab_width - 1);
-      if (fb_con.cursor_x >= fb_con.width) fb_console_newline();
-      break;
     case '\b':
-      if (fb_con.cursor_x > 0) {
-        fb_con.cursor_x--;
-        brights_fb_fill_rect(fb_con.cursor_x * 8, py, 8, 16, fb_con.bg_color);
+      /* Flush any incomplete UTF-8 sequence first */
+      if (fb_con.utf8_len > 0) {
+        for (int i = 0; i < fb_con.utf8_len; i++)
+          fb_console_put_char(fb_con.utf8_buf[i]);
+        fb_con.utf8_len = 0;
+        fb_con.utf8_expected = 0;
       }
-      break;
+      fb_console_put_codepoint((uint32_t)uc);
+      return;
     default:
-      brights_font_draw_char(px, py, c,
-        (uint32_t)(fb_con.fg_color.r << 16 | fb_con.fg_color.g << 8 | fb_con.fg_color.b),
-        (uint32_t)(fb_con.bg_color.r << 16 | fb_con.bg_color.g << 8 | fb_con.bg_color.b));
-      if (++fb_con.cursor_x >= fb_con.width) fb_console_newline();
       break;
+  }
+
+  /* ASCII fast path */
+  if (uc < 0x80) {
+    if (fb_con.utf8_len > 0) {
+      for (int i = 0; i < fb_con.utf8_len; i++)
+        fb_console_put_char(fb_con.utf8_buf[i]);
+      fb_con.utf8_len = 0;
+      fb_con.utf8_expected = 0;
+    }
+    fb_console_put_codepoint((uint32_t)uc);
+    return;
+  }
+
+  /* UTF-8 continuation byte */
+  if (kutil_utf8_is_continuation(uc) && fb_con.utf8_len > 0 && fb_con.utf8_len < fb_con.utf8_expected) {
+    fb_con.utf8_buf[fb_con.utf8_len++] = c;
+    if (fb_con.utf8_len >= fb_con.utf8_expected) {
+      fb_con.utf8_buf[fb_con.utf8_len] = 0;
+      int len;
+      uint32_t cp = kutil_utf8_decode(fb_con.utf8_buf, &len);
+      fb_console_put_codepoint(cp);
+      fb_con.utf8_len = 0;
+      fb_con.utf8_expected = 0;
+    }
+    return;
+  }
+
+  /* UTF-8 leading byte */
+  if (fb_con.utf8_len > 0) {
+    for (int i = 0; i < fb_con.utf8_len; i++)
+      fb_console_put_char(fb_con.utf8_buf[i]);
+    fb_con.utf8_len = 0;
+    fb_con.utf8_expected = 0;
+  }
+
+  int expected = kutil_utf8_lead_len(uc);
+  if (expected > 1) {
+    fb_con.utf8_buf[0] = c;
+    fb_con.utf8_len = 1;
+    fb_con.utf8_expected = expected;
+  } else {
+    fb_console_put_codepoint((uint32_t)uc);
   }
 }
 
 void fb_console_write_str(const char *s)
+{
+  if (!s) return;
+  while (*s) fb_console_put_char(*s++);
+}
+
+void fb_console_write_utf8(const char *s)
 {
   if (!s) return;
   while (*s) fb_console_put_char(*s++);

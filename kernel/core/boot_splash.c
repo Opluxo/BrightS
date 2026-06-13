@@ -78,7 +78,7 @@ static void fb_draw_splash(void)
   int box_start_x = (fb_w - 56 * char_w) / 2;
 
   brights_font_draw_string(box_start_x, text_y,
-    "|                 BrightS v0.1.2.6                     |", cyan, bg);
+    "|                 BrightS v0.1.2.9                     |", cyan, bg);
   brights_font_draw_string(box_start_x, text_y + char_h,
     "|              Designed by Opluxo LLC                  |", cyan, bg);
 
@@ -105,7 +105,7 @@ void brights_boot_splash(void)
 
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;36m");
   logo_line_centered("+------------------------------------------------------+");
-  logo_line_centered("|                 BrightS v0.1.2.6                     |");
+  logo_line_centered("|                 BrightS v0.1.2.9                     |");
   logo_line_centered("|              Designed by Opluxo LLC                  |");
   logo_line_centered("+------------------------------------------------------+");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m\r\n");

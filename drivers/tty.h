@@ -25,6 +25,7 @@ void brights_tty_set_mode(int mode);
 int brights_tty_get_mode(void);
 
 /* Framebuffer console functions */
+#define FB_UTF8_MAX_BYTES 4
 typedef struct {
   int x;
   int y;
@@ -39,6 +40,10 @@ typedef struct {
   int cursor_visible;
   int work_y;
   int work_h;
+  /* UTF-8 state for multi-byte character assembly */
+  char utf8_buf[FB_UTF8_MAX_BYTES];
+  int utf8_len;      /* bytes collected so far */
+  int utf8_expected; /* expected total bytes */
 } fb_console_t;
 
 void fb_console_init(void);
@@ -47,7 +52,9 @@ void fb_console_set_colors(brights_color_t fg, brights_color_t bg);
 void fb_console_goto(int x, int y);
 void fb_console_get_pos(int *x, int *y);
 void fb_console_put_char(char c);
+void fb_console_put_codepoint(uint32_t cp);
 void fb_console_write_str(const char *s);
+void fb_console_write_utf8(const char *s);
 void fb_console_write_line(const char *s);
 void fb_console_newline(void);
 void fb_console_scroll(void);

@@ -424,6 +424,46 @@ void brights_font_draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg
     }
 }
 
+void brights_font_draw_codepoint(int x, int y, uint32_t cp, uint32_t fg_color, uint32_t bg_color)
+{
+    if (!brights_fb_available()) return;
+
+    brights_fb_info_t *fb = brights_fb_get_info();
+    if (!fb) return;
+
+    if (cp < 0x80) {
+        brights_font_draw_char(x, y, (char)cp, fg_color, bg_color);
+        return;
+    }
+
+    const uint8_t *glyph = brights_get_chinese_glyph(cp);
+    if (!glyph) {
+        brights_font_draw_char(x, y, '?', fg_color, bg_color);
+        return;
+    }
+
+    uint32_t *framebuffer = (uint32_t *)fb->framebuffer;
+    uint32_t stride = fb->pitch / 4;
+
+    for (int row = 0; row < 16; row++) {
+        uint8_t row_data0 = glyph[row * 2];
+        uint8_t row_data1 = glyph[row * 2 + 1];
+        for (int col = 0; col < 16; col++) {
+            int byte_idx = col / 8;
+            int bit_idx = 7 - (col % 8);
+            uint8_t bits = (byte_idx == 0) ? row_data0 : row_data1;
+            int px = x + col;
+            int py = y + row;
+            if (px >= 0 && px < (int)fb->width && py >= 0 && py < (int)fb->height) {
+                if (bits & (1 << bit_idx))
+                    framebuffer[py * stride + px] = fg_color;
+                else if (bg_color != 0xFFFFFFFF)
+                    framebuffer[py * stride + px] = bg_color;
+            }
+        }
+    }
+}
+
 void brights_font_draw_string(int x, int y, const char *str, uint32_t fg_color, uint32_t bg_color)
 {
     if (!str) return;

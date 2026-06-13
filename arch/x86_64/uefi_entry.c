@@ -197,11 +197,31 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   uefi_print_str(&serial_con, u"BrightS kernel: vm ok\r\n");
 
   {
+    uint32_t cpuid_eax, cpuid_ebx, cpuid_ecx, cpuid_edx;
+
+    /* Check CPUID.1:ECX for SMEP (bit 7) and SMAP (bit 27) */
+    __asm__ __volatile__(
+      "cpuid"
+      : "=a"(cpuid_eax), "=b"(cpuid_ebx), "=c"(cpuid_ecx), "=d"(cpuid_edx)
+      : "a"(1), "c"(0)
+    );
+
     uint64_t cr4;
     __asm__ __volatile__("mov %%cr4, %0" : "=r"(cr4));
 
-    cr4 |= (1ULL << 20); /* SMEP */
-    cr4 |= (1ULL << 21); /* SMAP */
+    if (cpuid_ecx & (1u << 7)) {
+      cr4 |= (1ULL << 20); /* SMEP */
+      uefi_print_str(&serial_con, u"  SMEP supported, enabling\r\n");
+    } else {
+      uefi_print_str(&serial_con, u"  SMEP not supported, skipping\r\n");
+    }
+    if (cpuid_ecx & (1u << 27)) {
+      cr4 |= (1ULL << 21); /* SMAP */
+      uefi_print_str(&serial_con, u"  SMAP supported, enabling\r\n");
+    } else {
+      uefi_print_str(&serial_con, u"  SMAP not supported, skipping\r\n");
+    }
+
     __asm__ __volatile__("mov %0, %%cr4" :: "r"(cr4) : "memory");
     uefi_print_str(&serial_con, u"cr4: basic features enabled\r\n");
   }

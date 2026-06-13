@@ -11,6 +11,10 @@
 #endif
 #include "../drivers/serial.h"
 
+#ifdef BRIGHTS_RUST_ENABLED
+#include "../../include/kernel/rust_ffi.h"
+#endif
+
 #define BRIGHTS_PATH_MAX_SEG 16u
 #define BRIGHTS_PATH_SEG_LEN 64u
 #define BRIGHTS_PATH_COMBINED_LEN 256u
@@ -221,6 +225,7 @@ int brights_proc_exit(uint32_t pid, int exit_code)
   brights_proc_info_t *p = proc_get_by_pid(pid);
   if (!p) return -1;
 
+  /* Close all open file descriptors */
   for (int j = 0; j < BRIGHTS_PROC_MAX_FDS; ++j) {
     if (p->fd_table[j]) {
       brights_vfs2_close(p->fd_table[j]);

@@ -58,6 +58,7 @@ static uint8_t kmalloc_heap[KMALLOC_HEAP_SIZE];
 static kmalloc_block_t *free_list = 0;
 
 extern void *brights_pmem_alloc_page(void);
+extern void brights_pmem_free_page(void *phys_addr);
 
 static inline size_t align_up(size_t v, size_t a)
 {
@@ -101,15 +102,31 @@ static int slab_page_hash_find(uint64_t page_addr)
   return -1;
 }
 
-#ifdef BRIGHTS_RUST_ENABLED
-/* C fallback implementations for when Rust is not available */
+static void slab_page_hash_remove(uint64_t page_addr)
+{
+  uint32_t h = slab_page_hash_fn(page_addr);
+  slab_page_entry_t **pp = &slab_page_hash[h];
+  while (*pp) {
+    if ((*pp)->page_addr == page_addr) {
+      slab_page_entry_t *del = *pp;
+      *pp = del->next;
+      return;
+    }
+    pp = &(*pp)->next;
+  }
+}
 
-/* Initialize a slab page (Rust-accelerated) */
+#ifdef BRIGHTS_RUST_ENABLED
+/* Rust-accelerated slab page init */
 static slab_page_t *slab_page_init(int class_idx)
 {
   void *page = brights_pmem_alloc_page();
   if (!page) return 0;
-  if (rust_slab_page_init((uint8_t *)page, class_idx) != 0) return 0;
+  if (rust_slab_page_init((uint8_t *)page, class_idx) != 0) {
+    brights_pmem_free_page(page);
+    return 0;
+  }
+  slab_page_hash_insert((uint64_t)(uintptr_t)page, class_idx);
   return (slab_page_t *)page;
 }
 
@@ -128,7 +145,10 @@ static slab_page_t *slab_page_init(int class_idx)
   size_t block_size = slab_sizes[class_idx];
   size_t header_size = align_up(sizeof(slab_page_t), 16);
   uint32_t num_blocks = (4096 - header_size) / block_size;
-  if (num_blocks == 0) return 0;
+  if (num_blocks == 0) {
+    brights_pmem_free_page(page);
+    return 0;
+  }
 
   slab_page_t *sp = (slab_page_t *)page;
   sp->class_idx = class_idx;
@@ -161,6 +181,26 @@ static inline int find_slab_class(size_t size)
   return -1;
 }
 #endif
+
+/* Return a fully-free slab page to pmem */
+static void slab_page_free_to_pmem(slab_page_t *sp, int class_idx)
+{
+  uint64_t page_addr = (uint64_t)(uintptr_t)sp;
+
+  /* Unlink from class list */
+  slab_class_t *sc = &slab_classes[class_idx];
+  slab_page_t **pp = &sc->pages;
+  while (*pp) {
+    if (*pp == sp) { *pp = sp->next; break; }
+    pp = &(*pp)->next;
+  }
+  /* Clear recent_pages if it pointed here */
+  if (recent_pages[class_idx] == sp) recent_pages[class_idx] = 0;
+
+  /* Note: kmalloc_slab_used already decremented per-block in kfree */
+  slab_page_hash_remove(page_addr);
+  brights_pmem_free_page(sp);
+}
 
 void brights_kmalloc_init(void)
 {
@@ -310,20 +350,7 @@ void brights_kfree(void *ptr)
 {
   if (!ptr) return;
 
-#ifdef BRIGHTS_RUST_ENABLED
-  for (int i = 0; i < SLAB_CLASSES; ++i) {
-    size_t block_size = slab_sizes[i];
-    for (slab_page_t *sp = slab_classes[i].pages; sp; sp = sp->next) {
-      if (rust_slab_contains(sp, (uint8_t *)ptr)) {
-        rust_slab_free(sp, (uint8_t *)ptr);
-        kmalloc_slab_used -= block_size;
-        kmalloc_total_used -= block_size;
-        return;
-      }
-    }
-  }
-#else
-  /* C slab free path - use hash table for O(1) lookup */
+  /* Slab free path -- hash table for O(1) lookup */
   uint64_t page_addr = (uint64_t)(uintptr_t)ptr & ~0xFFFULL;
   int class_idx = slab_page_hash_find(page_addr);
   if (class_idx >= 0 && class_idx < SLAB_CLASSES) {
@@ -335,17 +362,25 @@ void brights_kfree(void *ptr)
     if (block_ptr >= header_start && block_ptr < (uint8_t *)sp + 4096) {
       size_t block_offset = block_ptr - header_start;
       if (block_offset % block_size == 0) {
+        /* Use Rust if available for poisoning + list ops */
+#ifdef BRIGHTS_RUST_ENABLED
+        rust_slab_free(sp, (uint8_t *)ptr);
+#else
         slab_free_t *block = (slab_free_t *)ptr;
         block->next = sp->free_list;
         sp->free_list = block;
         sp->free_count++;
+#endif
         kmalloc_slab_used -= block_size;
         kmalloc_total_used -= block_size;
+        /* Return page to pmem if all blocks are free */
+        if (sp->free_count == sp->total_count) {
+          slab_page_free_to_pmem(sp, class_idx);
+        }
         return;
       }
     }
   }
-#endif
 
   kmalloc_block_t *block = (kmalloc_block_t *)((uint8_t *)ptr - sizeof(kmalloc_block_t));
   kmalloc_heap_used -= block->size;

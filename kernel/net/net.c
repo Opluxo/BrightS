@@ -9,6 +9,10 @@
 #include "http/http.h"
 #include <stdint.h>
 
+#ifdef BRIGHTS_RUST_ENABLED
+#include "../../include/kernel/rust_ffi.h"
+#endif
+
 /* ===== Constants ===== */
 #define BRIGHTS_NET_MAX_IF 4
 #define BRIGHTS_NET_MAX_SOCKETS 32
@@ -162,7 +166,146 @@ typedef struct {
   uint64_t last_access;  /* LRU tracking */
 } arp_entry_t;
 
+#ifdef BRIGHTS_RUST_ENABLED
+/* Robin Hood hash map for O(1) ARP lookup (replaces O(n) linear scan) */
+#define ARP_HASH_SIZE 128  /* Must be power of 2 */
+static rust_hashmap_entry_t arp_hash_entries[ARP_HASH_SIZE];
+static rust_hashmap_state_t arp_hash_state;
+/* Additional data storage keyed by IP -> arp_entry index in flat array */
+static arp_entry_t arp_entries[BRIGHTS_ARP_CACHE_SIZE];
+static int arp_entry_count = 0;
+
+static void arp_hash_init(void)
+{
+  arp_hash_state = rust_hashmap_init(arp_hash_entries, ARP_HASH_SIZE);
+  arp_entry_count = 0;
+  kutil_memset(arp_entries, 0, sizeof(arp_entries));
+}
+
+static int arp_cache_find(uint32_t ip)
+{
+  int32_t val = rust_hashmap_get(&arp_hash_state, (uint64_t)ip);
+  if (val < 0) return -1;
+  int idx = (int)val;
+  if (idx < 0 || idx >= BRIGHTS_ARP_CACHE_SIZE) return -1;
+  if (!arp_entries[idx].valid) return -1;
+  if (arp_entries[idx].expire_tick > 0 && brights_sched_ticks() > arp_entries[idx].expire_tick) {
+    arp_entries[idx].valid = 0;
+    rust_hashmap_remove(&arp_hash_state, (uint64_t)ip);
+    return -1;
+  }
+  arp_entries[idx].last_access = brights_sched_ticks();
+  return idx;
+}
+
+static int arp_cache_add(uint32_t ip, const uint8_t *mac)
+{
+  /* Try to reuse existing entry for this IP */
+  int existing = arp_cache_find(ip);
+  if (existing >= 0) {
+    kutil_memcpy(arp_entries[existing].mac, mac, 6);
+    arp_entries[existing].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
+    arp_entries[existing].last_access = brights_sched_ticks();
+    return 0;
+  }
+
+  /* Find empty slot */
+  int slot = -1;
+  for (int i = 0; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
+    if (!arp_entries[i].valid) { slot = i; break; }
+  }
+
+  /* Evict LRU if full */
+  if (slot < 0) {
+    uint64_t lru_time = arp_entries[0].last_access;
+    slot = 0;
+    for (int i = 1; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
+      if (arp_entries[i].last_access < lru_time) {
+        lru_time = arp_entries[i].last_access;
+        slot = i;
+      }
+    }
+    /* Remove old entry from hash */
+    rust_hashmap_remove(&arp_hash_state, (uint64_t)arp_entries[slot].ip);
+  }
+
+  arp_entries[slot].ip = ip;
+  kutil_memcpy(arp_entries[slot].mac, mac, 6);
+  arp_entries[slot].valid = 1;
+  arp_entries[slot].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
+  arp_entries[slot].last_access = brights_sched_ticks();
+  rust_hashmap_insert(&arp_hash_state, (uint64_t)ip, (uint64_t)slot);
+  return 0;
+}
+
+#else
+/* C fallback: O(n) linear scan ARP cache */
 static arp_entry_t arp_cache[BRIGHTS_ARP_CACHE_SIZE];
+
+static void arp_hash_init(void)
+{
+  kutil_memset(arp_cache, 0, sizeof(arp_cache));
+}
+
+static int arp_cache_find(uint32_t ip)
+{
+  for (int i = 0; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
+    if (arp_cache[i].valid && arp_cache[i].ip == ip) {
+      if (arp_cache[i].expire_tick > 0 && brights_sched_ticks() > arp_cache[i].expire_tick) {
+        arp_cache[i].valid = 0;
+        return -1;
+      }
+      arp_cache[i].last_access = brights_sched_ticks();
+      return i;
+    }
+  }
+  return -1;
+}
+
+static int arp_cache_add(uint32_t ip, const uint8_t *mac)
+{
+  for (int i = 0; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
+    if (!arp_cache[i].valid) {
+      arp_cache[i].ip = ip;
+      kutil_memcpy(arp_cache[i].mac, mac, 6);
+      arp_cache[i].valid = 1;
+      arp_cache[i].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
+      arp_cache[i].last_access = brights_sched_ticks();
+      return 0;
+    }
+  }
+
+  int lru_idx = 0;
+  uint64_t lru_time = arp_cache[0].last_access;
+  for (int i = 1; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
+    if (arp_cache[i].last_access < lru_time) {
+      lru_time = arp_cache[i].last_access;
+      lru_idx = i;
+    }
+  }
+
+  arp_cache[lru_idx].ip = ip;
+  kutil_memcpy(arp_cache[lru_idx].mac, mac, 6);
+  arp_cache[lru_idx].valid = 1;
+  arp_cache[lru_idx].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
+  arp_cache[lru_idx].last_access = brights_sched_ticks();
+  return 0;
+}
+#endif
+
+int brights_arp_resolve(uint32_t target_ip, uint8_t *mac_out)
+{
+  int idx = arp_cache_find(target_ip);
+  if (idx >= 0) {
+#ifdef BRIGHTS_RUST_ENABLED
+    kutil_memcpy(mac_out, arp_entries[idx].mac, 6);
+#else
+    kutil_memcpy(mac_out, arp_cache[idx].mac, 6);
+#endif
+    return 0;
+  }
+  return -1;
+}
 
 /* ===== Sockets ===== */
 brights_socket_t sockets[BRIGHTS_NET_MAX_SOCKETS];
@@ -201,63 +344,6 @@ static uint16_t alloc_port(void)
 
 /* ===== ARP ===== */
 extern uint64_t brights_sched_ticks(void);
-
-static int arp_cache_find(uint32_t ip)
-{
-  for (int i = 0; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
-    if (arp_cache[i].valid && arp_cache[i].ip == ip) {
-      if (arp_cache[i].expire_tick > 0 && brights_sched_ticks() > arp_cache[i].expire_tick) {
-        arp_cache[i].valid = 0;  /* Expired */
-        return -1;
-      }
-      arp_cache[i].last_access = brights_sched_ticks();  /* Update LRU */
-      return i;
-    }
-  }
-  return -1;
-}
-
-static int arp_cache_add(uint32_t ip, const uint8_t *mac)
-{
-  /* First try to find an empty slot */
-  for (int i = 0; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
-    if (!arp_cache[i].valid) {
-      arp_cache[i].ip = ip;
-      kutil_memcpy(arp_cache[i].mac, mac, 6);
-      arp_cache[i].valid = 1;
-      arp_cache[i].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
-      arp_cache[i].last_access = brights_sched_ticks();
-      return 0;
-    }
-  }
-  
-  /* Cache full - evict LRU entry (oldest last_access) */
-  int lru_idx = 0;
-  uint64_t lru_time = arp_cache[0].last_access;
-  for (int i = 1; i < BRIGHTS_ARP_CACHE_SIZE; ++i) {
-    if (arp_cache[i].last_access < lru_time) {
-      lru_time = arp_cache[i].last_access;
-      lru_idx = i;
-    }
-  }
-  
-  arp_cache[lru_idx].ip = ip;
-  kutil_memcpy(arp_cache[lru_idx].mac, mac, 6);
-  arp_cache[lru_idx].valid = 1;
-  arp_cache[lru_idx].expire_tick = brights_sched_ticks() + ARP_CACHE_TTL_TICKS;
-  arp_cache[lru_idx].last_access = brights_sched_ticks();
-  return 0;
-}
-
-int brights_arp_resolve(uint32_t target_ip, uint8_t *mac_out)
-{
-  int idx = arp_cache_find(target_ip);
-  if (idx >= 0) {
-    kutil_memcpy(mac_out, arp_cache[idx].mac, 6);
-    return 0;
-  }
-  return -1;
-}
 
 int brights_arp_request(uint32_t target_ip)
 {
@@ -1010,7 +1096,7 @@ int brights_netif_down(const char *name)
 void brights_net_init(void)
 {
     netif_count = 0;
-    kutil_memset(arp_cache, 0, sizeof(arp_cache));
+    arp_hash_init();
     kutil_memset(sockets, 0, sizeof(sockets));
 
     /* Initialize network subsystems */

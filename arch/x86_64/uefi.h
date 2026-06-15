@@ -96,6 +96,18 @@ struct _EFI_BOOT_SERVICES {
   void *Exit;
   void *UnloadImage;
   EFI_STATUS (*ExitBootServices)(EFI_HANDLE ImageHandle, uint64_t MapKey);
+  /* Fields below are after ExitBootServices in UEFI spec, needed for LocateProtocol */
+  void *GetNextMonotonicCount;
+  void *Stall;
+  void *SetWatchdogTimer;
+  void *ConnectController;
+  void *DisconnectController;
+  void *OpenProtocol;
+  void *CloseProtocol;
+  void *OpenProtocolInformation;
+  void *ProtocolsPerHandle;
+  void *LocateHandleBuffer;
+  EFI_STATUS (*LocateProtocol)(void *Protocol, void *Registration, void **Interface);
 };
 
 #define EFI_SUCCESS 0
@@ -105,7 +117,7 @@ struct _EFI_BOOT_SERVICES {
 #define EFI_NOT_FOUND (14 | ((uint64_t)1 << 63))
 
 #define EFI_GOP_GUID \
-  { 0x8BE4DF61, 0x93CA, 0x11D2, { 0xAA, 0x0D, 0x00, 0xE0, 0x98, 0x03, 0x2B, 0x8C } }
+  { 0x9042A9DE, 0x23DC, 0x4A38, { 0x96, 0xFB, 0x72, 0xDE, 0x52, 0xFE, 0xC4, 0x46 } }
 
 typedef enum {
   PixelRedGreenBlueReserved8BitPerColor,

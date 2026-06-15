@@ -6,6 +6,7 @@
 #include "../arch/i386/paging.h"
 #include "../arch/i386/trap.h"
 #else
+#include "../arch/x86_64/gdt.h"
 #include "../arch/x86_64/tss.h"
 #include "../arch/x86_64/paging.h"
 #include "../arch/x86_64/trap.h"
@@ -340,8 +341,14 @@ static inline void save_context(int32_t slot)
   p->ctx.rip = current_trap_frame->rip;
   p->ctx.cs  = current_trap_frame->cs;
   p->ctx.rflags = current_trap_frame->rflags;
-  p->ctx.rsp = current_trap_frame->rsp;
-  p->ctx.ss  = current_trap_frame->ss;
+
+  if (current_trap_frame->cs & 3) {
+    p->ctx.rsp = current_trap_frame->rsp;
+    p->ctx.ss  = current_trap_frame->ss;
+  } else {
+    p->ctx.rsp = current_trap_frame->rsp;
+    p->ctx.ss  = BRIGHTS_KERNEL_DS;
+  }
 #endif
 }
 
@@ -400,8 +407,14 @@ static inline void restore_context(int32_t slot)
   current_trap_frame->rip = p->ctx.rip;
   current_trap_frame->cs  = p->ctx.cs;
   current_trap_frame->rflags = p->ctx.rflags;
-  current_trap_frame->rsp = p->ctx.rsp;
-  current_trap_frame->ss  = p->ctx.ss;
+
+  if (p->ctx.cs & 3) {
+    current_trap_frame->rsp = p->ctx.rsp;
+    current_trap_frame->ss  = p->ctx.ss;
+  } else {
+    current_trap_frame->rsp = p->ctx.rsp;
+    current_trap_frame->ss  = BRIGHTS_KERNEL_DS;
+  }
 
   if (p->is_user && p->cr3 != 0) {
     brights_paging_set_cr3(p->cr3);

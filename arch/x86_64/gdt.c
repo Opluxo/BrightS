@@ -31,8 +31,8 @@ static struct {
   struct gdt_entry null;
   struct gdt_entry kcode;
   struct gdt_entry kdata;
-  struct gdt_entry udata;
   struct gdt_entry ucode;
+  struct gdt_entry udata;
   struct gdt_tss_entry tss;
 } gdt;
 
@@ -53,8 +53,8 @@ void brights_gdt_init(void)
   gdt.null = make_seg(0);
   gdt.kcode = make_seg(0x9A);
   gdt.kdata = make_seg(0x92);
-  gdt.udata = make_seg(0xF2);
   gdt.ucode = make_seg(0xFA);
+  gdt.udata = make_seg(0xF2);
 
   brights_tss_t *tss = brights_tss_ptr();
   uint64_t base = (uint64_t)tss;
@@ -72,6 +72,16 @@ void brights_gdt_init(void)
   gp.limit = sizeof(gdt) - 1;
   gp.base = (uint64_t)&gdt;
   __asm__ __volatile__("lgdt %0" : : "m"(gp));
+
+  /* Reload CS via far jump — required after loading a new GDT in long mode */
+  __asm__ __volatile__(
+    "pushq %0\n"
+    "leaq 1f(%%rip), %%rax\n"
+    "pushq %%rax\n"
+    "lretq\n"
+    "1:\n"
+    : : "i"(BRIGHTS_KERNEL_CS) : "rax"
+  );
 
   __asm__ __volatile__(
     "mov %0, %%ds\n"

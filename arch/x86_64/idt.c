@@ -22,8 +22,27 @@ struct idt_ptr {
 static struct idt_entry idt[256];
 
 extern void brights_isr_stub_0(void);
+extern void brights_isr_stub_1(void);
+extern void brights_isr_stub_2(void);
+extern void brights_isr_stub_3(void);
+extern void brights_isr_stub_4(void);
+extern void brights_isr_stub_5(void);
+extern void brights_isr_stub_6(void);
+extern void brights_isr_stub_7(void);
+extern void brights_isr_stub_8(void);
+extern void brights_isr_stub_9(void);
+extern void brights_isr_stub_10(void);
+extern void brights_isr_stub_11(void);
+extern void brights_isr_stub_12(void);
 extern void brights_isr_stub_13(void);
 extern void brights_isr_stub_14(void);
+extern void brights_isr_stub_15(void);
+extern void brights_isr_stub_16(void);
+extern void brights_isr_stub_17(void);
+extern void brights_isr_stub_18(void);
+extern void brights_isr_stub_19(void);
+extern void brights_isr_stub_20(void);
+extern void brights_isr_stub_21(void);
 extern void brights_isr_stub_32(void);
 extern void brights_isr_stub_33(void);
 extern void brights_isr_stub_128(void);
@@ -45,14 +64,34 @@ void brights_idt_init(void)
   /* Remap PIC first */
   brights_pic_remap();
 
-  /* Set all vectors to stub_0 initially */
+  /* Set default stub for unregistered vectors */
   for (int i = 0; i < 256; ++i) {
     idt_set_gate(i, brights_isr_stub_0, 0x8E);
   }
 
-  /* CPU exceptions */
-  idt_set_gate(13, brights_isr_stub_13, 0x8E);
-  idt_set_gate(14, brights_isr_stub_14, 0x8E);
+  /* CPU Exceptions 0-21 (Intel reserved) */
+  idt_set_gate(0,  brights_isr_stub_0,  0x8E);  /* #DE */
+  idt_set_gate(1,  brights_isr_stub_1,  0x8E);  /* #DB */
+  idt_set_gate(2,  brights_isr_stub_2,  0x8E);  /* NMI */
+  idt_set_gate(3,  brights_isr_stub_3,  0x8E);  /* #BP */
+  idt_set_gate(4,  brights_isr_stub_4,  0x8E);  /* #OF */
+  idt_set_gate(5,  brights_isr_stub_5,  0x8E);  /* #BR */
+  idt_set_gate(6,  brights_isr_stub_6,  0x8E);  /* #UD */
+  idt_set_gate(7,  brights_isr_stub_7,  0x8E);  /* #NM */
+  idt_set_gate(8,  brights_isr_stub_8,  0x8E);  /* #DF */
+  idt_set_gate(9,  brights_isr_stub_9,  0x8E);  /* reserved */
+  idt_set_gate(10, brights_isr_stub_10, 0x8E);  /* #TS */
+  idt_set_gate(11, brights_isr_stub_11, 0x8E);  /* #NP */
+  idt_set_gate(12, brights_isr_stub_12, 0x8E);  /* #SS */
+  idt_set_gate(13, brights_isr_stub_13, 0x8E);  /* #GP */
+  idt_set_gate(14, brights_isr_stub_14, 0x8E);  /* #PF */
+  idt_set_gate(15, brights_isr_stub_15, 0x8E);  /* reserved */
+  idt_set_gate(16, brights_isr_stub_16, 0x8E);  /* #MF */
+  idt_set_gate(17, brights_isr_stub_17, 0x8E);  /* #AC */
+  idt_set_gate(18, brights_isr_stub_18, 0x8E);  /* #MC */
+  idt_set_gate(19, brights_isr_stub_19, 0x8E);  /* #XM */
+  idt_set_gate(20, brights_isr_stub_20, 0x8E);  /* #VE */
+  idt_set_gate(21, brights_isr_stub_21, 0x8E);  /* reserved */
 
   /* Hardware IRQs */
   idt_set_gate(32, brights_isr_stub_32, 0x8E); /* PIT timer (IRQ0) */

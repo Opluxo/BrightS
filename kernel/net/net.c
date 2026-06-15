@@ -1095,14 +1095,21 @@ int brights_netif_down(const char *name)
 
 void brights_net_init(void)
 {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "net: init...\r\n");
     netif_count = 0;
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "net: arp_hash_init...\r\n");
     arp_hash_init();
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "net: memset sockets...\r\n");
     kutil_memset(sockets, 0, sizeof(sockets));
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "net: dhcp init...\r\n");
 
     /* Initialize network subsystems */
     brights_dhcp_client_init();
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "net: dns init...\r\n");
     brights_dns_init("8.8.8.8", "8.8.4.4");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "net: http init...\r\n");
     brights_http_init();
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "net: init done\r\n");
 }
 
 /* ===== IP address utilities ===== */

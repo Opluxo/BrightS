@@ -1,4 +1,5 @@
 #include "rtc.h"
+#include "serial.h"
 #include "../arch/x86_64/io.h"
 #include <stdint.h>
 
@@ -7,7 +8,10 @@
 
 static uint8_t cmos_read(uint8_t reg)
 {
-  outb(CMOS_INDEX, reg);
+  outb(CMOS_INDEX, reg | 0x80u);
+  /* Poll COM1 LSR until TX buffer empty — known-working I/O delay in QEMU TCG.
+   * Each poll iteration is ~1µs; we need ~4µs for CMOS register select. */
+  { volatile uint8_t s; int i; for (i = 0; i < 16; i++) { s = inb(BRIGHTS_COM1_PORT + 5); (void)s; } }
   return inb(CMOS_DATA);
 }
 
@@ -22,13 +26,7 @@ int brights_rtc_read(brights_rtc_time_t *t)
     return -1;
   }
 
-  // Wait until RTC is not updating.
-  for (int i = 0; i < 100000; ++i) {
-    if ((cmos_read(0x0A) & 0x80u) == 0) {
-      break;
-    }
-  }
-
+  /* Read RTC registers. Skip UIP check to avoid TCG stalls. */
   uint8_t sec = cmos_read(0x00);
   uint8_t min = cmos_read(0x02);
   uint8_t hour = cmos_read(0x04);

@@ -10,6 +10,7 @@
 void tui_init(void);
 void tui_draw_title_bar(const char *left, const char *right);
 void tui_draw_status_bar(const char *left, const char *right);
+void tui_refresh_status(const char *user, int is_root);
 void tui_clear(void);
 
 brights_color_t tui_clr_black(void);

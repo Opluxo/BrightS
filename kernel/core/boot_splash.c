@@ -43,17 +43,42 @@ static void fb_draw_splash(void)
   int fb_w = (int)info->width;
   int fb_h = (int)info->height;
 
-  brights_color_t bg_struct = {0, 0, 40, 255};
-  uint32_t bg = ((uint32_t)bg_struct.r << 16) | ((uint32_t)bg_struct.g << 8) | (uint32_t)bg_struct.b;
-  uint32_t cyan = (0 << 16) | (255 << 8) | 255;
-  uint32_t green = (0 << 16) | (255 << 8) | 0;
-
-  brights_fb_clear(bg_struct);
+  /* Dark gradient background: top (10,15,40) -> bottom (5,5,20) */
+  brights_fb_fill_gradient_v(0, 0, fb_w, fb_h,
+    brights_rgb(10, 15, 40), brights_rgb(5, 5, 20));
 
   int char_w = 8, char_h = 16;
-  int logo_start_y = (fb_h - 12 * char_h) / 2;
-  if (logo_start_y < 0) logo_start_y = 20;
 
+  /* Logo dimensions: 5 rows x 48 chars = 384px wide, 5 rows = 80px tall */
+  int logo_w = 48 * char_w;
+  int logo_h = 5 * char_h;
+
+  /* Box dimensions: logo + padding */
+  int box_w = logo_w + 64;
+  int box_h = logo_h + 8 * char_h + 32;
+
+  int box_x = (fb_w - box_w) / 2;
+  int box_y = (fb_h - box_h) / 2;
+  if (box_x < 10) box_x = 10;
+  if (box_y < 10) box_y = 10;
+
+  /* Shadow (offset 4px) */
+  brights_fb_fill_rounded_rect(box_x + 4, box_y + 4, box_w, box_h, 8,
+    brights_rgb(0, 0, 0));
+
+  /* Box background with slight transparency effect (solid dark) */
+  brights_fb_fill_rounded_rect(box_x, box_y, box_w, box_h, 8,
+    brights_rgb(12, 18, 45));
+
+  /* Box border (cyan) */
+  brights_fb_draw_rounded_rect(box_x, box_y, box_w, box_h, 8,
+    brights_rgb(0, 180, 220));
+
+  /* Inner accent line (top) */
+  brights_fb_draw_hline(box_x + 8, box_y + 1, box_w - 16,
+    brights_rgb(0, 220, 255));
+
+  /* Draw ASCII art logo centered in box */
   const char *logo[] = {
     "#####  #####  #####  #####  #   #  #####  ##### ",
     "#   #  #   #    #    #      #   #    #    #     ",
@@ -62,29 +87,50 @@ static void fb_draw_splash(void)
     "#   #  #  #   #####  #####  #   #    #    ##### ",
   };
 
-  int logo_width = 48;
-  int logo_x = (fb_w - logo_width * char_w) / 2;
+  int logo_x = box_x + (box_w - logo_w) / 2;
+  int logo_y = box_y + 24;
+
+  uint32_t cyan_px = (0 << 16) | (240 << 8) | 255;
+  uint32_t transparent = 0xFFFFFFFF;
 
   for (int row = 0; row < 5; ++row) {
-    for (int col = 0; col < logo_width; ++col) {
+    for (int col = 0; col < 48; ++col) {
       if (logo[row][col] == '#') {
-        brights_font_draw_char(logo_x + col * char_w, logo_start_y + row * char_h,
-                               '#', cyan, bg);
+        brights_font_draw_char(logo_x + col * char_w, logo_y + row * char_h,
+          '#', cyan_px, transparent);
       }
     }
   }
 
-  int text_y = logo_start_y + 6 * char_h;
-  int box_start_x = (fb_w - 56 * char_w) / 2;
+  /* Separator line below logo */
+  int sep_y = logo_y + logo_h + 12;
+  brights_fb_draw_hline(box_x + 32, sep_y, box_w - 64,
+    brights_rgb(0, 120, 160));
 
-  brights_font_draw_string(box_start_x, text_y,
-    "|                 BrightS v0.1.2.9                     |", cyan, bg);
-  brights_font_draw_string(box_start_x, text_y + char_h,
-    "|              Designed by Opluxo LLC                  |", cyan, bg);
+  /* Version text */
+  int text_y = sep_y + 16;
+  const char *ver = "BrightS v0.1.2.9";
+  int ver_w = str_len(ver) * char_w;
+  brights_font_draw_string(box_x + (box_w - ver_w) / 2, text_y,
+    ver, (255 << 16) | (255 << 8) | 255, transparent);
 
+  /* Author text */
+  int auth_y = text_y + char_h + 8;
+  const char *auth = "Designed by Opluxo LLC";
+  int auth_w = str_len(auth) * char_w;
+  brights_font_draw_string(box_x + (box_w - auth_w) / 2, auth_y,
+    auth, (120 << 16) | (180 << 8) | 220, transparent);
+
+  /* Status message (green, below box) */
   const char *status = "System initialization complete. Starting login...";
-  int status_x = (fb_w - str_len(status) * char_w) / 2;
-  brights_font_draw_string(status_x, text_y + 3 * char_h, status, green, bg);
+  int status_w = str_len(status) * char_w;
+  int status_y = box_y + box_h + 24;
+  if (status_y + char_h > fb_h) status_y = box_y + box_h - char_h - 8;
+  brights_font_draw_string((fb_w - status_w) / 2, status_y,
+    status, (0 << 16) | (220 << 8) | 100, transparent);
+
+  /* Flush double buffer to screen */
+  brights_dbuffer_flip();
 }
 
 void brights_boot_splash(void)

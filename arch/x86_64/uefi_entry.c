@@ -115,6 +115,21 @@ static void detect_pci_vga_fb(void)
 
         /* Class 0x03 = Display controller, subclass 0x00 = VGA compatible */
         if (class_code == 0x03 && subclass == 0x00) {
+          /* Enable PCI memory space access (command register bit 1) */
+          outl(PCI_CONFIG_ADDR, addr | 0x04);
+          uint16_t cmd = inw(PCI_CONFIG_DATA);
+          cmd |= 0x02;
+          outw(PCI_CONFIG_ADDR, addr | 0x04);
+          outw(PCI_CONFIG_DATA, cmd);
+
+          /* Dump all BARs for debug */
+          static const uint32_t bar_off[] = {0x10, 0x14, 0x18};
+          for (int bi = 0; bi < 3; ++bi) {
+            outl(PCI_CONFIG_ADDR, addr | bar_off[bi]);
+            uint32_t bar_val = inl(PCI_CONFIG_DATA);
+            (void)bar_val;
+          }
+
           /* Try to initialize Bochs VBE graphics mode */
           int vbe_ok = vga_init_vbe(1024, 768, 32);
 
@@ -129,9 +144,26 @@ static void detect_pci_vga_fb(void)
             vga_fb_info.pitch = 1024 * 4;
             vga_fb_info.valid = 1;
 
-            /* Test write: fill first row with red pixels (0x00FF0000) */
+            /* Set up MTRR Write-Combining for framebuffer region.
+             * Without WC, write-back caching prevents VGA hardware from
+             * seeing CPU writes (reads from cache, VGA reads stale DRAM). */
+            uint64_t msr_val;
+            uint32_t msr_lo, msr_hi;
+            /* IA32_MTRR_DEF_TYPE (0x2FF): enable MTRRs, default UC */
+            __asm__ __volatile__("rdmsr" : "=a"(msr_lo), "=d"(msr_hi) : "c"(0x2FFu));
+            msr_val = ((uint64_t)msr_hi << 32) | msr_lo;
+            msr_val |= (1ull << 10) | (1ull << 11); /* FE=1, WE=1 */
+            __asm__ __volatile__("wrmsr" :: "a"((uint32_t)msr_val), "d"((uint32_t)(msr_val >> 32)), "c"(0x2FFu));
+            /* IA32_MTRR_PHYSBASE0 (0x200): base=fb, type=1 (WC) */
+            __asm__ __volatile__("wrmsr" :: "a"((uint32_t)(fb | 1)), "d"((uint32_t)(fb >> 32)), "c"(0x200u));
+            /* IA32_MTRR_PHYSMASK0 (0x201): mask=4MB, valid */
+            uint64_t mask = (~0x3FFFFFull) | (1ull << 11);
+            __asm__ __volatile__("wrmsr" :: "a"((uint32_t)mask), "d"((uint32_t)(mask >> 32)), "c"(0x201u));
+
+            /* Test write with sfence to ensure visibility */
             volatile uint32_t *fb_ptr = (volatile uint32_t *)(uintptr_t)fb;
-            for (uint32_t i = 0; i < 1024; ++i) fb_ptr[i] = 0x00FF0000;
+            for (uint32_t i = 0; i < 1024 * 768; ++i) fb_ptr[i] = 0x00FF0000;
+            __asm__ __volatile__("sfence" ::: "memory");
             return;
           }
 
@@ -370,6 +402,35 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   if (vga_fb_info.valid) {
     uefi_print_str(&serial_con, u"vga: fb=");
     uefi_print_hex(&serial_con, vga_fb_info.framebuffer);
+    uefi_print_nl(&serial_con);
+
+    /* Read back VBE state to verify mode was activated */
+    outw(0x1CE, 0x01); uint16_t xr = inw(0x1CF); /* XRES */
+    outw(0x1CE, 0x02); uint16_t yr = inw(0x1CF); /* YRES */
+    outw(0x1CE, 0x03); uint16_t br = inw(0x1CF); /* BPP */
+    outw(0x1CE, 0x05); uint16_t er = inw(0x1CF); /* ENABLE */
+    uefi_print_str(&serial_con, u"vga: vbe xres=");
+    uefi_print_hex(&serial_con, (uint64_t)xr);
+    uefi_print_str(&serial_con, u" yres=");
+    uefi_print_hex(&serial_con, (uint64_t)yr);
+    uefi_print_str(&serial_con, u" bpp=");
+    uefi_print_hex(&serial_con, (uint64_t)br);
+    uefi_print_str(&serial_con, u" en=");
+    uefi_print_hex(&serial_con, (uint64_t)er);
+    uefi_print_nl(&serial_con);
+
+    /* Read back first pixel to verify write stuck */
+    volatile uint32_t *fb_ptr = (volatile uint32_t *)(uintptr_t)vga_fb_info.framebuffer;
+    uint32_t readback = fb_ptr[0];
+    uefi_print_str(&serial_con, u"vga: fb[0] readback=");
+    uefi_print_hex(&serial_con, (uint64_t)readback);
+    uefi_print_nl(&serial_con);
+
+    /* Try write+readback test */
+    fb_ptr[0] = 0x00FF0000;
+    readback = fb_ptr[0];
+    uefi_print_str(&serial_con, u"vga: after write fb[0]=");
+    uefi_print_hex(&serial_con, (uint64_t)readback);
     uefi_print_nl(&serial_con);
   } else {
     uefi_print_str(&serial_con, u"vga: no framebuffer found\r\n");

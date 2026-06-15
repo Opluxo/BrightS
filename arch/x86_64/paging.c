@@ -279,3 +279,123 @@ int brights_paging_mark_writable(uint64_t virt)
   brights_paging_flush_tlb(virt);
   return 0;
 }
+
+int brights_paging_set_caching(uint64_t virt, uint64_t caching_flags)
+{
+  if (!pml4_table) return -1;
+  virt &= ~0xFFFULL;
+
+  /* Walk to find the PTE, including 2MB huge pages at PD level */
+  pte_t *table = pml4_table;
+  for (int level = PT_LEVEL_PML4; level >= PT_LEVEL_PT; --level) {
+    pte_t *pte = get_pte(table, virt, level);
+    if (!(*pte & BRIGHTS_PTE_PRESENT)) return -1;
+
+    /* Huge page found — modify flags in-place */
+    if (*pte & BRIGHTS_PTE_HUGE) {
+      *pte = (*pte & ~(BRIGHTS_PTE_CD | BRIGHTS_PTE_WT)) | (caching_flags & (BRIGHTS_PTE_CD | BRIGHTS_PTE_WT));
+      brights_paging_flush_tlb(virt);
+      return 0;
+    }
+
+    if (level == PT_LEVEL_PT) {
+      *pte = (*pte & ~(BRIGHTS_PTE_CD | BRIGHTS_PTE_WT)) | (caching_flags & (BRIGHTS_PTE_CD | BRIGHTS_PTE_WT));
+      brights_paging_flush_tlb(virt);
+      return 0;
+    }
+    table = (pte_t *)(uintptr_t)(*pte & ~0xFFFULL);
+  }
+  return -1;
+}
+
+/* Remap a physical address range to a virtual address with uncachable
+ * (PCD+PWT) flags by creating new page table pages along the path.
+ * Avoids writing to UEFI's existing read-only page table pages.
+ * Must be called after pmem is initialized. */
+int brights_paging_remap_uc(uint64_t virt, uint64_t phys, uint64_t size)
+{
+  if (!pml4_table) return -1;
+
+  /* Fork PML4 → new PDPT */
+  int pml4_idx = (virt >> 39) & 0x1FF;
+  pte_t *old_pml4_e = &pml4_table[pml4_idx];
+  if (!(*old_pml4_e & BRIGHTS_PTE_PRESENT)) return -1;
+
+  pte_t *new_pml4 = alloc_pt_page();
+  if (!new_pml4) return -1;
+  for (int i = 0; i < PT_ENTRIES; i++) new_pml4[i] = pml4_table[i];
+
+  pte_t *new_pdpt = alloc_pt_page();
+  if (!new_pdpt) return -1;
+  pte_t *old_pdpt = (pte_t *)(uintptr_t)(*old_pml4_e & ~0xFFFULL);
+  for (int i = 0; i < PT_ENTRIES; i++) new_pdpt[i] = old_pdpt[i];
+  new_pml4[pml4_idx] = (uint64_t)(uintptr_t)new_pdpt |
+    (*old_pml4_e & (BRIGHTS_PTE_PRESENT | BRIGHTS_PTE_WRITABLE | BRIGHTS_PTE_USER));
+
+  /* Fill each 2MB PD slice that overlaps the range */
+  uint64_t pages = (size + BRIGHTS_PAGE_SIZE_4K - 1) / BRIGHTS_PAGE_SIZE_4K;
+  for (uint64_t done = 0; done < pages; ) {
+    int pdpt_i = ((virt + done * BRIGHTS_PAGE_SIZE_4K) >> 30) & 0x1FF;
+    int pd_i   = ((virt + done * BRIGHTS_PAGE_SIZE_4K) >> 21) & 0x1FF;
+    int pt_i   = ((virt + done * BRIGHTS_PAGE_SIZE_4K) >> 12) & 0x1FF;
+
+    /* Fork PDPT entry → new PD (only once per pdpt_i) */
+    pte_t *old_pdpt_e = &old_pdpt[pdpt_i];
+    if (!(*old_pdpt_e & BRIGHTS_PTE_PRESENT)) return -1;
+
+    pte_t *new_pd;
+    if (new_pdpt[pdpt_i] != old_pdpt[pdpt_i]) {
+      /* Already forked this PDPT entry — reuse existing new PD */
+      new_pd = (pte_t *)(uintptr_t)(new_pdpt[pdpt_i] & ~0xFFFULL);
+    } else {
+      new_pd = alloc_pt_page();
+      if (!new_pd) return -1;
+      if (*old_pdpt_e & BRIGHTS_PTE_HUGE) {
+        uint64_t base = *old_pdpt_e & ~0x3FFFFFFFULL;
+        for (int i = 0; i < PT_ENTRIES; i++)
+          new_pd[i] = (base + (uint64_t)i * BRIGHTS_PAGE_SIZE_2M) |
+            BRIGHTS_PTE_PRESENT | BRIGHTS_PTE_WRITABLE | BRIGHTS_PTE_HUGE;
+      } else {
+        pte_t *old_pd = (pte_t *)(uintptr_t)(*old_pdpt_e & ~0xFFFULL);
+        for (int i = 0; i < PT_ENTRIES; i++) new_pd[i] = old_pd[i];
+      }
+      new_pdpt[pdpt_i] = (uint64_t)(uintptr_t)new_pd |
+        (BRIGHTS_PTE_PRESENT | BRIGHTS_PTE_WRITABLE);
+    }
+
+    /* Fork PD entry → new PT */
+    pte_t *old_pd_e = &new_pd[pd_i];
+    if (!(*old_pd_e & BRIGHTS_PTE_PRESENT)) return -1;
+
+    pte_t *new_pt = alloc_pt_page();
+    if (!new_pt) return -1;
+    if (*old_pd_e & BRIGHTS_PTE_HUGE) {
+      uint64_t base = *old_pd_e & ~0x1FFFFFULL;
+      for (int i = 0; i < PT_ENTRIES; i++)
+        new_pt[i] = (base + (uint64_t)i * BRIGHTS_PAGE_SIZE_4K) |
+          BRIGHTS_PTE_PRESENT | BRIGHTS_PTE_WRITABLE;
+    } else {
+      pte_t *old_pt = (pte_t *)(uintptr_t)(*old_pd_e & ~0xFFFULL);
+      for (int i = 0; i < PT_ENTRIES; i++) new_pt[i] = old_pt[i];
+    }
+    new_pd[pd_i] = (uint64_t)(uintptr_t)new_pt |
+      (BRIGHTS_PTE_PRESENT | BRIGHTS_PTE_WRITABLE);
+
+    /* Fill PT entries for this 2MB slice */
+    uint64_t p = (phys + done * BRIGHTS_PAGE_SIZE_4K) & ~0xFFFULL;
+    uint64_t remaining = pages - done;
+    uint64_t pt_space = (uint64_t)(PT_ENTRIES - pt_i);
+    uint64_t count = (remaining < pt_space) ? remaining : pt_space;
+    for (uint64_t j = 0; j < count; j++) {
+      new_pt[pt_i + (int)j] = (p + j * BRIGHTS_PAGE_SIZE_4K) |
+        BRIGHTS_PTE_PRESENT | BRIGHTS_PTE_WRITABLE | BRIGHTS_PTE_CD | BRIGHTS_PTE_WT;
+    }
+    done += count;
+  }
+
+  /* Switch to new PML4 */
+  pml4_table = new_pml4;
+  uint64_t new_cr3 = (uint64_t)(uintptr_t)pml4_table;
+  __asm__ __volatile__("mov %0, %%cr3" :: "r"(new_cr3) : "memory");
+  return 0;
+}

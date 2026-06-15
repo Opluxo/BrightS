@@ -67,4 +67,13 @@ uint64_t brights_paging_clone_address_space(uint64_t src_cr3);
 /* Mark a page as writable (for COW resolution) */
 int brights_paging_mark_writable(uint64_t virt);
 
+/* Modify caching attributes (PCD/PWT) of an existing mapping without
+ * changing the physical address. Works for both 4KB and 2MB pages. */
+int brights_paging_set_caching(uint64_t virt, uint64_t caching_flags);
+
+/* Remap a physical address range to a virtual address with uncachable
+ * (PCD+PWT) flags by creating new page table pages. Does not modify
+ * UEFI's read-only page table pages. Must be called after pmem init. */
+int brights_paging_remap_uc(uint64_t virt, uint64_t phys, uint64_t size);
+
 #endif

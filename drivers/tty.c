@@ -151,7 +151,11 @@ int brights_tty_read_char(char *out_ch)
 char brights_tty_read_char_blocking(void)
 {
   char ch;
-  while (brights_tty_read_char(&ch) <= 0) __asm__ __volatile__("hlt");
+  while (brights_tty_read_char(&ch) <= 0) {
+    __asm__ __volatile__("sti");
+    __asm__ __volatile__("hlt");
+    __asm__ __volatile__("cli");
+  }
   return ch;
 }
 
@@ -195,8 +199,10 @@ void fb_console_init(void)
   brights_fb_info_t *fb = brights_fb_get_info();
   if (!fb) return;
   
-  fb_con.width = fb->width / 8;
-  fb_con.height = fb->height / 16;
+  brights_dbuffer_init();
+  
+  fb_con.width = fb->width / FONT_WIDTH;
+  fb_con.height = fb->height / FONT_HEIGHT;
   fb_con.cursor_x = fb_con.cursor_y = 0;
   fb_con.tab_width = 4;
   fb_con.fg_color = brights_rgb(255, 255, 255);
@@ -324,7 +330,7 @@ void fb_console_put_codepoint(uint32_t cp)
   if (cp == '\b') {
     if (fb_con.cursor_x > 0) {
       fb_con.cursor_x--;
-      brights_fb_fill_rect(fb_con.cursor_x * 8, py, 8, 16, fb_con.bg_color);
+      brights_fb_fill_rect(fb_con.cursor_x * FONT_WIDTH, py, FONT_WIDTH, FONT_HEIGHT, fb_con.bg_color);
     }
     return;
   }
@@ -426,6 +432,11 @@ void fb_console_update_cursor(void)
 {
   if (!fb_con_initialized || !fb_con.cursor_visible) return;
   brights_fb_fill_rect(fb_con.cursor_x * 8, fb_con.cursor_y * 16, 8, 2, fb_con.fg_color);
+}
+
+void fb_console_flush(void)
+{
+  brights_dbuffer_flip();
 }
 
 fb_console_t *fb_console_get_info(void) { return &fb_con; }

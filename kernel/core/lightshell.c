@@ -16,6 +16,7 @@
 #include "../drivers/ps2kbd.h"
 #include "../drivers/tty.h"
 #include "../drivers/tui.h"
+#include "../drivers/font.h"
 #include "clock.h"
 #include "acpi.h"
 #include "hwinfo.h"
@@ -1114,34 +1115,7 @@ static void print_prompt(void)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, is_root ? "# " : "$ ");
 
   if (brights_fb_available()) {
-    char lbuf[64];
-    char rbuf[32];
-    int i, v;
-
-    i = 0;
-    for (int j = 0; current_user[j] && i < (int)sizeof(lbuf) - 16; ++j)
-      lbuf[i++] = current_user[j];
-    lbuf[i++] = '@';
-    lbuf[i++] = 'b'; lbuf[i++] = 'r'; lbuf[i++] = 'i'; lbuf[i++] = 'g';
-    lbuf[i++] = 'h'; lbuf[i++] = 't'; lbuf[i++] = 's';
-    lbuf[i] = 0;
-
-    brights_rtc_time_t tr;
-    if (brights_rtc_read(&tr) == 0) {
-      v = tr.hour / 10; rbuf[0] = v ? (char)('0' + v) : '0';
-      v = tr.hour % 10; rbuf[1] = (char)('0' + v);
-      rbuf[2] = ':';
-      v = tr.minute / 10; rbuf[3] = (char)('0' + v);
-      v = tr.minute % 10; rbuf[4] = (char)('0' + v);
-      rbuf[5] = ':';
-      v = tr.second / 10; rbuf[6] = (char)('0' + v);
-      v = tr.second % 10; rbuf[7] = (char)('0' + v);
-      rbuf[8] = 0;
-    } else {
-      rbuf[0] = 0;
-    }
-
-    tui_draw_status_bar(lbuf, rbuf);
+    tui_refresh_status(current_user, is_root);
   }
 }
 
@@ -3129,6 +3103,92 @@ static int tab_complete(char *line, int *len, int *pos)
   return 1;
 }
 
+static void login_draw_fb(int attempts, const char *error_msg)
+{
+  if (!brights_fb_available()) return;
+
+  brights_fb_info_t *info = brights_fb_get_info();
+  if (!info) return;
+
+  int fb_w = (int)info->width;
+  int fb_h = (int)info->height;
+  int char_w = 8, char_h = 16;
+
+  /* Background gradient */
+  brights_fb_fill_gradient_v(0, 0, fb_w, fb_h,
+    brights_rgb(8, 12, 35), brights_rgb(3, 3, 15));
+
+  /* Login box */
+  int box_w = 420;
+  int box_h = 200;
+  int box_x = (fb_w - box_w) / 2;
+  int box_y = (fb_h - box_h) / 2;
+
+  /* Shadow */
+  brights_fb_fill_rounded_rect(box_x + 5, box_y + 5, box_w, box_h, 10,
+    brights_rgb(0, 0, 0));
+
+  /* Box background */
+  brights_fb_fill_rounded_rect(box_x, box_y, box_w, box_h, 10,
+    brights_rgb(15, 20, 50));
+
+  /* Box border */
+  brights_fb_draw_rounded_rect(box_x, box_y, box_w, box_h, 10,
+    brights_rgb(0, 160, 200));
+
+  /* Title */
+  const char *title = "BrightS v0.1.2.9";
+  int title_w = strlen_s(title) * char_w;
+  brights_font_draw_string(box_x + (box_w - title_w) / 2, box_y + 20,
+    title, (255 << 16) | (255 << 8) | 255, 0xFFFFFFFF);
+
+  /* Subtitle */
+  const char *sub = "System Console Login";
+  int sub_w = strlen_s(sub) * char_w;
+  brights_font_draw_string(box_x + (box_w - sub_w) / 2, box_y + 44,
+    sub, (140 << 16) | (180 << 8) | 220, 0xFFFFFFFF);
+
+  /* Separator */
+  brights_fb_draw_hline(box_x + 20, box_y + 72, box_w - 40,
+    brights_rgb(0, 100, 140));
+
+  /* Username label */
+  brights_font_draw_string(box_x + 30, box_y + 90,
+    "Username:", (200 << 16) | (200 << 8) | 200, 0xFFFFFFFF);
+
+  /* Username input field */
+  brights_fb_fill_rect(box_x + 120, box_y + 86, 260, 22,
+    brights_rgb(8, 10, 25));
+  brights_fb_draw_rect(box_x + 120, box_y + 86, 260, 22,
+    brights_rgb(0, 120, 160));
+
+  /* Password label */
+  brights_font_draw_string(box_x + 30, box_y + 124,
+    "Password:", (200 << 16) | (200 << 8) | 200, 0xFFFFFFFF);
+
+  /* Password input field */
+  brights_fb_fill_rect(box_x + 120, box_y + 120, 260, 22,
+    brights_rgb(8, 10, 25));
+  brights_fb_draw_rect(box_x + 120, box_y + 120, 260, 22,
+    brights_rgb(0, 120, 160));
+
+  /* Error message */
+  if (error_msg) {
+    int err_w = strlen_s(error_msg) * char_w;
+    brights_font_draw_string(box_x + (box_w - err_w) / 2, box_y + 156,
+      error_msg, (255 << 16) | (80 << 8) | 80, 0xFFFFFFFF);
+  }
+
+  /* Bottom hint */
+  const char *hint = "Press Ctrl+C to cancel";
+  int hint_w = strlen_s(hint) * char_w;
+  brights_font_draw_string((fb_w - hint_w) / 2, box_y + box_h + 20,
+    hint, (80 << 16) | (100 << 8) | 130, 0xFFFFFFFF);
+
+  /* Flush to screen */
+  brights_dbuffer_flip();
+}
+
 int brights_boot_login(void)
 {
   char user[LIGHTSHELL_MAX_USER];
@@ -3146,6 +3206,8 @@ int brights_boot_login(void)
 
   for (;;) {
     int cancel = 0;
+
+    login_draw_fb(attempts, attempts > 0 ? "Login failed!" : 0);
 
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J");
     for (int v = 0; v < LOGIN_VERT; ++v)
@@ -3300,7 +3362,7 @@ void brights_lightshell_run(void)
   if (brights_fb_available()) {
     tui_init();
     fb_console_t *con = fb_console_get_info();
-    fb_console_set_work_area(1, con->height - 2);
+    (void)con;
 
     char title_right[64];
     int ti = 0;
@@ -3315,8 +3377,25 @@ void brights_lightshell_run(void)
   print_system_info();
   print_prompt();
 
+  uint64_t last_status_tick = brights_sched_ticks();
+
   for (;;) {
-    uint8_t ch = (uint8_t)brights_tty_read_char_blocking();
+    /* Periodically refresh the status bar while waiting for input */
+    uint64_t now_tick = brights_sched_ticks();
+    if (brights_fb_available() && (now_tick - last_status_tick) >= 50) {
+      tui_refresh_status(current_user, is_root);
+      last_status_tick = now_tick;
+    }
+
+    /* Non-blocking poll: if no key, yield and continue */
+    char poll_ch;
+    if (brights_tty_read_char(&poll_ch) <= 0) {
+      __asm__ __volatile__("sti");
+      __asm__ __volatile__("hlt");
+      __asm__ __volatile__("cli");
+      continue;
+    }
+    uint8_t ch = (uint8_t)poll_ch;
 
     // === PS/2 keyboard special key codes (0x80-0x89) ===
     if (ch >= 0x80 && ch <= 0x89) {
@@ -3545,9 +3624,11 @@ void brights_lightshell_run(void)
           } else {
             fb_console_set_colors(tui_clr_bright_green(), brights_rgb(0, 30, 60));
             fb_console_write_str("                              ");
+            brights_im_hide();
           }
         }
-        brights_im_draw_candidates();
+        if (brights_im_is_active())
+          brights_im_draw_candidates();
       }
       continue;
     }
@@ -3578,8 +3659,8 @@ void brights_lightshell_run(void)
             fb_console_set_colors(tui_clr_bright_green(), brights_rgb(0, 30, 60));
             fb_console_write_str("                              ");
           }
+          brights_im_hide();
         }
-        brights_im_draw_candidates();
         handled = 1;
       } else if ((ch == 0x08 || ch == 0x7F)) {
         brights_im_backspace();

@@ -391,8 +391,8 @@ void brights_font_draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg
     brights_fb_info_t *fb = brights_fb_get_info();
     if (!fb) return;
     
-    uint32_t *framebuffer = (uint32_t *)fb->framebuffer;
-    uint32_t stride = fb->pitch / 4;
+    uint32_t *framebuffer = (uint32_t *)brights_fb_active_ptr();
+    uint32_t stride = brights_fb_active_pitch() / 4;
     
     const uint8_t *glyph = brights_font_8x16[(unsigned char)c];
     
@@ -442,8 +442,8 @@ void brights_font_draw_codepoint(int x, int y, uint32_t cp, uint32_t fg_color, u
         return;
     }
 
-    uint32_t *framebuffer = (uint32_t *)fb->framebuffer;
-    uint32_t stride = fb->pitch / 4;
+    uint32_t *framebuffer = (uint32_t *)brights_fb_active_ptr();
+    uint32_t stride = brights_fb_active_pitch() / 4;
 
     for (int row = 0; row < 16; row++) {
         uint8_t row_data0 = glyph[row * 2];
@@ -482,8 +482,8 @@ void brights_font_draw_string(int x, int y, const char *str, uint32_t fg_color, 
             if (glyph) {
                 brights_fb_info_t *fb = brights_fb_get_info();
                 if (fb) {
-                    uint32_t *framebuffer = (uint32_t *)fb->framebuffer;
-                    uint32_t stride = fb->pitch / 4;
+                    uint32_t *framebuffer = (uint32_t *)brights_fb_active_ptr();
+                    uint32_t stride = brights_fb_active_pitch() / 4;
                     
                     for (int row = 0; row < 16; row++) {
                         uint8_t row_data0 = glyph[row * 2];

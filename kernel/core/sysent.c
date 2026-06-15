@@ -653,7 +653,7 @@ static int64_t sys_uname(uint64_t buf, uint64_t a1, uint64_t a2, uint64_t a3, ui
   const char *sysname = "BrightS";
   const char *nodename = "brights";
   const char *release = "0.1.2.9";
-  const char *version = "BrightS v0.1.2.9";
+  const char *version = "BrightS v0.1.3";
 #ifdef __i386__
   const char *machine = "i386";
 #else

@@ -311,6 +311,6 @@ void tui_clear(void)
   fb_console_t *con = fb_console_get_info();
   if (!con) return;
   int saved_y = con->cursor_y;
-  tui_draw_title_bar("BrightS v0.1.2.9", NULL);
+  tui_draw_title_bar("BrightS v0.1.3", NULL);
   con->cursor_y = saved_y;
 }

@@ -14,16 +14,26 @@ static inline uint32_t color_to_pixel_fast(brights_color_t color)
          (color.b << fb_info.blue_shift);
 }
 
+static inline void *active_fb_ptr(void)
+{
+  return dbuffer.active ? dbuffer.buffer : fb_info.framebuffer;
+}
+
+static inline int active_pitch(void)
+{
+  return dbuffer.active ? dbuffer.pitch : fb_info.pitch;
+}
+
 static inline uint32_t pixel_at_fast(int x, int y)
 {
-  uint32_t *fb = (uint32_t *)fb_info.framebuffer;
-  return fb[y * (fb_info.pitch / 4) + x];
+  uint32_t *fb = (uint32_t *)active_fb_ptr();
+  return fb[y * (active_pitch() / 4) + x];
 }
 
 static inline void set_pixel_fast(int x, int y, uint32_t pixel)
 {
-  uint32_t *fb = (uint32_t *)fb_info.framebuffer;
-  fb[y * (fb_info.pitch / 4) + x] = pixel;
+  uint32_t *fb = (uint32_t *)active_fb_ptr();
+  fb[y * (active_pitch() / 4) + x] = pixel;
 }
 
 static inline int apply_clip_rect(int *x, int *y, int *w, int *h)
@@ -93,8 +103,35 @@ int brights_fb_init(void *gop_ptr)
   return 0;
 }
 
+int brights_fb_init_manual(void *framebuffer, uint32_t width, uint32_t height, uint32_t pitch)
+{
+  if (!framebuffer || width == 0 || height == 0) return -1;
+  
+  fb_info.framebuffer = framebuffer;
+  fb_info.width = width;
+  fb_info.height = height;
+  fb_info.pitch = pitch;
+  fb_info.bpp = 32;
+  fb_info.bytes_per_pixel = 4;
+  fb_info.red_shift = 16;
+  fb_info.green_shift = 8;
+  fb_info.blue_shift = 0;
+  fb_info.red_mask = 0xFF0000;
+  fb_info.green_mask = 0x00FF00;
+  fb_info.blue_mask = 0x0000FF;
+  fb_info.initialized = 1;
+  
+  if (dbuffer.buffer) brights_dbuffer_init();
+  
+  return 0;
+}
+
 int brights_fb_available(void) { return fb_info.initialized; }
 brights_fb_info_t *brights_fb_get_info(void) { return fb_info.initialized ? &fb_info : 0; }
+void *brights_fb_active_ptr(void) { return active_fb_ptr(); }
+uint32_t brights_fb_active_pitch(void) { return (uint32_t)active_pitch(); }
+
+static inline int dbuf_active(void) { return dbuffer.active; }
 
 void brights_fb_draw_pixel(int x, int y, brights_color_t color)
 {
@@ -121,9 +158,9 @@ void brights_fb_draw_hline(int x, int y, int width, brights_color_t color)
     cx = tmp_x; cw = tmp_w;
   }
   
-  uint32_t *fb = (uint32_t *)fb_info.framebuffer;
+  uint32_t *fb = (uint32_t *)active_fb_ptr();
   uint32_t pixel = color_to_pixel_fast(color);
-  uint32_t *row = fb + y * (fb_info.pitch / 4) + cx;
+  uint32_t *row = fb + y * (active_pitch() / 4) + cx;
   
   for (int i = 0; i < cw; i++) row[i] = pixel;
 }
@@ -145,9 +182,9 @@ void brights_fb_draw_vline(int x, int y, int height, brights_color_t color)
     cy = tmp_y; ch = tmp_h;
   }
   
-  uint32_t *fb = (uint32_t *)fb_info.framebuffer;
+  uint32_t *fb = (uint32_t *)active_fb_ptr();
   uint32_t pixel = color_to_pixel_fast(color);
-  uint32_t stride = fb_info.pitch / 4;
+  uint32_t stride = active_pitch() / 4;
   uint32_t offset = cy * stride + x;
   
   for (int i = 0; i < ch; i++) fb[offset + i * stride] = pixel;
@@ -171,9 +208,9 @@ void brights_fb_fill_rect(int x, int y, int width, int height, brights_color_t c
   int cx = x, cy = y, cw = width, ch = height;
   if (!apply_clip_rect(&cx, &cy, &cw, &ch)) return;
   
-  uint32_t *fb = (uint32_t *)fb_info.framebuffer;
+  uint32_t *fb = (uint32_t *)active_fb_ptr();
   uint32_t pixel = color_to_pixel_fast(color);
-  uint32_t stride = fb_info.pitch / 4;
+  uint32_t stride = active_pitch() / 4;
   uint32_t *row = fb + cy * stride + cx;
   
   if (cw == (int)fb_info.width && stride == (uint32_t)cw) {
@@ -195,9 +232,9 @@ void brights_fb_blit(void *buffer, int x, int y, int width, int height, int pitc
   int cx = x, cy = y, cw = width, ch = height;
   if (!apply_clip_rect(&cx, &cy, &cw, &ch)) return;
   
-  uint32_t *fb = (uint32_t *)fb_info.framebuffer;
+  uint32_t *fb = (uint32_t *)active_fb_ptr();
   uint32_t *src = (uint32_t *)buffer;
-  uint32_t fb_stride = fb_info.pitch / 4;
+  uint32_t fb_stride = active_pitch() / 4;
   uint32_t src_stride = (uint32_t)pitch / 4;
   int row_offset = cx - x;
   
@@ -893,8 +930,8 @@ void brights_fb_scroll(int dx, int dy)
 {
   if (dx == 0 && dy == 0) return;
   
-  uint32_t *fb = (uint32_t *)fb_info.framebuffer;
-  uint32_t stride = fb_info.pitch / 4;
+  uint32_t *fb = (uint32_t *)active_fb_ptr();
+  uint32_t stride = active_pitch() / 4;
   uint32_t width = fb_info.width;
   uint32_t height = fb_info.height;
   

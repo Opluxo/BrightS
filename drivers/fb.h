@@ -60,11 +60,18 @@ typedef struct {
 /* Initialize framebuffer from UEFI GOP */
 int brights_fb_init(void *gop);
 
+/* Initialize framebuffer from raw parameters (PCI VGA fallback) */
+int brights_fb_init_manual(void *framebuffer, uint32_t width, uint32_t height, uint32_t pitch);
+
 /* Check if framebuffer is available */
 int brights_fb_available(void);
 
 /* Get framebuffer info */
 brights_fb_info_t *brights_fb_get_info(void);
+
+/* Get active framebuffer pointer (double buffer or real) */
+void *brights_fb_active_ptr(void);
+uint32_t brights_fb_active_pitch(void);
 
 /* Clear screen to a color */
 void brights_fb_clear(brights_color_t color);

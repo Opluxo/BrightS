@@ -74,6 +74,7 @@ static void print_u64(uint64_t val)
   buf[i] = 0;
   for (int j = 0; buf[j]; ++j) { char cs[2] = {buf[j], 0}; brights_serial_write_ascii(BRIGHTS_COM1_PORT, cs); }
 }
+#ifdef __x86_64__
 typedef struct {
   uint64_t framebuffer;
   uint32_t width;
@@ -82,6 +83,7 @@ typedef struct {
   uint32_t valid;
 } vga_fb_info_t;
 extern vga_fb_info_t vga_fb_info;
+#endif
 #include "../net/net.h"
 #include "../net/virtionet.h"
 #include "kernel_main.h"
@@ -98,12 +100,14 @@ void brights_kernel_main(void *gop)
     brights_font_draw_string(10, 10, "BrightS v0.1.3", 
       (255 << 16) | (200 << 8) | 50,
       0xFFFFFFFF);
+#ifdef __x86_64__
   } else if (vga_fb_info.valid && brights_fb_init_manual((void *)(uintptr_t)vga_fb_info.framebuffer, vga_fb_info.width, vga_fb_info.height, vga_fb_info.pitch) == 0) {
     brights_print(&con, u"fb: vga initialized\r\n");
     brights_fb_clear((brights_color_t){0, 0, 40, 255});
     brights_font_draw_string(10, 10, "BrightS v0.1.3", 
       (255 << 16) | (200 << 8) | 50,
       0xFFFFFFFF);
+#endif
   } else {
     brights_print(&con, u"fb: not available\r\n");
   }

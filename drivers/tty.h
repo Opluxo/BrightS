@@ -60,6 +60,7 @@ void fb_console_newline(void);
 void fb_console_scroll(void);
 void fb_console_set_cursor_visible(int visible);
 void fb_console_update_cursor(void);
+void fb_console_flush(void);
 fb_console_t *fb_console_get_info(void);
 void fb_console_set_work_area(int y, int h);
 

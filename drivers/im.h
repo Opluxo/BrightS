@@ -31,6 +31,8 @@ void brights_im_backspace(void);
 
 void brights_im_clear(void);
 
+void brights_im_hide(void);
+
 void brights_im_draw_candidates(void);
 
 int brights_im_cursor_pos(void);

@@ -169,6 +169,7 @@ set(KERNEL_SOURCES
         -drive if=pflash,format=raw,file=/tmp/brights-ovmf-vars.fd
         -drive file=fat:rw:${CMAKE_CURRENT_BINARY_DIR},format=raw
         -net none
+        -vga std
         -display gtk
         -serial stdio
         -no-reboot

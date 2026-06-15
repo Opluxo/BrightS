@@ -116,17 +116,22 @@ static void detect_pci_vga_fb(void)
         /* Class 0x03 = Display controller, subclass 0x00 = VGA compatible */
         if (class_code == 0x03 && subclass == 0x00) {
           /* Try to initialize Bochs VBE graphics mode */
-          vga_init_vbe(1024, 768, 32);
+          int vbe_ok = vga_init_vbe(1024, 768, 32);
 
           /* Read BAR0 (offset 0x10) — VGA framebuffer for standard/Bochs VGA */
           outl(PCI_CONFIG_ADDR, addr | 0x10);
           uint32_t bar0 = inl(PCI_CONFIG_DATA);
           if (bar0 != 0 && bar0 != 0xFFFFFFFF && (bar0 & 1) == 0) {
-            vga_fb_info.framebuffer = (uint64_t)(bar0 & 0xFFFFFFF0u);
+            uint64_t fb = (uint64_t)(bar0 & 0xFFFFFFF0u);
+            vga_fb_info.framebuffer = fb;
             vga_fb_info.width = 1024;
             vga_fb_info.height = 768;
             vga_fb_info.pitch = 1024 * 4;
             vga_fb_info.valid = 1;
+
+            /* Test write: fill first row with red pixels (0x00FF0000) */
+            volatile uint32_t *fb_ptr = (volatile uint32_t *)(uintptr_t)fb;
+            for (uint32_t i = 0; i < 1024; ++i) fb_ptr[i] = 0x00FF0000;
             return;
           }
 

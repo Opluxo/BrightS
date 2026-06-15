@@ -106,9 +106,9 @@ struct _EFI_BOOT_SERVICES {
 #define EFI_UNSUPPORTED (3 | ((uint64_t)1 << 63))
 #define EFI_NOT_FOUND (14 | ((uint64_t)1 << 63))
 
-/* GOP GUID: {8BE4DF61-93CA-11D2-AA0D-00E098032B8C} */
+/* GOP GUID: {9042A9DE-23DC-4A38-96FB-72DE52FEC446} */
 #define EFI_GOP_GUID \
-  { 0x8BE4DF61, 0x93CA, 0x11D2, { 0xAA, 0x0D, 0x00, 0xE0, 0x98, 0x03, 0x2B, 0x8C } }
+  { 0x9042A9DE, 0x23DC, 0x4A38, { 0x96, 0xFB, 0x72, 0xDE, 0x52, 0xFE, 0xC4, 0x46 } }
 
 /* Pixel formats */
 typedef enum {

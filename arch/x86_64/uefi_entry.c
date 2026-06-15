@@ -1,5 +1,6 @@
 #include "uefi.h"
 #include "uefi_memmap.h"
+#include "io.h"
 #include "../../kernel/core/printf.h"
 #include "../../kernel/core/acpi.h"
 #include "../../kernel/core/vm.h"
@@ -7,7 +8,93 @@
 #include "../../drivers/serial.h"
 #include "idt.h"
 #include "syscall_abi.h"
+#include "../../kernel/core/pmem.h"
 #include "../../kernel/fs/boot_fs.h"
+#include <stdint.h>
+
+/* MSVC runtime: suppress linker error for _fltused (no float used) */
+int _fltused = 0;
+
+/* Dedicated kernel stack — 256KB to avoid overflow during deep init chains.
+ * Placed in .data (initialized) to avoid potential BSS issues with PE/COFF. */
+#define KERNEL_STACK_SIZE (256 * 1024)
+static uint8_t kernel_stack[KERNEL_STACK_SIZE] __attribute__((aligned(16)));
+
+/* VGA framebuffer info — populated by PCI VGA scan after ExitBootServices */
+typedef struct {
+  uint64_t framebuffer;   /* Physical address of framebuffer */
+  uint32_t width;
+  uint32_t height;
+  uint32_t pitch;         /* Bytes per scanline */
+  uint32_t valid;         /* 1 if VGA framebuffer was found */
+} vga_fb_info_t;
+vga_fb_info_t vga_fb_info __attribute__((used)) = {0};
+
+/* PCI VGA framebuffer detection — runs after ExitBootServices */
+static void detect_pci_vga_fb(void)
+{
+  /* I/O port PCI config space access (works after ExitBootServices in ring 0) */
+  #define PCI_CONFIG_ADDR 0xCF8
+  #define PCI_CONFIG_DATA 0xCFC
+
+  for (uint32_t bus = 0; bus < 256; ++bus) {
+    for (uint32_t dev = 0; dev < 32; ++dev) {
+      for (uint32_t func = 0; func < 8; ++func) {
+        uint32_t addr = (1u << 31) | (bus << 16) | (dev << 11) | (func << 8);
+        /* Read vendor/device ID */
+        outl(PCI_CONFIG_ADDR, addr | 0x00);
+        uint32_t id = inl(PCI_CONFIG_DATA);
+        if ((id & 0xFFFF) == 0xFFFF) {
+          if (func == 0) break;
+          continue;
+        }
+        /* Read class/subclass/prog_if (offset 0x08) */
+        outl(PCI_CONFIG_ADDR, addr | 0x08);
+        uint32_t classreg = inl(PCI_CONFIG_DATA);
+        uint8_t class_code = (uint8_t)(classreg >> 24);
+        uint8_t subclass = (uint8_t)(classreg >> 16);
+
+        /* Class 0x03 = Display controller, subclass 0x00 = VGA compatible */
+        if (class_code == 0x03 && subclass == 0x00) {
+          /* Read BAR2 (offset 0x18) — standard VGA framebuffer BAR */
+          outl(PCI_CONFIG_ADDR, addr | 0x18);
+          uint32_t bar2 = inl(PCI_CONFIG_DATA);
+          if (bar2 != 0 && bar2 != 0xFFFFFFFF && (bar2 & 1) == 0) {
+            /* Memory-mapped BAR: mask flag bits, get base address */
+            uint64_t fb_addr = (uint64_t)(bar2 & 0xFFFFFFF0u);
+            vga_fb_info.framebuffer = fb_addr;
+            vga_fb_info.width = 1024;
+            vga_fb_info.height = 768;
+            vga_fb_info.pitch = 1024 * 4;
+            vga_fb_info.valid = 1;
+            return;
+          }
+          /* Try BAR0 as fallback */
+          outl(PCI_CONFIG_ADDR, addr | 0x10);
+          uint32_t bar0 = inl(PCI_CONFIG_DATA);
+          if (bar0 != 0 && bar0 != 0xFFFFFFFF && (bar0 & 1) == 0) {
+            uint64_t fb_addr = (uint64_t)(bar0 & 0xFFFFFFF0u);
+            vga_fb_info.framebuffer = fb_addr;
+            vga_fb_info.width = 1024;
+            vga_fb_info.height = 768;
+            vga_fb_info.pitch = 1024 * 4;
+            vga_fb_info.valid = 1;
+            return;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void __attribute__((noinline)) kernel_stack_entry(void *gop)
+{
+  uint64_t new_rsp = (uint64_t)(uintptr_t)&kernel_stack[KERNEL_STACK_SIZE];
+  __asm__ __volatile__("mov %0, %%rsp" : : "r"(new_rsp) : "memory");
+  extern void brights_kernel_main(void *gop);
+  brights_kernel_main(gop);
+  for (;;) { __asm__ __volatile__("hlt"); }
+}
 
 static void uefi_puts(brights_console_t *con, const uint16_t *msg)
 {
@@ -126,16 +213,36 @@ static uint64_t uefi_find_rsdp(EFI_SYSTEM_TABLE *st)
   return 0;
 }
 
-static void *uefi_find_gop(EFI_SYSTEM_TABLE *st)
+static void *uefi_find_gop(EFI_SYSTEM_TABLE *st, EFI_HANDLE image)
 {
-  static const EFI_GUID gop_guid = { 0x8BE4DF61, 0x93CA, 0x11D2, { 0xAA, 0x0D, 0x00, 0xE0, 0x98, 0x03, 0x2B, 0x8C } };
-  
+  static const EFI_GUID gop_guid = EFI_GOP_GUID;
+  (void)image;
+
+  void *gop = 0;
+
+  /* Method 1: LocateProtocol (searches all handles for the protocol) */
+  if (st->BootServices->LocateProtocol((void *)&gop_guid, 0, &gop) == EFI_SUCCESS && gop) {
+    return gop;
+  }
+
+  gop = 0;
+
+  /* Method 2: HandleProtocol on image handle */
+  typedef EFI_STATUS (*handle_protocol_fn)(EFI_HANDLE, void *, void **);
+  handle_protocol_fn hp = (handle_protocol_fn)(uintptr_t)st->BootServices->HandleProtocol;
+  if (hp(image, (void *)&gop_guid, &gop) == EFI_SUCCESS && gop) {
+    return gop;
+  }
+
+  gop = 0;
+
+  /* Method 3: ConfigurationTable search */
   for (uint64_t i = 0; i < st->NumberOfTableEntries; ++i) {
     if (guid_eq(&st->ConfigurationTable[i].VendorGuid, &gop_guid)) {
       return st->ConfigurationTable[i].VendorTable;
     }
   }
-  
+
   return 0;
 }
 
@@ -150,7 +257,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   uefi_print_str(&con, u"BrightS kernel: UEFI entry ok\r\n");
   uefi_print_str(&serial_con, u"BrightS kernel: serial ok\r\n");
 
-  void *gop = uefi_find_gop(SystemTable);
+  void *gop = uefi_find_gop(SystemTable, ImageHandle);
   if (gop) {
     uefi_print_str(&serial_con, u"gop: found\r\n");
   } else {
@@ -193,6 +300,16 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     uefi_print_str(&serial_con, u"ExitBootServices ok\r\n");
   }
 
+  /* Detect PCI VGA framebuffer (GOP fallback for OVMF without GOP driver) */
+  detect_pci_vga_fb();
+  if (vga_fb_info.valid) {
+    uefi_print_str(&serial_con, u"vga: fb=");
+    uefi_print_hex(&serial_con, vga_fb_info.framebuffer);
+    uefi_print_nl(&serial_con);
+  } else {
+    uefi_print_str(&serial_con, u"vga: no framebuffer found\r\n");
+  }
+
   brights_vm_init();
   uefi_print_str(&serial_con, u"BrightS kernel: vm ok\r\n");
 
@@ -226,16 +343,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     uefi_print_str(&serial_con, u"cr4: basic features enabled\r\n");
   }
 
-   uefi_print_str(&serial_con, u"DEBUG: About to init IDT\r\n");
    brights_idt_init();
    uefi_print_str(&serial_con, u"BrightS kernel: idt ok\r\n");
    brights_syscall_abi_init();
-   uefi_print_str(&serial_con, u"DEBUG: syscall_abi_init done\r\n");
-   uefi_print_str(&serial_con, u"DEBUG: About to init VFS\r\n");
-   brights_boot_fs_init();
    uefi_print_str(&serial_con, u"BrightS kernel: syscall/vfs ok\r\n");
-   uefi_print_str(&serial_con, u"DEBUG: About to call kernel_main\r\n");
-   brights_kernel_main(gop);
+   brights_boot_fs_init();
+   kernel_stack_entry(gop);
 
   for (;;) {
     __asm__ __volatile__("hlt");

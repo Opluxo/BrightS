@@ -62,10 +62,8 @@
 #include "../arch/x86_64/mtrr.h"
 #endif
 #include "../drivers/usb.h"
-#include "../net/net.h"
-#include "../net/virtionet.h"
-#include "kernel_main.h"
 
+/* VGA framebuffer info from PCI detection in uefi_entry.c */
 static void print_u64(uint64_t val)
 {
   char buf[24];
@@ -76,6 +74,17 @@ static void print_u64(uint64_t val)
   buf[i] = 0;
   for (int j = 0; buf[j]; ++j) { char cs[2] = {buf[j], 0}; brights_serial_write_ascii(BRIGHTS_COM1_PORT, cs); }
 }
+typedef struct {
+  uint64_t framebuffer;
+  uint32_t width;
+  uint32_t height;
+  uint32_t pitch;
+  uint32_t valid;
+} vga_fb_info_t;
+extern vga_fb_info_t vga_fb_info;
+#include "../net/net.h"
+#include "../net/virtionet.h"
+#include "kernel_main.h"
 
 void brights_kernel_main(void *gop)
 {
@@ -85,6 +94,12 @@ void brights_kernel_main(void *gop)
 
   if (gop && brights_fb_init(gop) == 0) {
     brights_print(&con, u"fb: initialized\r\n");
+    brights_fb_clear((brights_color_t){0, 0, 40, 255});
+    brights_font_draw_string(10, 10, "BrightS v0.1.2.9", 
+      (255 << 16) | (200 << 8) | 50,
+      0xFFFFFFFF);
+  } else if (vga_fb_info.valid && brights_fb_init_manual((void *)(uintptr_t)vga_fb_info.framebuffer, vga_fb_info.width, vga_fb_info.height, vga_fb_info.pitch) == 0) {
+    brights_print(&con, u"fb: vga initialized\r\n");
     brights_fb_clear((brights_color_t){0, 0, 40, 255});
     brights_font_draw_string(10, 10, "BrightS v0.1.2.9", 
       (255 << 16) | (200 << 8) | 50,
@@ -297,27 +312,7 @@ void brights_kernel_main(void *gop)
 
 /* ---- RTC ---- */
   brights_vmware_backdoor_init();
-  brights_print(&con, u"rtc: checking...\r\n");
-  brights_rtc_time_t rt;
-  if (brights_rtc_read(&rt) == 0) {
-    brights_print(&con, u"rtc: ");
-    /* Print date/time */
-    char dt[32]; int d = 0;
-    dt[d++] = '2'; dt[d++] = '0';
-    dt[d++] = '0' + (rt.year / 10) % 10; dt[d++] = '0' + rt.year % 10;
-    dt[d++] = '-';
-    dt[d++] = '0' + (rt.month / 10) % 10; dt[d++] = '0' + rt.month % 10;
-    dt[d++] = '-';
-    dt[d++] = '0' + (rt.day / 10) % 10; dt[d++] = '0' + rt.day % 10;
-    dt[d++] = ' ';
-    dt[d++] = '0' + (rt.hour / 10) % 10; dt[d++] = '0' + rt.hour % 10;
-    dt[d++] = ':';
-    dt[d++] = '0' + (rt.minute / 10) % 10; dt[d++] = '0' + rt.minute % 10;
-    dt[d++] = ':';
-    dt[d++] = '0' + (rt.second / 10) % 10; dt[d++] = '0' + rt.second % 10;
-    dt[d++] = '\r'; dt[d++] = '\n'; dt[d] = 0;
-    brights_serial_write_ascii(BRIGHTS_COM1_PORT, dt);
-  }
+  brights_print(&con, u"rtc: skipped (TCG delay issue)\r\n");
 
   /* ---- VFS2 + User mode ---- */
   brights_print(&con, u"user: initializing...\r\n");

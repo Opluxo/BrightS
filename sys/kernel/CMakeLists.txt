@@ -107,9 +107,9 @@ set(KERNEL_SOURCES
        -target x86_64-unknown-windows
        -ffreestanding -fno-stack-protector -fno-pic
         -Os -fomit-frame-pointer -mno-red-zone
-        -march=bonnell -mtune=bonnell -mssse3 -mno-sse4 -mno-avx
+        -march=bonnell -mtune=bonnell -mssse3 -mno-sse4 -mno-avx -mno-movbe
         -falign-functions=16 -falign-loops=16
-        -ffunction-sections -fdata-sections -flto
+         -ffunction-sections -fdata-sections
         -fno-tree-vectorize
        -Wl,/subsystem:efi_application
        -Wl,/entry:efi_main
@@ -161,14 +161,18 @@ set(KERNEL_SOURCES
 
     # Run target - direct EFI execution
     add_custom_target(run
+      COMMAND ${CMAKE_COMMAND} -E copy /usr/share/edk2/x64/OVMF_VARS.4m.fd /tmp/brights-ovmf-vars.fd
       COMMAND ${QEMU_BIN}
-        -bios /usr/share/edk2/x64/OVMF.4m.fd
+        -machine q35
+        -m 1G
+        -drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2/x64/OVMF_CODE.4m.fd
+        -drive if=pflash,format=raw,file=/tmp/brights-ovmf-vars.fd
         -drive file=fat:rw:${CMAKE_CURRENT_BINARY_DIR},format=raw
         -net none
+        -display gtk
         -serial stdio
         -no-reboot
         -no-shutdown
-        -m 512
       DEPENDS efi_boot
       USES_TERMINAL
       VERBATIM

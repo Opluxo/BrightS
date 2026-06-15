@@ -30,10 +30,68 @@ typedef struct {
 } vga_fb_info_t;
 vga_fb_info_t vga_fb_info __attribute__((used)) = {0};
 
+/*
+ * VGA graphics mode initialization via Bochs VBE dispi interface.
+ * QEMU -vga std emulates a Bochs VGA with VBE extension.
+ * The dispi interface uses I/O ports 0x1CE (index) and 0x1CF (data).
+ */
+#define VBE_DISPI_INDEX_ID          0
+#define VBE_DISPI_INDEX_XRES        1
+#define VBE_DISPI_INDEX_YRES        2
+#define VBE_DISPI_INDEX_BPP         3
+#define VBE_DISPI_INDEX_ENABLE      5
+#define VBE_DISPI_INDEX_VIRT_WIDTH  9
+#define VBE_DISPI_INDEX_VIRT_HEIGHT 10
+#define VBE_DISPI_INDEX_X_OFFSET    11
+#define VBE_DISPI_INDEX_Y_OFFSET    12
+#define VBE_DISPI_ID                0xB0C5
+#define VBE_DISPI_ENABLED           0x01
+#define VBE_DISPI_LFB_ENABLED       0x40
+
+static inline void vbe_write(uint16_t index, uint16_t data)
+{
+  outw(0x1CE, index);
+  outw(0x1CF, data);
+}
+
+static inline uint16_t vbe_read(uint16_t index)
+{
+  outw(0x1CE, index);
+  return inw(0x1CF);
+}
+
+/* Returns 1 if Bochs VBE dispi interface was initialized successfully */
+static int vga_init_vbe(uint32_t width, uint32_t height, uint32_t bpp)
+{
+  /* Check for Bochs VBE signature */
+  uint16_t id = vbe_read(VBE_DISPI_INDEX_ID);
+  if (id != VBE_DISPI_ID) return 0;
+
+  /* Disable VBE before reconfiguration */
+  vbe_write(VBE_DISPI_INDEX_ENABLE, 0);
+
+  /* Set resolution and color depth */
+  vbe_write(VBE_DISPI_INDEX_XRES, (uint16_t)width);
+  vbe_write(VBE_DISPI_INDEX_YRES, (uint16_t)height);
+  vbe_write(VBE_DISPI_INDEX_BPP, (uint16_t)bpp);
+
+  /* Set virtual framebuffer size (same as physical, no scrolling) */
+  vbe_write(VBE_DISPI_INDEX_VIRT_WIDTH, (uint16_t)width);
+  vbe_write(VBE_DISPI_INDEX_VIRT_HEIGHT, (uint16_t)height);
+  vbe_write(VBE_DISPI_INDEX_X_OFFSET, 0);
+  vbe_write(VBE_DISPI_INDEX_Y_OFFSET, 0);
+
+  /* Enable VBE + linear framebuffer (LFB) mode */
+  vbe_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED | VBE_DISPI_LFB_ENABLED);
+
+  /* Verify */
+  uint16_t en = vbe_read(VBE_DISPI_INDEX_ENABLE);
+  return (en & VBE_DISPI_ENABLED) ? 1 : 0;
+}
+
 /* PCI VGA framebuffer detection — runs after ExitBootServices */
 static void detect_pci_vga_fb(void)
 {
-  /* I/O port PCI config space access (works after ExitBootServices in ring 0) */
   #define PCI_CONFIG_ADDR 0xCF8
   #define PCI_CONFIG_DATA 0xCFC
 
@@ -48,7 +106,7 @@ static void detect_pci_vga_fb(void)
           if (func == 0) break;
           continue;
         }
-        /* Read class/subclass/prog_if (offset 0x08) */
+        /* Read class/subclass (offset 0x08) */
         outl(PCI_CONFIG_ADDR, addr | 0x08);
         uint32_t classreg = inl(PCI_CONFIG_DATA);
         uint8_t class_code = (uint8_t)(classreg >> 24);
@@ -56,25 +114,26 @@ static void detect_pci_vga_fb(void)
 
         /* Class 0x03 = Display controller, subclass 0x00 = VGA compatible */
         if (class_code == 0x03 && subclass == 0x00) {
-          /* Read BAR2 (offset 0x18) — standard VGA framebuffer BAR */
-          outl(PCI_CONFIG_ADDR, addr | 0x18);
-          uint32_t bar2 = inl(PCI_CONFIG_DATA);
-          if (bar2 != 0 && bar2 != 0xFFFFFFFF && (bar2 & 1) == 0) {
-            /* Memory-mapped BAR: mask flag bits, get base address */
-            uint64_t fb_addr = (uint64_t)(bar2 & 0xFFFFFFF0u);
-            vga_fb_info.framebuffer = fb_addr;
+          /* Try to initialize Bochs VBE graphics mode */
+          vga_init_vbe(1024, 768, 32);
+
+          /* Read BAR0 (offset 0x10) — VGA framebuffer for standard/Bochs VGA */
+          outl(PCI_CONFIG_ADDR, addr | 0x10);
+          uint32_t bar0 = inl(PCI_CONFIG_DATA);
+          if (bar0 != 0 && bar0 != 0xFFFFFFFF && (bar0 & 1) == 0) {
+            vga_fb_info.framebuffer = (uint64_t)(bar0 & 0xFFFFFFF0u);
             vga_fb_info.width = 1024;
             vga_fb_info.height = 768;
             vga_fb_info.pitch = 1024 * 4;
             vga_fb_info.valid = 1;
             return;
           }
-          /* Try BAR0 as fallback */
-          outl(PCI_CONFIG_ADDR, addr | 0x10);
-          uint32_t bar0 = inl(PCI_CONFIG_DATA);
-          if (bar0 != 0 && bar0 != 0xFFFFFFFF && (bar0 & 1) == 0) {
-            uint64_t fb_addr = (uint64_t)(bar0 & 0xFFFFFFF0u);
-            vga_fb_info.framebuffer = fb_addr;
+
+          /* Fallback: BAR2 (offset 0x18) */
+          outl(PCI_CONFIG_ADDR, addr | 0x18);
+          uint32_t bar2 = inl(PCI_CONFIG_DATA);
+          if (bar2 != 0 && bar2 != 0xFFFFFFFF && (bar2 & 1) == 0) {
+            vga_fb_info.framebuffer = (uint64_t)(bar2 & 0xFFFFFFF0u);
             vga_fb_info.width = 1024;
             vga_fb_info.height = 768;
             vga_fb_info.pitch = 1024 * 4;

@@ -1,6 +1,7 @@
 #include "uefi.h"
 #include "uefi_memmap.h"
 #include "io.h"
+#include "paging.h"
 #include "../../kernel/core/printf.h"
 #include "../../kernel/core/acpi.h"
 #include "../../kernel/core/vm.h"

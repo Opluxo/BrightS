@@ -16,6 +16,7 @@
 #include "../drivers/ps2kbd.h"
 #include "../drivers/tty.h"
 #include "../drivers/tui.h"
+#include "../drivers/theme.h"
 #include "../drivers/font.h"
 #include "clock.h"
 #include "acpi.h"
@@ -111,6 +112,7 @@ static int cmd_ulimit_handler(const char *arg);
 static int cmd_realpath_handler(const char *arg);
 static int cmd_seq_handler(const char *arg);
 static int cmd_yes_handler(const char *arg);
+static int cmd_theme_handler(const char *arg);
 static int cmd_ps_handler(const char *arg);
 
 /* Sorted command table for binary search */
@@ -161,6 +163,7 @@ static const cmd_entry_t cmd_table[] = {
   {"setpf",   cmd_setpf_handler},
   {"sleep",   cmd_sleep_handler},
   {"stat",    cmd_stat_handler},
+  {"theme",   cmd_theme_handler},
   {"top",     cmd_top_handler},
   {"touch",   cmd_touch_handler},
   {"tree",    cmd_tree_handler},
@@ -205,7 +208,7 @@ static const cmd_entry_t *cmd_find(const char *name)
 static char current_user[LIGHTSHELL_MAX_USER] = "guest";
 static char current_dir[LIGHTSHELL_MAX_PATH] = "/";
 static int is_root = 0;
-static char version[20] = "v0.1.3.3";
+static char version[20] = "v0.1.3.4";
 
 // Command history
 static char history[LIGHTSHELL_HISTORY_SIZE][LIGHTSHELL_MAX_LINE];
@@ -981,7 +984,7 @@ static void print_system_info(void)
   uint64_t free_mem = brights_pmem_free_bytes() / (1024 * 1024);
   uint32_t proc_count = brights_proc_total();
 
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS v0.1.3.3\033[0m\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS v0.1.3.4\033[0m\r\n");
 
   char buf[64];
   char numbuf[16];
@@ -3114,9 +3117,11 @@ static void login_draw_fb(int attempts, const char *error_msg)
   int fb_h = (int)info->height;
   int char_w = 8, char_h = 16;
 
-  /* Background gradient */
+  const brights_theme_colors_t *th = brights_theme_get();
+
+  /* Background gradient using theme colors */
   brights_fb_fill_gradient_v(0, 0, fb_w, fb_h,
-    brights_rgb(8, 12, 35), brights_rgb(3, 3, 15));
+    th->gradient_start, th->gradient_end);
 
   /* Login box */
   int box_w = 420;
@@ -3126,64 +3131,60 @@ static void login_draw_fb(int attempts, const char *error_msg)
 
   /* Shadow */
   brights_fb_fill_rounded_rect(box_x + 5, box_y + 5, box_w, box_h, 10,
-    brights_rgb(0, 0, 0));
+    th->shadow);
 
   /* Box background */
-  brights_fb_fill_rounded_rect(box_x, box_y, box_w, box_h, 10,
-    brights_rgb(15, 20, 50));
+  brights_fb_fill_rounded_rect(box_x, box_y, box_w, box_h, 10, th->bg_secondary);
 
   /* Box border */
-  brights_fb_draw_rounded_rect(box_x, box_y, box_w, box_h, 10,
-    brights_rgb(0, 160, 200));
+  brights_fb_draw_rounded_rect(box_x, box_y, box_w, box_h, 10, th->border_accent);
+
+  /* Top accent line inside box */
+  brights_fb_draw_hline(box_x + 10, box_y + 1, box_w - 20, th->bar_accent);
 
   /* Title */
-  const char *title = "BrightS v0.1.3.3";
+  const char *title = "BrightS v0.1.3.4";
   int title_w = strlen_s(title) * char_w;
   brights_font_draw_string(box_x + (box_w - title_w) / 2, box_y + 20,
-    title, (255 << 16) | (255 << 8) | 255, 0xFFFFFFFF);
+    title, (th->text_primary.r << 16) | (th->text_primary.g << 8) | th->text_primary.b, 0xFFFFFFFF);
 
   /* Subtitle */
   const char *sub = "System Console Login";
   int sub_w = strlen_s(sub) * char_w;
   brights_font_draw_string(box_x + (box_w - sub_w) / 2, box_y + 44,
-    sub, (140 << 16) | (180 << 8) | 220, 0xFFFFFFFF);
+    sub, (th->text_secondary.r << 16) | (th->text_secondary.g << 8) | th->text_secondary.b, 0xFFFFFFFF);
 
   /* Separator */
-  brights_fb_draw_hline(box_x + 20, box_y + 72, box_w - 40,
-    brights_rgb(0, 100, 140));
+  brights_fb_draw_hline(box_x + 20, box_y + 72, box_w - 40, th->border);
 
   /* Username label */
   brights_font_draw_string(box_x + 30, box_y + 90,
-    "Username:", (200 << 16) | (200 << 8) | 200, 0xFFFFFFFF);
+    "Username:", (th->text_secondary.r << 16) | (th->text_secondary.g << 8) | th->text_secondary.b, 0xFFFFFFFF);
 
   /* Username input field */
-  brights_fb_fill_rect(box_x + 120, box_y + 86, 260, 22,
-    brights_rgb(8, 10, 25));
-  brights_fb_draw_rect(box_x + 120, box_y + 86, 260, 22,
-    brights_rgb(0, 120, 160));
+  brights_fb_fill_rect(box_x + 120, box_y + 86, 260, 22, th->bg_tertiary);
+  brights_fb_draw_rect(box_x + 120, box_y + 86, 260, 22, th->border);
 
   /* Password label */
   brights_font_draw_string(box_x + 30, box_y + 124,
-    "Password:", (200 << 16) | (200 << 8) | 200, 0xFFFFFFFF);
+    "Password:", (th->text_secondary.r << 16) | (th->text_secondary.g << 8) | th->text_secondary.b, 0xFFFFFFFF);
 
   /* Password input field */
-  brights_fb_fill_rect(box_x + 120, box_y + 120, 260, 22,
-    brights_rgb(8, 10, 25));
-  brights_fb_draw_rect(box_x + 120, box_y + 120, 260, 22,
-    brights_rgb(0, 120, 160));
+  brights_fb_fill_rect(box_x + 120, box_y + 120, 260, 22, th->bg_tertiary);
+  brights_fb_draw_rect(box_x + 120, box_y + 120, 260, 22, th->border);
 
   /* Error message */
   if (error_msg) {
     int err_w = strlen_s(error_msg) * char_w;
     brights_font_draw_string(box_x + (box_w - err_w) / 2, box_y + 156,
-      error_msg, (255 << 16) | (80 << 8) | 80, 0xFFFFFFFF);
+      error_msg, (th->error.r << 16) | (th->error.g << 8) | th->error.b, 0xFFFFFFFF);
   }
 
   /* Bottom hint */
   const char *hint = "Press Ctrl+C to cancel";
   int hint_w = strlen_s(hint) * char_w;
   brights_font_draw_string((fb_w - hint_w) / 2, box_y + box_h + 20,
-    hint, (80 << 16) | (100 << 8) | 130, 0xFFFFFFFF);
+    hint, (th->text_muted.r << 16) | (th->text_muted.g << 8) | th->text_muted.b, 0xFFFFFFFF);
 
   /* Flush to screen */
   brights_dbuffer_flip();
@@ -3219,7 +3220,7 @@ int brights_boot_login(void)
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "+---------------------------------------------+\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS v0.1.3.3               |\r\n");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS v0.1.3.4               |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              System Console Login            |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
@@ -3369,7 +3370,7 @@ void brights_lightshell_run(void)
     for (int tj = 0; current_user[tj] && ti < (int)sizeof(title_right) - 1; ++tj)
       title_right[ti++] = current_user[tj];
     title_right[ti] = 0;
-    tui_draw_title_bar("BrightS v0.1.3.3", title_right);
+    tui_draw_title_bar("BrightS v0.1.3.4", title_right);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J\033[H");
   }
 
@@ -4310,4 +4311,56 @@ static int cmd_ps_handler(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
   }
   return 1;
+}
+
+static int cmd_theme_handler(const char *arg)
+{
+  if (!arg || arg[0] == 0) {
+    /* List themes */
+    int cur = brights_theme_current_id();
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Available themes:\n");
+    for (int i = 0; i < brights_theme_count(); i++) {
+      const brights_theme_t *t = brights_theme_get_by_id(i);
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  ");
+      if (i == cur) brights_serial_write_ascii(BRIGHTS_COM1_PORT, "* ");
+      else brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, t->name);
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, " - ");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, t->description);
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+    }
+    return 0;
+  }
+
+  /* Match by name (case-insensitive) */
+  int found = -1;
+  for (int i = 0; i < brights_theme_count(); i++) {
+    const brights_theme_t *t = brights_theme_get_by_id(i);
+    const char *a = arg;
+    const char *b = t->name;
+    int match = 1;
+    while (*a && *b) {
+      char ca = *a, cb = *b;
+      if (ca >= 'A' && ca <= 'Z') ca += 32;
+      if (cb >= 'A' && cb <= 'Z') cb += 32;
+      if (ca != cb) { match = 0; break; }
+      a++; b++;
+    }
+    if (match && *a == 0 && *b == 0) { found = i; break; }
+  }
+
+  if (found < 0) {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Theme not found: ");
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, arg);
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+    return -1;
+  }
+
+  brights_theme_set(found);
+  tui_apply_theme();
+  tui_toast(TUI_TOAST_SUCCESS, "Theme", brights_theme_get_by_id(found)->name);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Theme set to: ");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, brights_theme_get_by_id(found)->name);
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
+  return 0;
 }

@@ -3,8 +3,10 @@
 #include "ps2kbd.h"
 #include "usb.h"
 #include "font.h"
+#include "theme.h"
 #include "../kernel/printf.h"
 #include "../kernel/core/kernel_util.h"
+#include "../kernel/core/clock.h"
 
 static brights_console_t tty_console;
 static int tty_ready = 0;
@@ -159,8 +161,53 @@ char brights_tty_read_char_blocking(void)
   return ch;
 }
 
+/* ============================================================
+ * Framebuffer console — fully on graphics layer via double buffer
+ * ============================================================ */
+
+static void fb_console_write_strip_ansi(const char *s);
+
 static fb_console_t fb_con = {0};
 static int fb_con_initialized = 0;
+
+/* ANSI color tables */
+static const brights_color_t ansi_fg_table[16] = {
+  /*  0 black       */ {  30,  30,  35 },
+  /*  1 red         */ { 200,  60,  60 },
+  /*  2 green       */ {  60, 180,  75 },
+  /*  3 yellow      */ { 200, 175,  50 },
+  /*  4 blue        */ {  60, 100, 210 },
+  /*  5 magenta     */ { 175,  60, 175 },
+  /*  6 cyan        */ {  50, 175, 190 },
+  /*  7 white       */ { 210, 215, 225 },
+  /*  8 bright black*/ {  90,  95, 105 },
+  /*  9 bright red  */ { 245,  90,  90 },
+  /* 10 bright green*/ {  80, 220, 100 },
+  /* 11 bright yellow*/ { 245, 225,  80 },
+  /* 12 bright blue */ {  90, 130, 245 },
+  /* 13 bright mag  */ { 210, 100, 210 },
+  /* 14 bright cyan */ {  80, 210, 230 },
+  /* 15 bright white*/ { 245, 245, 250 },
+};
+
+static const brights_color_t ansi_bg_table[16] = {
+  /*  0 */ {  15,  15,  20 },
+  /*  1 */ { 140,  35,  35 },
+  /*  2 */ {  35, 120,  45 },
+  /*  3 */ { 140, 120,  30 },
+  /*  4 */ {  35,  60, 150 },
+  /*  5 */ { 120,  35, 120 },
+  /*  6 */ {  30, 115, 130 },
+  /*  7 */ { 150, 155, 165 },
+  /*  8 */ {  55,  58,  65 },
+  /*  9 */ { 185,  60,  60 },
+  /* 10 */ {  50, 160,  65 },
+  /* 11 */ { 180, 165,  50 },
+  /* 12 */ {  50,  80, 180 },
+  /* 13 */ { 155,  65, 155 },
+  /* 14 */ {  50, 155, 170 },
+  /* 15 */ { 185, 190, 200 },
+};
 
 void fb_console_set_work_area(int y, int h)
 {
@@ -172,57 +219,42 @@ void fb_console_set_work_area(int y, int h)
   }
 }
 
-static void fb_console_write_strip_ansi(const char *s)
-{
-  if (!s) return;
-  while (*s) {
-    if (*s == '\033') {
-      ++s;
-      if (*s == '[') {
-        ++s;
-        while (*s && !((*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z'))) {
-          ++s;
-        }
-        if (*s) ++s;
-      }
-    } else {
-      fb_console_put_char(*s);
-      ++s;
-    }
-  }
-}
-
 void fb_console_init(void)
 {
   if (fb_con_initialized) return;
-  
+
   brights_fb_info_t *fb = brights_fb_get_info();
   if (!fb) return;
-  
+
   brights_dbuffer_init();
-  
+
   fb_con.width = fb->width / FONT_WIDTH;
   fb_con.height = fb->height / FONT_HEIGHT;
   fb_con.cursor_x = fb_con.cursor_y = 0;
   fb_con.tab_width = 4;
-  fb_con.fg_color = brights_rgb(255, 255, 255);
-  fb_con.bg_color = brights_rgb(0, 40, 80);
+  fb_con.fg_color = brights_theme_text();
+  fb_con.bg_color = brights_theme_bg();
   fb_con.scroll_enabled = 1;
   fb_con.cursor_visible = 1;
   fb_con.work_y = 0;
   fb_con.work_h = fb_con.height;
   fb_con.utf8_len = 0;
   fb_con.utf8_expected = 0;
-  
+
   fb_con_initialized = 1;
   fb_console_clear();
   brights_serial_output_hook = fb_console_write_strip_ansi;
 }
 
+/* ---- All rendering goes through double buffer ---- */
+
 void fb_console_clear(void)
 {
   if (!fb_con_initialized) fb_console_init();
-  brights_fb_fill(fb_con.bg_color);
+  /* Theme-aware background */
+  fb_con.bg_color = brights_theme_bg();
+  brights_dbuffer_clear(fb_con.bg_color);
+  brights_dbuffer_flip();
   fb_con.cursor_x = 0;
   fb_con.cursor_y = fb_con.work_y;
 }
@@ -272,19 +304,31 @@ void fb_console_scroll(void)
   uint32_t line_h = 16;
   uint32_t work_start_px = fb_con.work_y * line_h;
   uint32_t scroll_bytes = line_h * fb->pitch;
-  uint8_t *fb_base = (uint8_t *)fb->framebuffer;
+
+  /* Read from double buffer, write back to double buffer */
+  uint8_t *buf = (uint8_t *)brights_fb_active_ptr();
+  if (!buf) return;
+
   uint32_t copy_rows = (fb_con.work_h - 1) * line_h;
   uint32_t copy_bytes = copy_rows * fb->pitch;
   uint32_t src_off = work_start_px * fb->pitch + scroll_bytes;
   uint32_t dst_off = work_start_px * fb->pitch;
 
+  /* Move pixel rows up */
   for (uint32_t i = 0; i < copy_bytes; i++) {
-    fb_base[dst_off + i] = fb_base[src_off + i];
+    buf[dst_off + i] = buf[src_off + i];
   }
 
-  uint8_t *clear_start = fb_base + dst_off + copy_bytes;
-  for (uint32_t i = 0; i < scroll_bytes; i++) {
-    clear_start[i] = 0;
+  /* Clear bottom line with theme background */
+  brights_color_t bg = brights_theme_bg();
+  uint32_t bg32 = (bg.r << 16) | (bg.g << 8) | bg.b;
+  uint32_t *pixels = (uint32_t *)buf;
+  uint32_t stride = fb->pitch / 4;
+  uint32_t clear_top = work_start_px + copy_rows;
+  for (uint32_t row = 0; row < line_h; row++) {
+    for (uint32_t col = 0; col < fb->width; col++) {
+      pixels[(clear_top + row) * stride + col] = bg32;
+    }
   }
 }
 
@@ -297,6 +341,7 @@ static void fb_console_render_codepoint(uint32_t cp)
   uint32_t fg = (uint32_t)(fb_con.fg_color.r << 16 | fb_con.fg_color.g << 8 | fb_con.fg_color.b);
   uint32_t bg = (uint32_t)(fb_con.bg_color.r << 16 | fb_con.bg_color.g << 8 | fb_con.bg_color.b);
 
+  /* Draw character glyph into double buffer via brights_font_draw_codepoint */
   brights_font_draw_codepoint(px, py, cp, fg, bg);
 }
 
@@ -310,9 +355,6 @@ void fb_console_put_codepoint(uint32_t cp)
   if (w == 2 && fb_con.cursor_x + 2 > fb_con.width) {
     fb_console_newline();
   }
-
-  int px = fb_con.cursor_x * FONT_WIDTH;
-  int py = fb_con.cursor_y * 16;
 
   if (cp == '\n') {
     fb_console_newline();
@@ -330,7 +372,20 @@ void fb_console_put_codepoint(uint32_t cp)
   if (cp == '\b') {
     if (fb_con.cursor_x > 0) {
       fb_con.cursor_x--;
-      brights_fb_fill_rect(fb_con.cursor_x * FONT_WIDTH, py, FONT_WIDTH, FONT_HEIGHT, fb_con.bg_color);
+      int px = fb_con.cursor_x * FONT_WIDTH;
+      int py = fb_con.cursor_y * 16;
+      uint32_t bg32 = (fb_con.bg_color.r << 16) | (fb_con.bg_color.g << 8) | fb_con.bg_color.b;
+      /* Clear character cell in double buffer */
+      brights_fb_info_t *fb = brights_fb_get_info();
+      if (fb) {
+        uint32_t *buf = (uint32_t *)brights_fb_active_ptr();
+        uint32_t stride = fb->pitch / 4;
+        for (int row = 0; row < FONT_HEIGHT; row++) {
+          for (int col = 0; col < FONT_WIDTH; col++) {
+            buf[(py + row) * stride + (px + col)] = bg32;
+          }
+        }
+      }
     }
     return;
   }
@@ -351,7 +406,6 @@ void fb_console_put_char(char c)
     case '\r':
     case '\t':
     case '\b':
-      /* Flush any incomplete UTF-8 sequence first */
       if (fb_con.utf8_len > 0) {
         for (int i = 0; i < fb_con.utf8_len; i++)
           fb_console_put_char(fb_con.utf8_buf[i]);
@@ -431,7 +485,42 @@ void fb_console_set_cursor_visible(int visible) { fb_con.cursor_visible = visibl
 void fb_console_update_cursor(void)
 {
   if (!fb_con_initialized || !fb_con.cursor_visible) return;
-  brights_fb_fill_rect(fb_con.cursor_x * 8, fb_con.cursor_y * 16, 8, 2, fb_con.fg_color);
+
+  brights_fb_info_t *fb = brights_fb_get_info();
+  if (!fb) return;
+
+  uint32_t *buf = (uint32_t *)brights_fb_active_ptr();
+  if (!buf) return;
+
+  uint32_t stride = fb->pitch / 4;
+  int cx = fb_con.cursor_x * FONT_WIDTH;
+  int cy = fb_con.cursor_y * 16;
+
+  /* Blink: toggle every ~30 ticks (~0.5s at 60Hz) */
+  static int blink_counter = 0;
+  static int blink_state = 1;
+  blink_counter++;
+  if (blink_counter >= 30) {
+    blink_counter = 0;
+    blink_state = !blink_state;
+  }
+
+  /* Draw a proper block cursor (8x14) with theme accent color */
+  brights_color_t cursor_color = blink_state ? brights_theme_bar_accent() : brights_theme_bg();
+  uint32_t c32 = (cursor_color.r << 16) | (cursor_color.g << 8) | cursor_color.b;
+
+  int cw = FONT_WIDTH;
+  int ch = FONT_HEIGHT - 2; /* slightly shorter than full cell */
+
+  for (int row = 0; row < ch; row++) {
+    for (int col = 0; col < cw; col++) {
+      int px = cx + col;
+      int py = cy + row;
+      if (px >= 0 && px < (int)fb->width && py >= 0 && py < (int)fb->height) {
+        buf[py * stride + px] = c32;
+      }
+    }
+  }
 }
 
 void fb_console_flush(void)
@@ -441,19 +530,101 @@ void fb_console_flush(void)
 
 fb_console_t *fb_console_get_info(void) { return &fb_con; }
 
+/* ============================================================
+ * ANSI SGR (Select Graphic Rendition) parsing
+ * Handles: 30-37/40-47 (8-color fg/bg), 90-97/100-107 (bright fg/bg),
+ *          0 (reset), 1 (bold/bright), 22 (normal), 39/49 (default fg/bg)
+ * ============================================================ */
+
+static void fb_console_parse_sgr(const char *params, int param_len)
+{
+  int code = 0;
+  int has_code = 0;
+
+  /* Parse the numeric parameter */
+  for (int i = 0; i < param_len; i++) {
+    if (params[i] >= '0' && params[i] <= '9') {
+      code = code * 10 + (params[i] - '0');
+      has_code = 1;
+    } else if (params[i] == ';' || i == param_len - 1) {
+      if (!has_code) code = 0;
+
+      /* Apply SGR code */
+      if (code == 0) {
+        /* Reset to theme defaults */
+        fb_con.fg_color = brights_theme_text();
+        fb_con.bg_color = brights_theme_bg();
+      } else if (code == 1) {
+        /* Bold: brighten fg */
+        fb_con.fg_color = brights_color_lighten(fb_con.fg_color, 30);
+      } else if (code == 22) {
+        /* Normal intensity */
+        fb_con.fg_color = brights_theme_text();
+      } else if (code >= 30 && code <= 37) {
+        fb_con.fg_color = ansi_fg_table[code - 30];
+      } else if (code >= 40 && code <= 47) {
+        fb_con.bg_color = ansi_bg_table[code - 40];
+      } else if (code >= 90 && code <= 97) {
+        fb_con.fg_color = ansi_fg_table[code - 90 + 8];
+      } else if (code >= 100 && code <= 107) {
+        fb_con.bg_color = ansi_bg_table[code - 100 + 8];
+      } else if (code == 39) {
+        fb_con.fg_color = brights_theme_text();
+      } else if (code == 49) {
+        fb_con.bg_color = brights_theme_bg();
+      }
+
+      code = 0;
+      has_code = 0;
+    }
+  }
+}
+
+static void fb_console_write_strip_ansi(const char *s)
+{
+  if (!s) return;
+  while (*s) {
+    if (*s == '\033') {
+      ++s;
+      if (*s == '[') {
+        ++s;
+        /* Collect parameter bytes */
+        const char *param_start = s;
+        while (*s && *s >= '0' && *s <= '?' ) ++s;
+        int param_len = (int)(s - param_start);
+        /* Check for 'm' (SGR) */
+        if (*s == 'm') {
+          fb_console_parse_sgr(param_start, param_len);
+          ++s;
+        } else {
+          /* Skip other CSI sequences */
+          if (*s) ++s;
+        }
+      }
+    } else {
+      fb_console_put_char(*s);
+      ++s;
+    }
+  }
+}
+
+/* ============================================================
+ * printf-style framebuffer console output
+ * ============================================================ */
+
 static void fb_console_write_int(int value, int base)
 {
   char buffer[32];
   char *p = buffer;
   int negative = 0;
-  
+
   if (value < 0) {
     negative = 1;
     value = -value;
   }
-  
+
   unsigned int uvalue = (unsigned int)value;
-  
+
   if (base == 16) {
     static const char hex[] = "0123456789abcdef";
     if (uvalue == 0) {
@@ -469,17 +640,17 @@ static void fb_console_write_int(int value, int base)
     while (i) fb_console_put_char(tmp[--i]);
     return;
   }
-  
+
   if (uvalue == 0) {
     fb_console_put_char('0');
     return;
   }
-  
+
   while (uvalue) {
     *p++ = "0123456789"[uvalue % base];
     uvalue /= base;
   }
-  
+
   if (negative) fb_console_put_char('-');
   while (p > buffer) fb_console_put_char(*--p);
 }
@@ -492,7 +663,7 @@ static void fb_console_write_str_va(const char *s)
 void fb_printf(const char *fmt, ...)
 {
   if (!fmt) return;
-  
+
   const char *p = fmt;
   while (*p) {
     if (*p == '%') {
@@ -533,14 +704,14 @@ void fb_printf(const char *fmt, ...)
 void fb_printf_color(brights_color_t fg, brights_color_t bg, const char *fmt, ...)
 {
   if (!fmt) return;
-  
+
   brights_color_t old_fg = fb_con.fg_color;
   brights_color_t old_bg = fb_con.bg_color;
-  
+
   fb_con.fg_color = fg;
   fb_con.bg_color = bg;
   fb_printf(fmt);
-  
+
   fb_con.fg_color = old_fg;
   fb_con.bg_color = old_bg;
 }

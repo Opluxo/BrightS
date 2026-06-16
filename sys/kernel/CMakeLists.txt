@@ -36,6 +36,7 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/drivers/fb.c
     ${CMAKE_SOURCE_DIR}/drivers/font.c
     ${CMAKE_SOURCE_DIR}/drivers/tui.c
+    ${CMAKE_SOURCE_DIR}/drivers/theme.c
     ${CMAKE_SOURCE_DIR}/drivers/im.c
     ${CMAKE_SOURCE_DIR}/drivers/ahci.c
     ${CMAKE_SOURCE_DIR}/drivers/nvme.c

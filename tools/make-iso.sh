@@ -18,6 +18,13 @@ if command -v xorriso >/dev/null 2>&1; then
   mkdir -p "${ESP_DIR}"
   cp "${KERNEL_EFI}" "${ESP_DIR}/BOOTX64.EFI"
 
+  # Ventoy UEFI boot: grub.cfg at multiple paths for compatibility
+  cp "${ROOT_DIR}/tools/grub.cfg" "${ISO_DIR}/grub.cfg"
+  mkdir -p "${ISO_DIR}/boot/grub"
+  cp "${ROOT_DIR}/tools/grub.cfg" "${ISO_DIR}/boot/grub/grub.cfg"
+  mkdir -p "${ISO_DIR}/EFI/BOOT"
+  cp "${ROOT_DIR}/tools/grub.cfg" "${ISO_DIR}/EFI/BOOT/grub.cfg"
+
   # Build FAT32 EFI boot image (ESP) and place it in the ISO tree
   ESP_IMG="${BUILD_DIR}/efi-boot.img"
   if command -v mkfs.fat >/dev/null 2>&1 && command -v mcopy >/dev/null 2>&1; then
@@ -34,9 +41,12 @@ if command -v xorriso >/dev/null 2>&1; then
     -R -J -joliet-long \
     -V "BRIGHTS" \
     -o "${BUILD_DIR}/brights.iso" \
+    -c boot.catalog \
     -e efi-boot.img \
     -no-emul-boot \
     -isohybrid-gpt-basdat \
+    -boot-load-size 4 \
+    -boot-info-table \
     "${ISO_DIR}"
 
    printf "ISO created: %s\n" "${BUILD_DIR}/brights.iso"

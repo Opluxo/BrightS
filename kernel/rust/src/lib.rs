@@ -100,6 +100,7 @@ pub unsafe extern "C" fn rust_slab_alloc(sp: *mut slab_page) -> *mut u8 {
 /// Free a block back to its slab page (poisons with 0xCC)
 #[no_mangle]
 pub unsafe extern "C" fn rust_slab_free(sp: *mut slab_page, ptr: *mut u8) {
+    if (*sp).free_count >= (*sp).total_count { return; } /* double-free guard */
     let block = ptr as *mut slab_free;
     let block_size = SLAB_SIZES[(*sp).class_idx as usize];
     rust_memset(ptr, 0xCC, block_size);
@@ -147,9 +148,18 @@ pub unsafe extern "C" fn rust_hashmap_init(
     entries: *mut hashmap_entry,
     capacity: u32,
 ) -> hashmap_state {
-    let mask = capacity - 1;
+    /* Round up to next power of 2 */
+    let mut cap = if capacity == 0 { 1u32 } else { capacity };
+    cap -= 1;
+    cap |= cap >> 1;
+    cap |= cap >> 2;
+    cap |= cap >> 4;
+    cap |= cap >> 8;
+    cap |= cap >> 16;
+    cap += 1;
+    let mask = cap - 1;
     let mut i = 0u32;
-    while i < capacity {
+    while i < cap {
         (*entries.add(i as usize)).key = HASHMAP_EMPTY;
         (*entries.add(i as usize)).value = 0;
         (*entries.add(i as usize)).dist = 0;
@@ -157,7 +167,7 @@ pub unsafe extern "C" fn rust_hashmap_init(
     }
     hashmap_state {
         entries,
-        capacity,
+        capacity: cap,
         size: 0,
         mask,
     }

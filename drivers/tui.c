@@ -234,7 +234,6 @@ void tui_refresh_status(const char *user, int is_root)
 {
   brights_fb_info_t *fb = brights_fb_get_info();
   if (!fb) return;
-  const brights_theme_colors_t *th = brights_theme_get();
 
   /* Format left: "user@brights" */
   char lbuf[64];
@@ -280,8 +279,9 @@ void tui_refresh_status(const char *user, int is_root)
   uint64_t used_mb = brights_pmem_used_bytes() / (1024 * 1024);
   uint64_t total_mb = brights_pmem_total_bytes() / (1024 * 1024);
   int_to_str(used_mb, rbuf, &ri);
-  rbuf[ri++] = '/'; rbuf[ri++] = 'M'; rbuf[ri++] = 'i';
-  rbuf[ri++] = 'B';
+  rbuf[ri++] = '/';
+  int_to_str(total_mb, rbuf, &ri);
+  rbuf[ri++] = 'M'; rbuf[ri++] = 'i'; rbuf[ri++] = 'B';
   rbuf[ri++] = ' ';
 
   /* Separator */
@@ -418,7 +418,7 @@ void tui_toast_draw(void)
     /* Slide-in from right during first 15 ticks */
     int x_offset = 0;
     if (toasts[i].ttl > TUI_TOAST_DURATION - 15)
-      x_offset = (TUI_TOAST_DURATION - toasts[i].ttl) * (TUI_TOAST_WIDTH + 20) / 15;
+      x_offset = (toasts[i].ttl - (TUI_TOAST_DURATION - 15)) * (TUI_TOAST_WIDTH + 20) / 15;
 
     /* Fade-out during last 30 ticks */
     int alpha = 255;

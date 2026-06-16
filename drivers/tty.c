@@ -7,6 +7,7 @@
 #include "../kernel/printf.h"
 #include "../kernel/core/kernel_util.h"
 #include "../kernel/core/clock.h"
+#include <stdarg.h>
 
 static brights_console_t tty_console;
 static int tty_ready = 0;
@@ -172,41 +173,41 @@ static int fb_con_initialized = 0;
 
 /* ANSI color tables */
 static const brights_color_t ansi_fg_table[16] = {
-  /*  0 black       */ {  30,  30,  35 },
-  /*  1 red         */ { 200,  60,  60 },
-  /*  2 green       */ {  60, 180,  75 },
-  /*  3 yellow      */ { 200, 175,  50 },
-  /*  4 blue        */ {  60, 100, 210 },
-  /*  5 magenta     */ { 175,  60, 175 },
-  /*  6 cyan        */ {  50, 175, 190 },
-  /*  7 white       */ { 210, 215, 225 },
-  /*  8 bright black*/ {  90,  95, 105 },
-  /*  9 bright red  */ { 245,  90,  90 },
-  /* 10 bright green*/ {  80, 220, 100 },
-  /* 11 bright yellow*/ { 245, 225,  80 },
-  /* 12 bright blue */ {  90, 130, 245 },
-  /* 13 bright mag  */ { 210, 100, 210 },
-  /* 14 bright cyan */ {  80, 210, 230 },
-  /* 15 bright white*/ { 245, 245, 250 },
+  /*  0 black       */ { 30, 30, 35, 255 },
+  /*  1 red         */ { 200, 60, 60, 255 },
+  /*  2 green       */ { 60, 180, 75, 255 },
+  /*  3 yellow      */ { 200, 175, 50, 255 },
+  /*  4 blue        */ { 60, 100, 210, 255 },
+  /*  5 magenta     */ { 175, 60, 175, 255 },
+  /*  6 cyan        */ { 50, 175, 190, 255 },
+  /*  7 white       */ { 210, 215, 225, 255 },
+  /*  8 bright black*/ { 90, 95, 105, 255 },
+  /*  9 bright red  */ { 245, 90, 90, 255 },
+  /* 10 bright green*/ { 80, 220, 100, 255 },
+  /* 11 bright yellow*/ { 245, 225, 80, 255 },
+  /* 12 bright blue */ { 90, 130, 245, 255 },
+  /* 13 bright mag  */ { 210, 100, 210, 255 },
+  /* 14 bright cyan */ { 80, 210, 230, 255 },
+  /* 15 bright white*/ { 245, 245, 250, 255 },
 };
 
 static const brights_color_t ansi_bg_table[16] = {
-  /*  0 */ {  15,  15,  20 },
-  /*  1 */ { 140,  35,  35 },
-  /*  2 */ {  35, 120,  45 },
-  /*  3 */ { 140, 120,  30 },
-  /*  4 */ {  35,  60, 150 },
-  /*  5 */ { 120,  35, 120 },
-  /*  6 */ {  30, 115, 130 },
-  /*  7 */ { 150, 155, 165 },
-  /*  8 */ {  55,  58,  65 },
-  /*  9 */ { 185,  60,  60 },
-  /* 10 */ {  50, 160,  65 },
-  /* 11 */ { 180, 165,  50 },
-  /* 12 */ {  50,  80, 180 },
-  /* 13 */ { 155,  65, 155 },
-  /* 14 */ {  50, 155, 170 },
-  /* 15 */ { 185, 190, 200 },
+  /*  0 */ { 15, 15, 20, 255 },
+  /*  1 */ { 140, 35, 35, 255 },
+  /*  2 */ { 35, 120, 45, 255 },
+  /*  3 */ { 140, 120, 30, 255 },
+  /*  4 */ { 35, 60, 150, 255 },
+  /*  5 */ { 120, 35, 120, 255 },
+  /*  6 */ { 30, 115, 130, 255 },
+  /*  7 */ { 150, 155, 165, 255 },
+  /*  8 */ { 55, 58, 65, 255 },
+  /*  9 */ { 185, 60, 60, 255 },
+  /* 10 */ { 50, 160, 65, 255 },
+  /* 11 */ { 180, 165, 50, 255 },
+  /* 12 */ { 50, 80, 180, 255 },
+  /* 13 */ { 155, 65, 155, 255 },
+  /* 14 */ { 50, 155, 170, 255 },
+  /* 15 */ { 185, 190, 200, 255 },
 };
 
 void fb_console_set_work_area(int y, int h)
@@ -546,19 +547,17 @@ static void fb_console_parse_sgr(const char *params, int param_len)
     if (params[i] >= '0' && params[i] <= '9') {
       code = code * 10 + (params[i] - '0');
       has_code = 1;
-    } else if (params[i] == ';' || i == param_len - 1) {
+    }
+    if (params[i] == ';' || i == param_len - 1) {
       if (!has_code) code = 0;
 
       /* Apply SGR code */
       if (code == 0) {
-        /* Reset to theme defaults */
         fb_con.fg_color = brights_theme_text();
         fb_con.bg_color = brights_theme_bg();
       } else if (code == 1) {
-        /* Bold: brighten fg */
         fb_con.fg_color = brights_color_lighten(fb_con.fg_color, 30);
       } else if (code == 22) {
-        /* Normal intensity */
         fb_con.fg_color = brights_theme_text();
       } else if (code >= 30 && code <= 37) {
         fb_con.fg_color = ansi_fg_table[code - 30];
@@ -612,86 +611,75 @@ static void fb_console_write_strip_ansi(const char *s)
  * printf-style framebuffer console output
  * ============================================================ */
 
-static void fb_console_write_int(int value, int base)
-{
-  char buffer[32];
-  char *p = buffer;
-  int negative = 0;
-
-  if (value < 0) {
-    negative = 1;
-    value = -value;
-  }
-
-  unsigned int uvalue = (unsigned int)value;
-
-  if (base == 16) {
-    static const char hex[] = "0123456789abcdef";
-    if (uvalue == 0) {
-      fb_console_put_char('0');
-      return;
-    }
-    char tmp[16];
-    int i = 0;
-    while (uvalue) {
-      tmp[i++] = hex[uvalue & 0xf];
-      uvalue >>= 4;
-    }
-    while (i) fb_console_put_char(tmp[--i]);
-    return;
-  }
-
-  if (uvalue == 0) {
-    fb_console_put_char('0');
-    return;
-  }
-
-  while (uvalue) {
-    *p++ = "0123456789"[uvalue % base];
-    uvalue /= base;
-  }
-
-  if (negative) fb_console_put_char('-');
-  while (p > buffer) fb_console_put_char(*--p);
-}
-
 static void fb_console_write_str_va(const char *s)
 {
   while (*s) fb_console_put_char(*s++);
+}
+
+static void fb_console_write_unsigned(uint64_t val, int base)
+{
+  char buffer[24];
+  int i = 0;
+  if (val == 0) { fb_console_put_char('0'); return; }
+  while (val > 0) { buffer[i++] = "0123456789abcdef"[val % base]; val /= base; }
+  while (i > 0) fb_console_put_char(buffer[--i]);
 }
 
 void fb_printf(const char *fmt, ...)
 {
   if (!fmt) return;
 
+  va_list ap;
+  va_start(ap, fmt);
+
   const char *p = fmt;
   while (*p) {
     if (*p == '%') {
       p++;
+      /* Skip flags: -, +, 0, space, # */
+      while (*p == '-' || *p == '+' || *p == '0' || *p == ' ' || *p == '#') p++;
+      /* Skip width */
+      while (*p >= '0' && *p <= '9') p++;
+      /* Skip length modifier */
+      if (*p == 'l') { p++; if (*p == 'l') p++; }
+      if (*p == 'z') p++;
+
       switch (*p) {
         case 'd':
-        case 'i':
-          fb_console_write_int(0, 10);
+        case 'i': {
+          int64_t val = va_arg(ap, int64_t);
+          if (val < 0) { fb_console_put_char('-'); val = -val; }
+          fb_console_write_unsigned((uint64_t)val, 10);
           break;
+        }
         case 'u':
+          fb_console_write_unsigned(va_arg(ap, uint64_t), 10);
+          break;
         case 'x':
         case 'X':
-          fb_console_write_int(0, 16);
+          fb_console_write_unsigned(va_arg(ap, uint64_t), 16);
           break;
-        case 'p':
+        case 'p': {
+          uint64_t val = (uint64_t)(uintptr_t)va_arg(ap, void *);
           fb_console_write_str_va("0x");
-          fb_console_write_int(0, 16);
+          fb_console_write_unsigned(val, 16);
           break;
+        }
         case 'c':
-          fb_console_put_char(0);
+          fb_console_put_char((char)va_arg(ap, int));
           break;
-        case 's':
-          fb_console_write_str_va("(null)");
+        case 's': {
+          const char *s = va_arg(ap, const char *);
+          if (s) fb_console_write_str_va(s);
+          else fb_console_write_str_va("(null)");
           break;
+        }
         case '%':
           fb_console_put_char('%');
           break;
         default:
+          fb_console_put_char('%');
+          fb_console_put_char(*p);
           break;
       }
     } else {
@@ -699,6 +687,8 @@ void fb_printf(const char *fmt, ...)
     }
     p++;
   }
+
+  va_end(ap);
 }
 
 void fb_printf_color(brights_color_t fg, brights_color_t bg, const char *fmt, ...)
@@ -710,8 +700,64 @@ void fb_printf_color(brights_color_t fg, brights_color_t bg, const char *fmt, ..
 
   fb_con.fg_color = fg;
   fb_con.bg_color = bg;
-  fb_printf(fmt);
 
+  va_list ap;
+  va_start(ap, fmt);
+
+  const char *p = fmt;
+  while (*p) {
+    if (*p == '%') {
+      p++;
+      while (*p == '-' || *p == '+' || *p == '0' || *p == ' ' || *p == '#') p++;
+      while (*p >= '0' && *p <= '9') p++;
+      if (*p == 'l') { p++; if (*p == 'l') p++; }
+      if (*p == 'z') p++;
+
+      switch (*p) {
+        case 'd':
+        case 'i': {
+          int64_t val = va_arg(ap, int64_t);
+          if (val < 0) { fb_console_put_char('-'); val = -val; }
+          fb_console_write_unsigned((uint64_t)val, 10);
+          break;
+        }
+        case 'u':
+          fb_console_write_unsigned(va_arg(ap, uint64_t), 10);
+          break;
+        case 'x':
+        case 'X':
+          fb_console_write_unsigned(va_arg(ap, uint64_t), 16);
+          break;
+        case 'p': {
+          uint64_t val = (uint64_t)(uintptr_t)va_arg(ap, void *);
+          fb_console_write_str_va("0x");
+          fb_console_write_unsigned(val, 16);
+          break;
+        }
+        case 'c':
+          fb_console_put_char((char)va_arg(ap, int));
+          break;
+        case 's': {
+          const char *s = va_arg(ap, const char *);
+          if (s) fb_console_write_str_va(s);
+          else fb_console_write_str_va("(null)");
+          break;
+        }
+        case '%':
+          fb_console_put_char('%');
+          break;
+        default:
+          fb_console_put_char('%');
+          fb_console_put_char(*p);
+          break;
+      }
+    } else {
+      fb_console_put_char(*p);
+    }
+    p++;
+  }
+
+  va_end(ap);
   fb_con.fg_color = old_fg;
   fb_con.bg_color = old_bg;
 }

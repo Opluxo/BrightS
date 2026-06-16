@@ -1,5 +1,44 @@
 # 更新日志 | Changelog
 
+## [v0.1.3.4] — 2026-06-17
+
+### 主题系统 | Theme System
+- `theme.h` / `theme.c`: 集中式 UI 颜色管理，15+ 颜色槽位
+- 5 个内置主题: Dark, Ocean, Forest, Sunset, Mono
+- 运行时切换: `theme dark`, `theme ocean`, `theme forest`, `theme sunset`, `theme mono`
+- 所有 TUI 组件自动使用主题颜色
+
+### 终端图形层渲染 | Terminal Graphics Layer
+- `fb_console_scroll()` 通过 double buffer 执行，底部清空使用主题背景色
+- `fb_console_clear()` 使用 `dbuffer_clear()` + `dbuffer_flip()` 统一刷新
+- 退格键直接操作 double buffer 像素
+- 终端背景色/前景色自动使用主题颜色
+
+### ANSI 颜色支持 | ANSI Color Support
+- 完整 SGR 解析: 30-37/40-47 (8色), 90-97/100-107 (亮色)
+- 重置 (0), 加亮 (1), 正常亮度 (22), 默认色 (39/49)
+- 16 色柔和调色板，适配暗色主题
+
+### TUI 美化 | TUI Beautification
+- 标题栏/状态栏使用主题渐变和颜色
+- 增强状态栏: 用户名@brights#/$、时间、内存、进程数
+- Unicode bullet 分隔符
+- 光标: 8×14 方块光标，主题 accent 色，30 tick 闪烁
+
+### Toast 通知系统 | Toast Notifications
+- 4 个槽位，支持 info/success/warning/error 类型
+- 滑入动画 + 淡出效果（~3 秒自动过期）
+- `tui_toast()` API，shell 可调用
+
+### 对话框/控件 | Dialog/Widgets
+- `tui_draw_dialog()` — 通用圆角对话框
+- `tui_draw_input_field()` — 聚焦高亮输入框
+
+### 版本 | Version
+- 所有文件版本号: v0.1.3.4
+
+---
+
 ## [v0.1.3.3] — 2026-06-16
 
 ### Rust 算法优化 | Rust Algorithm Optimizations

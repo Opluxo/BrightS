@@ -98,7 +98,7 @@ int brights_fb_init(void *gop_ptr)
   
   fb_info.initialized = 1;
   
-  if (dbuffer.buffer) brights_dbuffer_init();
+  if (!dbuffer.buffer) brights_dbuffer_init();
   
   return 0;
 }
@@ -121,7 +121,7 @@ int brights_fb_init_manual(void *framebuffer, uint32_t width, uint32_t height, u
   fb_info.blue_mask = 0x0000FF;
   fb_info.initialized = 1;
   
-  if (dbuffer.buffer) brights_dbuffer_init();
+  if (!dbuffer.buffer) brights_dbuffer_init();
   
   return 0;
 }

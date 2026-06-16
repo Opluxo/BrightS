@@ -321,7 +321,7 @@ static const char *commands[] = {
   "logout", "bst", "cat", "stat", "login", "passwd", "useradd", "setpf",
   "touch", "write", "append", "rm", "cp", "mv", "hexdump", "echo",
   "kill", "jobs", "fg", "bg", "netget", "export", "env", "top",
-  "df", "which", "type", "tree", "killall", "nice", "renice", "wait",
+  "df", "which", "type", "tree", "theme", "killall", "nice", "renice", "wait",
   "disown", "umask", "ulimit", "realpath", "seq", "yes", "dns",
   "ifconfig", "wifi", "ping", "free", "uptime", "date", "uname",
   "mount", "history", "sleep", "reboot", "halt", "clear", "ps",
@@ -3115,7 +3115,7 @@ static void login_draw_fb(int attempts, const char *error_msg)
 
   int fb_w = (int)info->width;
   int fb_h = (int)info->height;
-  int char_w = 8, char_h = 16;
+  int char_w = 8;
 
   const brights_theme_colors_t *th = brights_theme_get();
 
@@ -3919,7 +3919,10 @@ static int cmd_export_handler(const char *arg)
     key[i] = arg[i]; ++i;
   }
   key[i] = 0;
-  if (arg[i] != '=') return -1;
+  if (arg[i] != '=') {
+    brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Usage: export KEY=VALUE\n");
+    return 1;
+  }
   ++i;
   int j = 0;
   while (arg[i] && j < ENV_VAL_MAX - 1) {
@@ -4329,7 +4332,7 @@ static int cmd_theme_handler(const char *arg)
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, t->description);
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
     }
-    return 0;
+    return 1;
   }
 
   /* Match by name (case-insensitive) */
@@ -4353,7 +4356,7 @@ static int cmd_theme_handler(const char *arg)
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Theme not found: ");
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, arg);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
-    return -1;
+    return 1;
   }
 
   brights_theme_set(found);
@@ -4362,5 +4365,5 @@ static int cmd_theme_handler(const char *arg)
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "Theme set to: ");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, brights_theme_get_by_id(found)->name);
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\n");
-  return 0;
+  return 1;
 }

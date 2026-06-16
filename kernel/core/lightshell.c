@@ -3260,7 +3260,7 @@ int brights_boot_login(void)
     int ui = 0;
     for (;;) {
       uint8_t ch = (uint8_t)brights_tty_read_char_blocking();
-      if (ch >= 0x80 && ch <= 0x89) continue;
+      if (ch >= 0x80 && ch <= 0x95) continue;
       if (ch == 0x1B) {
         uint8_t n1 = (uint8_t)brights_tty_read_char_blocking();
         if (n1 == '[') {
@@ -3298,7 +3298,7 @@ int brights_boot_login(void)
     int pi = 0;
     for (;;) {
       uint8_t ch = (uint8_t)brights_tty_read_char_blocking();
-      if (ch >= 0x80 && ch <= 0x89) continue;
+      if (ch >= 0x80 && ch <= 0x95) continue;
       if (ch == 0x1B) {
         uint8_t n1 = (uint8_t)brights_tty_read_char_blocking();
         if (n1 == '[') {
@@ -3398,8 +3398,8 @@ void brights_lightshell_run(void)
     }
     uint8_t ch = (uint8_t)poll_ch;
 
-    // === PS/2 keyboard special key codes (0x80-0x89) ===
-    if (ch >= 0x80 && ch <= 0x89) {
+    // === PS/2 keyboard special key codes (0x80-0x95) ===
+    if (ch >= 0x80 && ch <= 0x95) {
       switch (ch) {
         case KBD_KEY_UP:
           if (history_count > 0 && history_nav_index > 0) {

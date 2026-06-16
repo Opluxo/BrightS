@@ -591,13 +591,115 @@ static void fb_console_write_strip_ansi(const char *s)
         const char *param_start = s;
         while (*s && *s >= '0' && *s <= '?' ) ++s;
         int param_len = (int)(s - param_start);
-        /* Check for 'm' (SGR) */
-        if (*s == 'm') {
+        char final = *s;
+        if (s) ++s;
+
+        if (final == 'm') {
+          /* SGR - Select Graphic Rendition */
           fb_console_parse_sgr(param_start, param_len);
-          ++s;
-        } else {
-          /* Skip other CSI sequences */
-          if (*s) ++s;
+        } else if (final == 'K') {
+          /* Erase in Line: 0=to end, 1=to start, 2=whole line */
+          int code = 0;
+          for (int i = 0; i < param_len; i++) {
+            if (param_start[i] >= '0' && param_start[i] <= '9')
+              code = code * 10 + (param_start[i] - '0');
+          }
+          brights_fb_info_t *fb = brights_fb_get_info();
+          if (fb) {
+            int py = fb_con.cursor_y * 16;
+            if (code == 0 || code == 2) {
+              /* Erase from cursor to end of line */
+              int px_start = fb_con.cursor_x * FONT_WIDTH;
+              int px_end = (code == 2) ? (int)fb->width : (fb_con.cursor_x + 1) * FONT_WIDTH;
+              if (code == 2) px_start = 0;
+              uint32_t bg32 = (fb_con.bg_color.r << 16) | (fb_con.bg_color.g << 8) | fb_con.bg_color.b;
+              uint32_t *buf = (uint32_t *)brights_fb_active_ptr();
+              uint32_t stride = fb->pitch / 4;
+              for (int row = 0; row < 16; row++) {
+                for (int col = px_start; col < px_end; col++) {
+                  if (py + row >= 0 && py + row < (int)fb->height && col >= 0 && col < (int)fb->width)
+                    buf[(py + row) * stride + col] = bg32;
+                }
+              }
+            } else if (code == 1) {
+              /* Erase from start to cursor */
+              uint32_t bg32 = (fb_con.bg_color.r << 16) | (fb_con.bg_color.g << 8) | fb_con.bg_color.b;
+              uint32_t *buf = (uint32_t *)brights_fb_active_ptr();
+              uint32_t stride = fb->pitch / 4;
+              int px_end = (fb_con.cursor_x + 1) * FONT_WIDTH;
+              for (int row = 0; row < 16; row++) {
+                for (int col = 0; col < px_end; col++) {
+                  if (py + row >= 0 && py + row < (int)fb->height && col >= 0 && col < (int)fb->width)
+                    buf[(py + row) * stride + col] = bg32;
+                }
+              }
+            }
+          }
+        } else if (final == 'A') {
+          /* Cursor Up */
+          int n = 1;
+          for (int i = 0; i < param_len; i++) {
+            if (param_start[i] >= '0' && param_start[i] <= '9')
+              n = n * 10 + (param_start[i] - '0');
+          }
+          fb_con.cursor_y -= n;
+          if (fb_con.cursor_y < fb_con.work_y) fb_con.cursor_y = fb_con.work_y;
+        } else if (final == 'B') {
+          /* Cursor Down */
+          int n = 1;
+          for (int i = 0; i < param_len; i++) {
+            if (param_start[i] >= '0' && param_start[i] <= '9')
+              n = n * 10 + (param_start[i] - '0');
+          }
+          fb_con.cursor_y += n;
+          int limit = fb_con.work_y + fb_con.work_h;
+          if (fb_con.cursor_y >= limit) fb_con.cursor_y = limit - 1;
+        } else if (final == 'C') {
+          /* Cursor Forward */
+          int n = 1;
+          for (int i = 0; i < param_len; i++) {
+            if (param_start[i] >= '0' && param_start[i] <= '9')
+              n = n * 10 + (param_start[i] - '0');
+          }
+          fb_con.cursor_x += n;
+          if (fb_con.cursor_x >= fb_con.width) fb_con.cursor_x = fb_con.width - 1;
+        } else if (final == 'D') {
+          /* Cursor Backward */
+          int n = 1;
+          for (int i = 0; i < param_len; i++) {
+            if (param_start[i] >= '0' && param_start[i] <= '9')
+              n = n * 10 + (param_start[i] - '0');
+          }
+          fb_con.cursor_x -= n;
+          if (fb_con.cursor_x < 0) fb_con.cursor_x = 0;
+        } else if (final == 'H' || final == 'f') {
+          /* Cursor Position: \033[row;colH */
+          int row = 1, col = 1;
+          int parsing_col = 0;
+          for (int i = 0; i < param_len; i++) {
+            if (param_start[i] == ';') {
+              parsing_col = 1;
+            } else if (param_start[i] >= '0' && param_start[i] <= '9') {
+              if (!parsing_col) row = row * 10 + (param_start[i] - '0');
+              else col = col * 10 + (param_start[i] - '0');
+            }
+          }
+          fb_con.cursor_x = col - 1;
+          fb_con.cursor_y = row - 1;
+          if (fb_con.cursor_x < 0) fb_con.cursor_x = 0;
+          if (fb_con.cursor_x >= fb_con.width) fb_con.cursor_x = fb_con.width - 1;
+          if (fb_con.cursor_y < 0) fb_con.cursor_y = 0;
+          if (fb_con.cursor_y >= fb_con.height) fb_con.cursor_y = fb_con.height - 1;
+        } else if (final == 'J') {
+          /* Erase in Display: 0=below, 1=above, 2=all */
+          int code = 0;
+          for (int i = 0; i < param_len; i++) {
+            if (param_start[i] >= '0' && param_start[i] <= '9')
+              code = code * 10 + (param_start[i] - '0');
+          }
+          if (code == 2 || code == 3) {
+            fb_console_clear();
+          }
         }
       }
     } else {

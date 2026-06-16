@@ -286,6 +286,14 @@ vfs_file_t **brights_proc_fd_table(void)
   return p->fd_table;
 }
 
+/* ---- signal state ---- */
+brights_signal_state_t *brights_proc_signal_state(void)
+{
+  brights_proc_info_t *p = proc_get_current();
+  if (!p) return brights_signal_global();
+  return &p->signal;
+}
+
 /* ---- cwd operations ---- */
 const char *brights_proc_get_cwd(void)
 {

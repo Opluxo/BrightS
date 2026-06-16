@@ -82,4 +82,9 @@ void    rust_proc_reset_buffer(uint8_t *buf, uint64_t size, uint64_t *wr_ptr);
 int32_t rust_ringbuf_push(uint8_t *buf, uint64_t size, uint64_t *rd, uint64_t *wr, uint64_t *count, uint8_t byte);
 int32_t rust_ringbuf_pop(uint8_t *buf, uint64_t size, uint64_t *rd, uint64_t *wr, uint64_t *count, uint8_t *byte);
 
+/* ===== Network packet validation (safe parsing) ===== */
+int32_t  rust_ip_validate(const uint8_t *frame, uint32_t frame_len, uint32_t *ip_hdr_len, const uint8_t **payload, uint32_t *payload_len);
+int32_t  rust_tcp_validate(const uint8_t *tcp_data, uint32_t tcp_len, uint32_t *data_off, const uint8_t **payload, uint32_t *payload_len);
+uint16_t rust_ip_checksum(const uint8_t *data, uint32_t len);
+
 #endif

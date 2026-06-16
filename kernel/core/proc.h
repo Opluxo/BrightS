@@ -112,6 +112,9 @@ void brights_proc_set_current(uint32_t pid);
 // Get fd_table of current process
 vfs_file_t **brights_proc_fd_table(void);
 
+// Get per-process signal state of current process
+brights_signal_state_t *brights_proc_signal_state(void);
+
 // Get/set cwd of current process
 const char *brights_proc_get_cwd(void);
 int brights_proc_set_cwd(const char *path);

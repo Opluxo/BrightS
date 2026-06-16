@@ -92,8 +92,8 @@ void brights_signal_unblock(brights_signal_state_t *state, uint32_t mask);
 /* Set signal handler */
 sighandler_t brights_signal_sethandler(brights_signal_state_t *state, uint32_t signo, sighandler_t handler);
 
-/* sigaction support */
-int brights_signal_sigaction(uint32_t signo, const brights_sigaction_t *act, brights_sigaction_t *oldact);
+/* sigaction support (per-process) */
+int brights_signal_sigaction(brights_signal_state_t *state, uint32_t signo, const brights_sigaction_t *act, brights_sigaction_t *oldact);
 
 /* Process signal immediately (deliver to user process) */
 int brights_signal_deliver(brights_signal_state_t *state, uint32_t signo);

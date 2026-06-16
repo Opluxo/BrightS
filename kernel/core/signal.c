@@ -85,12 +85,10 @@ sighandler_t brights_signal_sethandler(brights_signal_state_t *state, uint32_t s
   return old;
 }
 
-int brights_signal_sigaction(uint32_t signo, const brights_sigaction_t *act, brights_sigaction_t *oldact)
+int brights_signal_sigaction(brights_signal_state_t *state, uint32_t signo, const brights_sigaction_t *act, brights_sigaction_t *oldact)
 {
-  if (signo == 0 || signo >= BRIGHTS_SIGNAL_MAX) return -1;
+  if (!state || signo == 0 || signo >= BRIGHTS_SIGNAL_MAX) return -1;
   if (signo == SIGKILL || signo == SIGSTOP) return -1;
-  
-  brights_signal_state_t *state = &global_signal_state;
   
   if (oldact) {
     *oldact = state->sigactions[signo];

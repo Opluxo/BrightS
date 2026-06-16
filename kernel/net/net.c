@@ -473,7 +473,15 @@ static void ip_handle(uint8_t *frame, uint32_t len)
 
   ip_hdr_t *ip = (ip_hdr_t *)(frame + sizeof(eth_hdr_t));
   uint32_t ip_hdr_len = (ip->ver_ihl & 0x0F) * 4;
-  uint32_t payload_len = ntohs(ip->total_len) - ip_hdr_len;
+
+  /* Validate IP header length: minimum 20 bytes, must fit in frame */
+  if (ip_hdr_len < sizeof(ip_hdr_t) || sizeof(eth_hdr_t) + ip_hdr_len > len) return;
+
+  uint32_t total_len = ntohs(ip->total_len);
+  if (total_len < ip_hdr_len) return;
+  if (sizeof(eth_hdr_t) + total_len > len) return;
+
+  uint32_t payload_len = total_len - ip_hdr_len;
   uint8_t *payload = frame + sizeof(eth_hdr_t) + ip_hdr_len;
 
   if (netif_count == 0) return;
@@ -738,13 +746,15 @@ void tcp_handle(uint8_t *data, uint32_t len, uint32_t src_ip)
       brights_ip_send(src_ip, IP_PROTO_TCP, &reply, sizeof(reply));
     } else if (tcp->flags & TCP_PSH || (tcp->flags & TCP_ACK && len > sizeof(tcp_hdr_t))) {
       /* Data received */
-      uint32_t payload_len = len - ((tcp->data_off >> 4) * 4);
+      uint32_t data_off = (tcp->data_off >> 4) * 4;
+      if (data_off < sizeof(tcp_hdr_t) || data_off > len) return;
+      uint32_t payload_len = len - data_off;
       if (payload_len > 0) {
         uint32_t avail = sizeof(sock->recv_buf) - sock->recv_len;
         if (payload_len > avail) payload_len = avail;
         if (payload_len > 0) {
           kutil_memcpy(sock->recv_buf + sock->recv_len,
-                       data + ((tcp->data_off >> 4) * 4), payload_len);
+                       data + data_off, payload_len);
           sock->recv_len += payload_len;
           sock->tcp_ack = seq + payload_len;
 

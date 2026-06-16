@@ -109,7 +109,7 @@ static void fb_draw_splash(void)
 
   /* Version text */
   int text_y = sep_y + 16;
-  const char *ver = "BrightS v0.1.3.2";
+  const char *ver = "BrightS v0.1.3.3";
   int ver_w = str_len(ver) * char_w;
   brights_font_draw_string(box_x + (box_w - ver_w) / 2, text_y,
     ver, (255 << 16) | (255 << 8) | 255, transparent);
@@ -151,7 +151,7 @@ void brights_boot_splash(void)
 
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;36m");
   logo_line_centered("+------------------------------------------------------+");
-  logo_line_centered("|                 BrightS v0.1.3.2                     |");
+  logo_line_centered("|                 BrightS v0.1.3.3                     |");
   logo_line_centered("|              Designed by Opluxo LLC                  |");
   logo_line_centered("+------------------------------------------------------+");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m\r\n");

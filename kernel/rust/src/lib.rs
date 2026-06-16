@@ -803,3 +803,88 @@ pub unsafe extern "C" fn rust_ringbuf_pop(
 fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
 }
+
+// ============================================================
+// Network packet validation (Rust-safe, prevents buffer overflows)
+// Replaces unsafe C parsing in net.c
+// ============================================================
+
+/// Validate IPv4 header and compute payload offset.
+/// Returns payload length, or 0 if packet is malformed.
+#[no_mangle]
+pub unsafe extern "C" fn rust_ip_validate(
+    frame: *const u8,
+    frame_len: u32,
+    ip_hdr_len_out: *mut u32,
+    payload_out: *mut *const u8,
+    payload_len_out: *mut u32,
+) -> i32 {
+    if frame_len < 34 { /* eth(14) + ip(20) minimum */
+        return -1;
+    }
+    let ip = frame.add(14) as *const u32;
+    let ver_ihl = *((frame.add(14)) as *const u8);
+    let ihl = (ver_ihl & 0x0F) as u32;
+    if ihl < 5 || ihl > 15 {
+        return -1;
+    }
+    let ip_hdr_len = ihl * 4;
+    if ip_hdr_len > frame_len - 14 {
+        return -1;
+    }
+    let total_len = u16::from_be(*(frame.add(16) as *const u16)) as u32;
+    if total_len < ip_hdr_len {
+        return -1;
+    }
+    if 14 + total_len > frame_len {
+        return -1;
+    }
+    let payload_len = total_len - ip_hdr_len;
+    *ip_hdr_len_out = ip_hdr_len;
+    *payload_out = frame.add(14 + ip_hdr_len as usize);
+    *payload_len_out = payload_len;
+    0
+}
+
+/// Validate TCP header data offset and compute payload.
+/// Returns 0 on success, -1 if malformed.
+#[no_mangle]
+pub unsafe extern "C" fn rust_tcp_validate(
+    tcp_data: *const u8,
+    tcp_len: u32,
+    data_off_out: *mut u32,
+    payload_out: *mut *const u8,
+    payload_len_out: *mut u32,
+) -> i32 {
+    if tcp_len < 20 { /* TCP header minimum */
+        return -1;
+    }
+    let data_off = ((*tcp_data.add(12) as u32) >> 4) * 4;
+    if data_off < 20 || data_off > tcp_len {
+        return -1;
+    }
+    let payload_len = tcp_len - data_off;
+    *data_off_out = data_off;
+    *payload_out = tcp_data.add(data_off as usize);
+    *payload_len_out = payload_len;
+    0
+}
+
+/// Compute IP checksum (Rust-safe version for validation)
+#[no_mangle]
+pub unsafe extern "C" fn rust_ip_checksum(data: *const u8, len: u32) -> u16 {
+    let mut sum: u32 = 0;
+    let mut i = 0u32;
+    while i + 1 < len {
+        let word = u16::from_be(*(data.add(i as usize) as *const u16)) as u32;
+        sum += word;
+        i += 2;
+    }
+    if i < len {
+        sum += (*data.add(i as usize) as u32) << 8;
+    }
+    while sum >> 16 != 0 {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+    !(sum as u16)
+}

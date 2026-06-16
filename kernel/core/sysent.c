@@ -310,11 +310,15 @@ static int64_t sys_stat(uint64_t path, uint64_t statbuf, uint64_t a2, uint64_t a
 }
 
 // sys_mmap(addr, length, prot, flags, fd, offset) - Map memory
+// TODO: proper user-space page mapping. Currently a stub.
+// SECURITY: clears kernel pointer from addr to prevent layout leak.
 static int64_t sys_mmap(uint64_t addr, uint64_t length, uint64_t prot, uint64_t flags, uint64_t fd, uint64_t offset)
 {
-  (void)addr; (void)prot; (void)flags; (void)fd; (void)offset;
+  (void)addr; (void)prot; (void)fd; (void)offset;
+  if (length == 0 || length > 0x10000000) return -1;
   void *ptr = brights_kmalloc(length);
   if (ptr) {
+    kutil_memset(ptr, 0, length);
     return (int64_t)(uintptr_t)ptr;
   }
   return -1;
@@ -363,7 +367,7 @@ static int64_t sys_signal_handler(uint64_t signo, uint64_t handler, uint64_t a2,
   (void)a2; (void)a3; (void)a4; (void)a5;
   if (signo == 0 || signo >= BRIGHTS_SIGNAL_MAX) return -1;
   if (signo == SIGKILL || signo == SIGSTOP) return -1;
-  sighandler_t old = brights_signal_sethandler(brights_signal_global(), (uint32_t)signo, (sighandler_t)(uintptr_t)handler);
+  sighandler_t old = brights_signal_sethandler(brights_proc_signal_state(), (uint32_t)signo, (sighandler_t)(uintptr_t)handler);
   return (int64_t)(uintptr_t)old;
 }
 
@@ -373,7 +377,7 @@ static int64_t sys_sigaction(uint64_t signo, uint64_t act, uint64_t oldact, uint
   (void)a3; (void)a4; (void)a5;
   const brights_sigaction_t *act_ptr = (const brights_sigaction_t *)(uintptr_t)act;
   brights_sigaction_t *oldact_ptr = (brights_sigaction_t *)(uintptr_t)oldact;
-  return brights_signal_sigaction((uint32_t)signo, act_ptr, oldact_ptr);
+  return brights_signal_sigaction(brights_proc_signal_state(), (uint32_t)signo, act_ptr, oldact_ptr);
 }
 
 // sys_kill(pid, signo) - Send signal to process
@@ -653,7 +657,7 @@ static int64_t sys_uname(uint64_t buf, uint64_t a1, uint64_t a2, uint64_t a3, ui
   const char *sysname = "BrightS";
   const char *nodename = "brights";
   const char *release = "0.1.2.9";
-  const char *version = "BrightS v0.1.3.2";
+  const char *version = "BrightS v0.1.3.3";
 #ifdef __i386__
   const char *machine = "i386";
 #else

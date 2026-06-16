@@ -97,14 +97,14 @@ void brights_kernel_main(void *gop)
   if (gop && brights_fb_init(gop) == 0) {
     brights_print(&con, u"fb: initialized\r\n");
     brights_fb_clear((brights_color_t){0, 0, 40, 255});
-    brights_font_draw_string(10, 10, "BrightS v0.1.3.2", 
+    brights_font_draw_string(10, 10, "BrightS v0.1.3.3", 
       (255 << 16) | (200 << 8) | 50,
       0xFFFFFFFF);
 #ifdef __x86_64__
   } else if (vga_fb_info.valid && brights_fb_init_manual((void *)(uintptr_t)vga_fb_info.framebuffer, vga_fb_info.width, vga_fb_info.height, vga_fb_info.pitch) == 0) {
     brights_print(&con, u"fb: vga initialized\r\n");
     brights_fb_clear((brights_color_t){0, 0, 40, 255});
-    brights_font_draw_string(10, 10, "BrightS v0.1.3.2", 
+    brights_font_draw_string(10, 10, "BrightS v0.1.3.3", 
       (255 << 16) | (200 << 8) | 50,
       0xFFFFFFFF);
 #endif

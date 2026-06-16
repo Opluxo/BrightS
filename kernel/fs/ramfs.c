@@ -342,7 +342,7 @@ int brights_ramfs_stat(const char *path_in, brights_ramfs_stat_t *out)
   if (idx < 0) {
     return -1;
   }
-  for (int i = 0; ; ++i) {
+  for (int i = 0; i < BRIGHTS_RAMFS_MAX_NAME; ++i) {
     out->path[i] = ramfs_files[idx].name[i];
     if (ramfs_files[idx].name[i] == 0) {
       break;

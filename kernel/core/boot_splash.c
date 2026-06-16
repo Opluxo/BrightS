@@ -2,6 +2,7 @@
 #include "../drivers/serial.h"
 #include "../drivers/fb.h"
 #include "../drivers/font.h"
+#include "../drivers/theme.h"
 #include "sleep.h"
 
 #define BOX_PAD 12
@@ -43,9 +44,11 @@ static void fb_draw_splash(void)
   int fb_w = (int)info->width;
   int fb_h = (int)info->height;
 
-  /* Dark gradient background: top (10,15,40) -> bottom (5,5,20) */
+  const brights_theme_colors_t *th = brights_theme_get();
+
+  /* Background gradient using theme */
   brights_fb_fill_gradient_v(0, 0, fb_w, fb_h,
-    brights_rgb(10, 15, 40), brights_rgb(5, 5, 20));
+    th->gradient_start, th->gradient_end);
 
   int char_w = 8, char_h = 16;
 
@@ -62,21 +65,17 @@ static void fb_draw_splash(void)
   if (box_x < 10) box_x = 10;
   if (box_y < 10) box_y = 10;
 
-  /* Shadow (offset 4px) */
-  brights_fb_fill_rounded_rect(box_x + 4, box_y + 4, box_w, box_h, 8,
-    brights_rgb(0, 0, 0));
+  /* Shadow */
+  brights_fb_fill_rounded_rect(box_x + 4, box_y + 4, box_w, box_h, 8, th->shadow);
 
-  /* Box background with slight transparency effect (solid dark) */
-  brights_fb_fill_rounded_rect(box_x, box_y, box_w, box_h, 8,
-    brights_rgb(12, 18, 45));
+  /* Box background */
+  brights_fb_fill_rounded_rect(box_x, box_y, box_w, box_h, 8, th->bg_secondary);
 
-  /* Box border (cyan) */
-  brights_fb_draw_rounded_rect(box_x, box_y, box_w, box_h, 8,
-    brights_rgb(0, 180, 220));
+  /* Box border */
+  brights_fb_draw_rounded_rect(box_x, box_y, box_w, box_h, 8, th->border_accent);
 
   /* Inner accent line (top) */
-  brights_fb_draw_hline(box_x + 8, box_y + 1, box_w - 16,
-    brights_rgb(0, 220, 255));
+  brights_fb_draw_hline(box_x + 8, box_y + 1, box_w - 16, th->bar_accent);
 
   /* Draw ASCII art logo centered in box */
   const char *logo[] = {
@@ -90,36 +89,35 @@ static void fb_draw_splash(void)
   int logo_x = box_x + (box_w - logo_w) / 2;
   int logo_y = box_y + 24;
 
-  uint32_t cyan_px = (0 << 16) | (240 << 8) | 255;
+  uint32_t accent_px = (th->bar_accent.r << 16) | (th->bar_accent.g << 8) | th->bar_accent.b;
   uint32_t transparent = 0xFFFFFFFF;
 
   for (int row = 0; row < 5; ++row) {
     for (int col = 0; col < 48; ++col) {
       if (logo[row][col] == '#') {
         brights_font_draw_char(logo_x + col * char_w, logo_y + row * char_h,
-          '#', cyan_px, transparent);
+          '#', accent_px, transparent);
       }
     }
   }
 
   /* Separator line below logo */
   int sep_y = logo_y + logo_h + 12;
-  brights_fb_draw_hline(box_x + 32, sep_y, box_w - 64,
-    brights_rgb(0, 120, 160));
+  brights_fb_draw_hline(box_x + 32, sep_y, box_w - 64, th->border);
 
   /* Version text */
   int text_y = sep_y + 16;
-  const char *ver = "BrightS v0.1.3.3";
+  const char *ver = "BrightS v0.1.3.4";
   int ver_w = str_len(ver) * char_w;
   brights_font_draw_string(box_x + (box_w - ver_w) / 2, text_y,
-    ver, (255 << 16) | (255 << 8) | 255, transparent);
+    ver, (th->text_primary.r << 16) | (th->text_primary.g << 8) | th->text_primary.b, transparent);
 
   /* Author text */
   int auth_y = text_y + char_h + 8;
   const char *auth = "Designed by Opluxo LLC";
   int auth_w = str_len(auth) * char_w;
   brights_font_draw_string(box_x + (box_w - auth_w) / 2, auth_y,
-    auth, (120 << 16) | (180 << 8) | 220, transparent);
+    auth, (th->text_secondary.r << 16) | (th->text_secondary.g << 8) | th->text_secondary.b, transparent);
 
   /* Status message (green, below box) */
   const char *status = "System initialization complete. Starting login...";
@@ -127,7 +125,7 @@ static void fb_draw_splash(void)
   int status_y = box_y + box_h + 24;
   if (status_y + char_h > fb_h) status_y = box_y + box_h - char_h - 8;
   brights_font_draw_string((fb_w - status_w) / 2, status_y,
-    status, (0 << 16) | (220 << 8) | 100, transparent);
+    status, (th->success.r << 16) | (th->success.g << 8) | th->success.b, transparent);
 
   /* Flush double buffer to screen */
   brights_dbuffer_flip();
@@ -151,7 +149,7 @@ void brights_boot_splash(void)
 
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[1;36m");
   logo_line_centered("+------------------------------------------------------+");
-  logo_line_centered("|                 BrightS v0.1.3.3                     |");
+  logo_line_centered("|                 BrightS v0.1.3.4                     |");
   logo_line_centered("|              Designed by Opluxo LLC                  |");
   logo_line_centered("+------------------------------------------------------+");
   brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[0m\r\n");

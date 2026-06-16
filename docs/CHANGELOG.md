@@ -1,5 +1,50 @@
 # 更新日志 | Changelog
 
+## [v0.1.3.3] — 2026-06-16
+
+### Rust 算法优化 | Rust Algorithm Optimizations
+- Robin Hood 哈希表: O(1) 均摊 get/insert/remove，用于 ARP 缓存查找
+- LRU 缓存: O(1) 哈希查找 + 双向链表淘汰，为文件系统缓存设计
+- 网络包验证: Rust-safe `rust_ip_validate` / `rust_tcp_validate` 替代不安全的 C 内联解析
+- Rust IP 校验和: `rust_ip_checksum` 纯 Rust 实现
+- Ring buffer: 零拷贝生产者-消费者缓冲区
+
+### 安全漏洞修复 | Security Vulnerability Fixes
+- TCP/IP 包解析: `ip_handle` / `tcp_handle` 添加长度验证，防止越界读取
+- Signal handler: `brights_signal_sigaction` 改为 per-process 信号状态（不再全局共享）
+- sys_mmap: 添加长度上限检查（0x10000000），预清零分配内存
+- ramfs stat: 路径复制循环添加 `BRIGHTS_RAMFS_MAX_NAME` 边界检查
+- pmem free: 已有位图双重释放保护（确认安全）
+
+### Slab 分配器修复 | Slab Allocator Fixes
+- Rust `slab_page_init` 路径: 添加 `slab_page_hash_insert`，修复 slab 页面不在哈希表中
+- `slab_page_free_to_pmem`: 当所有槽位空闲时将 slab 页面归还 pmem
+- 统一 kfree: O(1) 哈希表查找替代 O(n) 遍历
+- SMEP/SMAP: CPUID 检测后条件启用，支持 QEMU TCG
+
+### x86_64 架构修复 | x86_64 Architecture Fixes
+- ISR ABI: `mov %rsp, %rdi` → `mov %rsp, %rcx`（Windows ABI 兼容）
+- 32 个 CPU 异常向量全部有正确的 ISR stub
+- `bsf` 内联汇编替换为 `__builtin_ctzll()`（lld-link 兼容）
+- `-mno-movbe` 编译标志
+- LTO 从内核构建中移除（防止关键堆栈切换被优化掉）
+- 内核栈改为 256KB 静态 `.data` 数组
+
+### 显示子系统 | Display Subsystem
+- 双缓冲帧缓冲区渲染
+- Bochs VBE dispi 图形模式: 1024×768×32（I/O 端口 0x1CE/0x1CF）
+- `brights_paging_remap_uc()`: 帧缓冲区 PCD/PWT 缓存属性
+- EFI Boot Services 结构体布局修复（ExitBootServices 成功）
+
+### Ventoy UEFI 启动支持 | Ventoy UEFI Boot Support
+- `tools/grub.cfg`: Ventoy 链式加载配置
+- ISO 重建: xorriso + grub.cfg 三路径（/grub.cfg, /boot/grub/grub.cfg, /EFI/BOOT/grub.cfg）
+
+### 版本 | Version
+- 所有文件版本号: v0.1.3.3
+
+---
+
 ## [v0.1.2.8] — 2026-06-12
 
 ### 安全修复 | Security Fixes
@@ -128,4 +173,4 @@
 
 ---
 
-*版本控制遵循语义化版本 | v0.1.2.6*
+*版本控制遵循语义化版本 | v0.1.3.3*

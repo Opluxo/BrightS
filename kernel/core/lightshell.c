@@ -208,7 +208,7 @@ static const cmd_entry_t *cmd_find(const char *name)
 static char current_user[LIGHTSHELL_MAX_USER] = "guest";
 static char current_dir[LIGHTSHELL_MAX_PATH] = "/";
 static int is_root = 0;
-static char version[20] = "v0.1.3.4";
+static char version[20] = BRIGHTS_VERSION;
 
 // Command history
 static char history[LIGHTSHELL_HISTORY_SIZE][LIGHTSHELL_MAX_LINE];
@@ -984,7 +984,7 @@ static void print_system_info(void)
   uint64_t free_mem = brights_pmem_free_bytes() / (1024 * 1024);
   uint32_t proc_count = brights_proc_total();
 
-  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS v0.1.3.4\033[0m\r\n");
+  brights_serial_write_ascii(BRIGHTS_COM1_PORT, "  \033[1;33mSystem:\033[0m \033[1;37mBrightS " BRIGHTS_VERSION "\033[0m\r\n");
 
   char buf[64];
   char numbuf[16];
@@ -3143,7 +3143,7 @@ static void login_draw_fb(int attempts, const char *error_msg)
   brights_fb_draw_hline(box_x + 10, box_y + 1, box_w - 20, th->bar_accent);
 
   /* Title */
-  const char *title = "BrightS v0.1.3.4";
+  const char *title = "BrightS " BRIGHTS_VERSION;
   int title_w = strlen_s(title) * char_w;
   brights_font_draw_string(box_x + (box_w - title_w) / 2, box_y + 20,
     title, (th->text_primary.r << 16) | (th->text_primary.g << 8) | th->text_primary.b, 0xFFFFFFFF);
@@ -3220,7 +3220,7 @@ int brights_boot_login(void)
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "+---------------------------------------------+\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
-      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS v0.1.3.4               |\r\n");
+      brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              BrightS " BRIGHTS_VERSION "               |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
       brights_serial_write_ascii(BRIGHTS_COM1_PORT, "|              System Console Login            |\r\n");
       for (p = 0; p < LOGIN_PAD; ++p) brights_serial_write_ascii(BRIGHTS_COM1_PORT, " ");
@@ -3370,7 +3370,7 @@ void brights_lightshell_run(void)
     for (int tj = 0; current_user[tj] && ti < (int)sizeof(title_right) - 1; ++tj)
       title_right[ti++] = current_user[tj];
     title_right[ti] = 0;
-    tui_draw_title_bar("BrightS v0.1.3.4", title_right);
+    tui_draw_title_bar("BrightS " BRIGHTS_VERSION, title_right);
     brights_serial_write_ascii(BRIGHTS_COM1_PORT, "\033[2J\033[H");
   }
 

@@ -133,7 +133,7 @@ void tui_init(void)
 void tui_apply_theme(void)
 {
   /* Redraw both bars with current theme (called after theme switch) */
-  tui_draw_title_bar("BrightS v0.1.3.4", NULL);
+  tui_draw_title_bar("BrightS " BRIGHTS_VERSION, NULL);
   tui_draw_status_bar("", "");
 }
 
@@ -475,6 +475,6 @@ void tui_clear(void)
   fb_console_t *con = fb_console_get_info();
   if (!con) return;
   int saved_y = con->cursor_y;
-  tui_draw_title_bar("BrightS v0.1.3.4", NULL);
+  tui_draw_title_bar("BrightS " BRIGHTS_VERSION, NULL);
   con->cursor_y = saved_y;
 }

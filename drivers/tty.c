@@ -89,6 +89,60 @@ static void cooked_process_char(char ch)
     return;
   }
 
+  /* Ctrl+A: beginning of line */
+  if (ch == 1) {
+    return;
+  }
+
+  /* Ctrl+E: end of line */
+  if (ch == 5) {
+    return;
+  }
+
+  /* Ctrl+U: clear line before cursor */
+  if (ch == 21) {
+    line_len = 0;
+    line_buf[0] = 0;
+    /* Clear current line on display */
+    brights_tty_write_char('\r');
+    for (int i = 0; i < TTY_LINE_BUF; i++) brights_tty_write_char(' ');
+    brights_tty_write_char('\r');
+    return;
+  }
+
+  /* Ctrl+K: kill to end of line */
+  if (ch == 11) {
+    line_len = 0;
+    line_buf[0] = 0;
+    return;
+  }
+
+  /* Ctrl+W: delete word backward */
+  if (ch == 23) {
+    if (line_len > 0) {
+      /* Skip trailing spaces */
+      while (line_len > 0 && line_buf[line_len - 1] == ' ') {
+        line_len--;
+        brights_tty_write_char('\b');
+        brights_tty_write_char(' ');
+        brights_tty_write_char('\b');
+      }
+      /* Delete word characters */
+      while (line_len > 0 && line_buf[line_len - 1] != ' ') {
+        line_len--;
+        brights_tty_write_char('\b');
+        brights_tty_write_char(' ');
+        brights_tty_write_char('\b');
+      }
+    }
+    return;
+  }
+
+  /* Ctrl+L: clear screen */
+  if (ch == 12) {
+    return;
+  }
+
   if (line_len < TTY_LINE_BUF - 2) {
     line_buf[line_len++] = ch;
     brights_tty_write_char(ch);
@@ -109,8 +163,11 @@ int brights_tty_read_char(char *out_ch)
       return 1;
     }
 
+    /* Poll all input sources once each */
     char raw_ch;
-    if (brights_ps2kbd_read_char(&raw_ch) > 0) cooked_process_char(raw_ch);
+    if (brights_ps2kbd_read_char(&raw_ch) > 0) {
+      cooked_process_char(raw_ch);
+    }
 
     brights_usb_hid_poll_all();
     uint8_t usb_ch;
@@ -241,6 +298,9 @@ void fb_console_init(void)
   fb_con.work_h = fb_con.height;
   fb_con.utf8_len = 0;
   fb_con.utf8_expected = 0;
+  fb_con.dirty = 0;
+  fb_con.last_flush_cursor_x = 0;
+  fb_con.last_flush_cursor_y = 0;
 
   fb_con_initialized = 1;
   fb_console_clear();
@@ -315,9 +375,9 @@ void fb_console_scroll(void)
   uint32_t src_off = work_start_px * fb->pitch + scroll_bytes;
   uint32_t dst_off = work_start_px * fb->pitch;
 
-  /* Move pixel rows up */
-  for (uint32_t i = 0; i < copy_bytes; i++) {
-    buf[dst_off + i] = buf[src_off + i];
+  /* Move pixel rows up using memmove for large block efficiency */
+  if (copy_bytes > 0) {
+    kutil_memmove(buf + dst_off, buf + src_off, copy_bytes);
   }
 
   /* Clear bottom line with theme background */
@@ -352,6 +412,8 @@ void fb_console_put_codepoint(uint32_t cp)
 
   int w = kutil_codepoint_width(cp);
   if (w == 0) return;
+
+  fb_con.dirty = 1;
 
   if (w == 2 && fb_con.cursor_x + 2 > fb_con.width) {
     fb_console_newline();
@@ -500,6 +562,17 @@ void fb_console_update_cursor(void)
   /* Blink: toggle every ~30 ticks (~0.5s at 60Hz) */
   static int blink_counter = 0;
   static int blink_state = 1;
+  static int last_cursor_x = -1;
+  static int last_cursor_y = -1;
+
+  /* Reset blink when cursor moves (instant visible feedback) */
+  if (fb_con.cursor_x != last_cursor_x || fb_con.cursor_y != last_cursor_y) {
+    blink_counter = 0;
+    blink_state = 1;
+    last_cursor_x = fb_con.cursor_x;
+    last_cursor_y = fb_con.cursor_y;
+  }
+
   blink_counter++;
   if (blink_counter >= 30) {
     blink_counter = 0;
@@ -526,7 +599,15 @@ void fb_console_update_cursor(void)
 
 void fb_console_flush(void)
 {
+  if (!fb_con.dirty &&
+      fb_con.cursor_x == fb_con.last_flush_cursor_x &&
+      fb_con.cursor_y == fb_con.last_flush_cursor_y) {
+    return; /* Nothing changed, skip expensive flip */
+  }
   brights_dbuffer_flip();
+  fb_con.dirty = 0;
+  fb_con.last_flush_cursor_x = fb_con.cursor_x;
+  fb_con.last_flush_cursor_y = fb_con.cursor_y;
 }
 
 fb_console_t *fb_console_get_info(void) { return &fb_con; }

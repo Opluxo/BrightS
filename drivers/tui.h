@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include "fb.h"
 
+/* BrightS version constant (single source of truth) */
+#define BRIGHTS_VERSION "v0.1.3.4"
+
 /* Bar geometry */
 #define TUI_BAR_H       40
 #define TUI_BAR_PAD     12

@@ -44,6 +44,10 @@ typedef struct {
   char utf8_buf[FB_UTF8_MAX_BYTES];
   int utf8_len;      /* bytes collected so far */
   int utf8_expected; /* expected total bytes */
+  /* Dirty tracking: set when content changes, cleared after flush */
+  int dirty;
+  int last_flush_cursor_x;
+  int last_flush_cursor_y;
 } fb_console_t;
 
 void fb_console_init(void);

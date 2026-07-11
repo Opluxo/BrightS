@@ -16,6 +16,10 @@
 #define MONITOR_MAX_METRICS 64
 #define MONITOR_MAX_ALERTS 16
 
+/* Fixed-point scale factors (replaces float/double) */
+#define MONITOR_FP_SCALE      1000
+#define MONITOR_FP_SCALE_LOG  100
+
 /* Metric types */
 typedef enum {
     METRIC_CPU_USAGE,
@@ -45,7 +49,7 @@ typedef struct {
     union {
         uint64_t u64_value;
         int64_t i64_value;
-        double f64_value;
+        int64_t fp_value;  /* fixed-point value scaled by MONITOR_FP_SCALE */
     } value;
     char unit[8];  /* e.g., "%", "MB", "ops/s" */
 } metric_t;
@@ -56,7 +60,7 @@ typedef struct {
     char name[32];
     char description[128];
     metric_type_t metric_type;
-    double threshold;
+    int64_t threshold;  /* fixed-point, scaled by MONITOR_FP_SCALE */
     int condition;  /* 0: below threshold, 1: above threshold */
 } alert_config_t;
 
@@ -111,14 +115,14 @@ const monitor_config_t *brights_monitor_get_config(void);
 
 /* Performance analysis */
 typedef struct {
-    double avg_cpu_usage;
-    double peak_memory_usage;
+    int64_t avg_cpu_usage;      /* fixed-point * MONITOR_FP_SCALE */
+    int64_t peak_memory_usage;  /* fixed-point * MONITOR_FP_SCALE */
     uint64_t total_disk_reads;
     uint64_t total_disk_writes;
     uint64_t total_network_rx;
     uint64_t total_network_tx;
     uint32_t process_count;
-    double system_load_avg;
+    int64_t system_load_avg;    /* fixed-point * MONITOR_FP_SCALE_LOG */
 } performance_stats_t;
 
 int brights_monitor_get_performance_stats(performance_stats_t *stats);

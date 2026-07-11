@@ -9,6 +9,8 @@ pub type uint32_t = u32;
 pub type uint64_t = u64;
 pub type int32_t = i32;
 
+const PAGE_SIZE: usize = 4096;
+
 // ============================================================
 // Slab allocator helpers
 // ============================================================
@@ -58,10 +60,10 @@ pub unsafe extern "C" fn rust_slab_find_class(size: size_t) -> int32_t {
 pub unsafe extern "C" fn rust_slab_page_init(page: *mut u8, class_idx: uint32_t) -> int32_t {
     let block_size = SLAB_SIZES[class_idx as usize];
     let header_size = (core::mem::size_of::<slab_page>() + 15) & !15;
-    if block_size == 0 || header_size >= 4096 {
+    if block_size == 0 || header_size >= PAGE_SIZE {
         return -1;
     }
-    let num_blocks = (4096 - header_size) / block_size;
+    let num_blocks = (PAGE_SIZE - header_size) / block_size;
     if num_blocks == 0 {
         return -1;
     }
@@ -113,7 +115,7 @@ pub unsafe extern "C" fn rust_slab_free(sp: *mut slab_page, ptr: *mut u8) {
 #[no_mangle]
 pub unsafe extern "C" fn rust_slab_contains(sp: *mut slab_page, ptr: *mut u8) -> int32_t {
     let start = sp as *mut u8;
-    if ptr >= start && ptr.offset_from(start) < 4096 {
+    if ptr >= start && ptr.offset_from(start) < PAGE_SIZE {
         1
     } else {
         0

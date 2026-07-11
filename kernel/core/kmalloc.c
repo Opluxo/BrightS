@@ -1,6 +1,7 @@
 #include "kernel/stddef.h"
 #include <stdint.h>
 #include "kmalloc.h"
+#include "kernel_util.h"
 
 #ifdef BRIGHTS_RUST_ENABLED
 #include "rust_ffi.h"
@@ -144,7 +145,7 @@ static slab_page_t *slab_page_init(int class_idx)
 
   size_t block_size = slab_sizes[class_idx];
   size_t header_size = align_up(sizeof(slab_page_t), 16);
-  uint32_t num_blocks = (4096 - header_size) / block_size;
+  uint32_t num_blocks = (BRIGHTS_PAGE_SIZE - header_size) / block_size;
   if (num_blocks == 0) {
     brights_pmem_free_page(page);
     return 0;
@@ -359,7 +360,7 @@ void brights_kfree(void *ptr)
     uint8_t *header_start = (uint8_t *)sp + align_up(sizeof(slab_page_t), 16);
     uint8_t *block_ptr = (uint8_t *)ptr;
 
-    if (block_ptr >= header_start && block_ptr < (uint8_t *)sp + 4096) {
+    if (block_ptr >= header_start && block_ptr < (uint8_t *)sp + BRIGHTS_PAGE_SIZE) {
       size_t block_offset = block_ptr - header_start;
       if (block_offset % block_size == 0) {
         /* Use Rust if available for poisoning + list ops */
@@ -411,5 +412,5 @@ size_t brights_kmalloc_used(void)
 
 size_t brights_kmalloc_capacity(void)
 {
-  return KMALLOC_HEAP_SIZE + SLAB_CLASSES * 4096;
+  return KMALLOC_HEAP_SIZE + SLAB_CLASSES * BRIGHTS_PAGE_SIZE;
 }

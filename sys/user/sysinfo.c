@@ -18,14 +18,14 @@
 #define SYS_MONITOR_GET_HEALTH 306
 
 typedef struct {
-    double avg_cpu_usage;
-    double peak_memory_usage;
+    int64_t avg_cpu_usage;      /* fixed-point * 1000 */
+    int64_t peak_memory_usage;  /* fixed-point * 1000 */
     uint64_t total_disk_reads;
     uint64_t total_disk_writes;
     uint64_t total_network_rx;
     uint64_t total_network_tx;
     uint32_t process_count;
-    double system_load_avg;
+    int64_t system_load_avg;    /* fixed-point * 100 */
 } performance_stats_t;
 
 typedef struct {
@@ -80,12 +80,12 @@ void print_memory_info() {
 void print_disk_info() {
     print_header("Disk Information");
 
-    uint64_t total, used, free;
-    if (syscall(SYS_DISK_USAGE, "/", &total, &used, &free) == 0) {
-        printf("Total: %llu GB\n", total / (1024*1024*1024));
-        printf("Used: %llu GB\n", used / (1024*1024*1024));
-        printf("Free: %llu GB\n", free / (1024*1024*1024));
-        printf("Usage: %.1f%%\n", (double)used / total * 100);
+    uint64_t total, used, avail;
+    if (syscall(SYS_DISK_USAGE, "/", &total, &used, &avail) == 0) {
+        printf("Total: %llu GB\n", (unsigned long long)(total / (1024*1024*1024)));
+        printf("Used: %llu GB\n", (unsigned long long)(used / (1024*1024*1024)));
+        printf("Free: %llu GB\n", (unsigned long long)(avail / (1024*1024*1024)));
+        printf("Usage: %llu%%\n", (unsigned long long)(used * 100 / total));
     } else {
         printf("Unable to retrieve disk information\n");
     }
@@ -127,14 +127,14 @@ void print_performance_stats() {
 
     performance_stats_t stats;
     if (syscall(SYS_MONITOR_GET_STATS, &stats, sizeof(stats)) == 0) {
-        printf("CPU Usage: %.1f%%\n", stats.avg_cpu_usage);
-        printf("Peak Memory: %.1f%%\n", stats.peak_memory_usage);
-        printf("Disk Reads: %llu\n", stats.total_disk_reads);
-        printf("Disk Writes: %llu\n", stats.total_disk_writes);
-        printf("Network RX: %llu bytes\n", stats.total_network_rx);
-        printf("Network TX: %llu bytes\n", stats.total_network_tx);
+        printf("CPU Usage: %lld.%lld%%\n", (long long)(stats.avg_cpu_usage / 1000), (long long)(stats.avg_cpu_usage % 1000));
+        printf("Peak Memory: %lld.%lld%%\n", (long long)(stats.peak_memory_usage / 1000), (long long)(stats.peak_memory_usage % 1000));
+        printf("Disk Reads: %llu\n", (unsigned long long)stats.total_disk_reads);
+        printf("Disk Writes: %llu\n", (unsigned long long)stats.total_disk_writes);
+        printf("Network RX: %llu bytes\n", (unsigned long long)stats.total_network_rx);
+        printf("Network TX: %llu bytes\n", (unsigned long long)stats.total_network_tx);
         printf("Process Count: %u\n", stats.process_count);
-        printf("System Load: %.2f\n", stats.system_load_avg);
+        printf("System Load: %lld.%02lld\n", (long long)(stats.system_load_avg / 100), (long long)(stats.system_load_avg % 100));
     } else {
         printf("Unable to retrieve performance statistics\n");
     }
@@ -161,11 +161,11 @@ void print_system_health() {
 void print_load_average() {
     print_header("System Load");
 
-    double load1, load5, load15;
+    int64_t load1, load5, load15;
     if (syscall(SYS_SYSTEM_LOAD, &load1, &load5, &load15) == 0) {
-        printf("1 minute: %.2f\n", load1);
-        printf("5 minutes: %.2f\n", load5);
-        printf("15 minutes: %.2f\n", load15);
+        printf("1 minute: %lld.%02lld\n", (long long)(load1 / 100), (long long)(load1 % 100));
+        printf("5 minutes: %lld.%02lld\n", (long long)(load5 / 100), (long long)(load5 % 100));
+        printf("15 minutes: %lld.%02lld\n", (long long)(load15 / 100), (long long)(load15 % 100));
     } else {
         printf("Unable to retrieve load average\n");
     }

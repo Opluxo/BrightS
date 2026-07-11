@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "proc.h"
 #include "sched.h"
+#include "kernel_util.h"
 #ifdef __i386__
 #include "../arch/i386/gdt.h"
 #include "../arch/i386/paging.h"
@@ -37,7 +38,7 @@ typedef struct {
 static sched_slot_t   slot_table[BRIGHTS_SCHED_MAX_PROC];
 static uint64_t       free_slot_bitmap;             /* 1 = free */
 static uint64_t       run_queues[BRIGHTS_SCHED_PRIO_CNT]; /* bitmap per priority */
-static uint8_t        slot_of_pid[256];             /* pid → slot (0xFF = none) */
+static uint8_t        slot_of_pid[BRIGHTS_PROC_MAX];             /* pid → slot (0xFF = none) */
 
 static uint64_t       sched_ticks;
 static uint64_t       sched_dispatches;
@@ -76,7 +77,7 @@ static inline void free_slot(int32_t slot)
   if (slot < 0 || (uint32_t)slot >= BRIGHTS_SCHED_MAX_PROC) return;
   for (int p = 0; p < BRIGHTS_SCHED_PRIO_CNT; ++p)
     run_queues[p] &= ~(1ULL << slot);
-  if (slot_table[slot].in_use && slot_table[slot].pid < 256)
+  if (slot_table[slot].in_use && slot_table[slot].pid < BRIGHTS_PROC_MAX)
     slot_of_pid[slot_table[slot].pid] = 0xFF;
   slot_table[slot].in_use = 0;
   free_slot_bitmap |= (1ULL << slot);
@@ -147,7 +148,7 @@ void brights_sched_init(void)
   }
   for (int i = 0; i < BRIGHTS_SCHED_PRIO_CNT; ++i)
     run_queues[i] = 0;
-  for (int i = 0; i < 256; ++i)
+  for (int i = 0; i < BRIGHTS_PROC_MAX; ++i)
     slot_of_pid[i] = 0xFF;
 }
 
@@ -204,7 +205,7 @@ int brights_sched_mark_dispatch(void)
 
 int brights_sched_add_process(uint32_t pid)
 {
-  if (pid == 0 || pid >= 256) return -1;
+  if (pid == 0 || pid >= BRIGHTS_PROC_MAX) return -1;
   if (slot_of_pid[pid] != 0xFF) return 0;
 
   int32_t slot = alloc_slot();
@@ -239,7 +240,7 @@ int brights_sched_add_process(uint32_t pid)
 
 int brights_sched_remove_process(uint32_t pid)
 {
-  if (pid == 0 || pid >= 256) return -1;
+  if (pid == 0 || pid >= BRIGHTS_PROC_MAX) return -1;
   uint8_t slot = slot_of_pid[pid];
   if (slot == 0xFF) return -1;
 
@@ -508,7 +509,7 @@ int brights_sched_yield(void)
 
 int brights_sched_set_nice(uint32_t pid, int32_t nice)
 {
-  if (pid == 0 || pid >= 256) return -1;
+  if (pid == 0 || pid >= BRIGHTS_PROC_MAX) return -1;
   if (nice < -20) nice = -20;
   if (nice > 19)  nice = 19;
 
@@ -538,7 +539,7 @@ int brights_sched_set_nice(uint32_t pid, int32_t nice)
 
 int brights_sched_get_stats(uint32_t pid, brights_proc_sched_t *out)
 {
-  if (!out || pid == 0 || pid >= 256) return -1;
+  if (!out || pid == 0 || pid >= BRIGHTS_PROC_MAX) return -1;
 
   uint32_t pid_idx = brights_proc_index(pid);
   if (pid_idx >= BRIGHTS_SCHED_MAX_PROC) return -1;

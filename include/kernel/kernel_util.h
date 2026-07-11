@@ -4,6 +4,16 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/* ===== System constants ===== */
+#ifndef BRIGHTS_PAGE_SIZE
+#define BRIGHTS_PAGE_SIZE       4096
+#endif
+#ifndef BRIGHTS_PAGE_SIZE_SHIFT
+#define BRIGHTS_PAGE_SIZE_SHIFT 12
+#endif
+#define BRIGHTS_KERNEL_STACK_SIZE 8192
+#define BRIGHTS_MAX_PID         256
+
 /* ===== Inline memory operations (fast, no libc dependency) ===== */
 
 static inline void *kutil_memcpy(void *dst, const void *src, uint64_t n)

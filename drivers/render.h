@@ -407,12 +407,12 @@ int render_update_uniform(int set, uint32_t binding, void *data, size_t size);
 
 void render_set_depth_bias(float constant, float clamp, float slope);
 void render_set_depth_bounds(float min, float max);
-void render_setStencilReference(uint32_t reference);
-void render_setStencilWriteMask(uint32_t mask);
-void render_setStencilCompareMask(uint32_t mask);
-void render_setBlendConstants(float r, float g, float b, float a);
-void render_setLineWidth(float width);
-void render_setPointSize(float size);
+void render_set_stencil_reference(uint32_t reference);
+void render_set_stencil_write_mask(uint32_t mask);
+void render_set_stencil_compare_mask(uint32_t mask);
+void render_set_blend_constants(float r, float g, float b, float a);
+void render_set_line_width(float width);
+void render_set_point_size(float size);
 
 int render_submit(void);
 int render_wait_idle(void);

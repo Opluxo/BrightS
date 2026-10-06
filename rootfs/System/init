@@ -1,0 +1,25 @@
+#!/System/bin/busybox sh
+
+export PATH=/System/bin:/System/sbin:/System/usr/bin
+export HOME=/User
+export LD_LIBRARY_PATH=/System/lib:/System/usr/lib
+
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devtmpfs none /dev
+mount -t tmpfs none /run
+mount -t tmpfs none /tmp
+
+hostname brights
+
+echo ""
+echo "BrightS v0.2a booted."
+echo ""
+
+/System/usr/bin/hello
+
+echo ""
+echo "Entering shell."
+echo ""
+
+exec /System/bin/sh </dev/ttyAMA0 >/dev/ttyAMA0 2>&1

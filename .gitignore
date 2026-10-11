@@ -1,6 +1,7 @@
 # Build artifacts
 build/
 build_x64/
+out/
 *.o
 
 # IDE cache

@@ -1,136 +1,112 @@
 name: Build & Release
 
+# BrightS is an arm64-only, from-scratch Linux distribution. Everything is
+# built here from the versions pinned in versions.lock: the kernel, BusyBox,
+# libdrm, the glibc runtime staged into /System/lib, the embedder test
+# binaries, and the final cpio initramfs.
+#
+# See scripts/build.sh for the pipeline and scripts/boot-test.sh for the
+# QEMU smoke test.
+
 on:
   push:
     branches: [ main ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+
 jobs:
-  x86_64:
-    name: x86_64 (UEFI)
+  arm64:
+    name: arm64 (Image + initramfs)
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
-          sudo apt update
-          sudo apt install -y build-essential cmake nasm mtools dosfstools \
-                               qemu-system-x86 ovmf git clang lld xorriso python3
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            libc6-dev-arm64-cross \
+            flex bison bc libssl-dev libelf-dev \
+            cpio gzip xz-utils bzip2 curl file \
+            meson ninja-build pkg-config \
+            qemu-system-arm
 
-      - name: Install Rust target
-        run: rustup target add x86_64-unknown-none
-
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
+      - name: Cache upstream source tarballs
+        uses: actions/cache@v4
+        with:
+          path: build/dl
+          key: brights-sources-${{ hashFiles('versions.lock') }}
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: ./scripts/build.sh all
 
-      - name: Run tests
-        run: |
-          cd build && ctest --output-on-failure
+      - name: Show artifacts
+        run: ls -lh out/
 
-      - name: Create ISO
-        run: |
-          chmod +x tools/make-iso.sh
-          ./tools/make-iso.sh
+      - name: Boot smoke test (QEMU)
+        run: ./scripts/boot-test.sh 180
 
-      - name: Upload ISO
+      - name: Upload boot log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: brights-x86_64
-          path: build/brights.iso
+          name: boot-log
+          path: build/boot.log
+          if-no-files-found: ignore
 
-  i386:
-    name: i386
-    runs-on: ubuntu-24.04
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential nasm mtools dosfstools xorriso python3 \
-                               gcc-i686-linux-gnu
-
-      - name: Build
-        run: CC=i686-linux-gnu-gcc bash scripts/build-i386.sh
-
-      - name: Test floppy image
-        run: |
-          # Verify boot signature at end of first sector
-          od -A x -t x1z -v build/floppy.img | head -2
-          SIGNATURE=$(dd if=build/floppy.img bs=1 count=2 skip=510 2>/dev/null | od -An -tx1 | tr -d ' ')
-          if [ "$SIGNATURE" != "55aa" ] && [ "$SIGNATURE" != "aa55" ]; then
-            echo "ERROR: Missing 0x55AA boot signature"
-            exit 1
-          fi
-          echo "Boot signature: OK"
-
-      - name: Create ISO (El Torito hard-disk emulation)
-        run: |
-          mkdir -p build/i386-iso
-          cp build/floppy.img build/i386-iso/
-          xorriso -as mkisofs \
-            -b floppy.img \
-            -hard-disk-boot \
-            -V "BRIGHTS_I386" \
-            -o build/brights-i386.iso \
-            build/i386-iso/
-
-      - name: Upload artifacts
+      - name: Upload image
         uses: actions/upload-artifact@v4
         with:
-          name: brights-i386
+          name: brights-arm64
           path: |
-            build/floppy.img
-            build/brights-i386.iso
+            out/Image
+            out/initramfs.cpio.gz
+          if-no-files-found: error
 
   release:
-    needs: [x86_64, i386]
+    name: Release
+    needs: [ arm64 ]
     if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
     runs-on: ubuntu-24.04
 
-    steps:
-      - name: Download x86_64 ISO
-        uses: actions/download-artifact@v4
-        with:
-          name: brights-x86_64
-          path: build/
+    permissions:
+      contents: write
 
-      - name: Download i386 ISO
-        uses: actions/download-artifact@v4
+    steps:
+      - uses: actions/download-artifact@v4
         with:
-          name: brights-i386
-          path: build/
+          name: brights-arm64
+          path: release
 
       - name: Rename artifacts
         run: |
+          set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
-          mkdir -p release
-          cp build/brights.iso "release/BrightS-${TAG}-x86_64.iso"
-          cp build/brights-i386.iso "release/BrightS-${TAG}-i386.iso"
+          cd release
+          mv Image "BrightS-${TAG}-arm64-Image"
+          mv initramfs.cpio.gz "BrightS-${TAG}-arm64-initramfs.cpio.gz"
+          ls -lh
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/BrightS-*.iso
+          files: release/*
           generate_release_notes: true
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

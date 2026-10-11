@@ -26,6 +26,15 @@ echo ""
 /System/usr/bin/drm-test
 echo ""
 
+# Self-test mode (CI, and scripts/boot-test.sh locally): print a marker and
+# power the machine off instead of dropping into an interactive shell, so the
+# VM terminates on its own rather than waiting for a timeout.
+if grep -q brights.selftest /proc/cmdline 2>/dev/null; then
+    echo "[selftest] BrightS v0.2c boot ok"
+    sync
+    exec /System/sbin/poweroff -f
+fi
+
 echo "Entering shell."
 echo ""
 

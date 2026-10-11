@@ -1,0 +1,45 @@
+# BrightS kernel options, applied on top of `make ARCH=arm64 defconfig`.
+#
+# Syntax: CONFIG_FOO=y to enable, CONFIG_FOO=n to disable.
+# Comments (#) and blank lines are ignored.
+#
+# This list is the configuration that v0.2c was validated with — see
+# scripts/build.sh (stage_kernel) for how it is applied.
+
+# --- initramfs / devtmpfs ---------------------------------------------------
+# The initramfs is mounted as the root filesystem, and /System/init mounts
+# devtmpfs by hand, so both of these are required.
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+
+# --- DRM / KMS --------------------------------------------------------------
+# arm64 defconfig has CONFIG_DRM=m; the initramfs ships no modules and never
+# runs modprobe, so DRM and the virtio-gpu driver must both be built in.
+CONFIG_DRM=y
+CONFIG_DRM_VIRTIO_GPU=y
+
+# --- namespaces / sandboxing (Application-layer sandbox, v0.5) --------------
+CONFIG_NAMESPACES=y
+CONFIG_USER_NS=y
+CONFIG_PID_NS=y
+CONFIG_NET_NS=y
+CONFIG_IPC_NS=y
+CONFIG_UTS_NS=y
+CONFIG_CGROUPS=y
+CONFIG_SECCOMP=y
+CONFIG_SECCOMP_FILTER=y
+# NOTE: the symbol is SECURITY_LANDLOCK, not LANDLOCK. `scripts/config
+# --enable CONFIG_LANDLOCK` silently does nothing and leaves the line in
+# .config as an unknown symbol. Depends on CONFIG_SECURITY, which arm64
+# defconfig already sets, and selects CONFIG_SECURITY_PATH.
+CONFIG_SECURITY_LANDLOCK=y
+
+# --- future: read-only system image + user data overlay ---------------------
+CONFIG_SQUASHFS=y
+CONFIG_OVERLAY_FS=y
+CONFIG_FUSE_FS=y
+
+# --- force 4K pages ---------------------------------------------------------
+# 64K pages waste memory on a 1 GB target and complicate the ABI story.
+CONFIG_ARM64_64K_PAGES=n

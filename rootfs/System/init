@@ -2,7 +2,7 @@
 
 export PATH=/System/bin:/System/sbin:/System/usr/bin
 export HOME=/User
-export LD_LIBRARY_PATH=/System/lib:/System/usr/lib
+export LD_LIBRARY_PATH=/System/usr/lib:/System/lib
 
 mount -t proc none /proc
 mount -t sysfs none /sys
@@ -13,12 +13,19 @@ mount -t tmpfs none /tmp
 hostname brights
 
 echo ""
-echo "BrightS v0.2a booted."
+echo "BrightS v0.2c booted."
 echo ""
 
-/System/usr/bin/hello
+if [ -e /dev/dri/card0 ]; then
+    echo "[ok] /dev/dri/card0 exists"
+else
+    echo "[warn] /dev/dri/card0 missing"
+fi
 
 echo ""
+/System/usr/bin/drm-test
+echo ""
+
 echo "Entering shell."
 echo ""
 

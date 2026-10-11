@@ -70,6 +70,16 @@ set -e
 
 echo "==> qemu exited with $rc (full log: $LOG)"
 
+# Debian/Ubuntu split QEMU's option ROMs into the ipxe-qemu package, and
+# `apt install --no-install-recommends qemu-system-arm` skips it. Without it
+# QEMU dies before the guest starts, which otherwise looks like a failed boot.
+if grep -q "failed to find romfile" "$LOG"; then
+    tail -20 "$LOG" >&2
+    die "boot test FAILED: QEMU could not load a PCI option ROM.
+     Install ipxe-qemu (it provides /usr/lib/ipxe/qemu/efi-virtio.rom),
+     or drop --no-install-recommends so qemu-system-arm pulls it in."
+fi
+
 if grep -q "Kernel panic" "$LOG"; then
     tail -40 "$LOG" >&2
     die "boot test FAILED: kernel panic"

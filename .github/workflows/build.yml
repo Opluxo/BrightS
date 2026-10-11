@@ -45,7 +45,7 @@ jobs:
             flex bison bc libssl-dev libelf-dev \
             cpio gzip xz-utils bzip2 curl file \
             meson ninja-build pkg-config \
-            qemu-system-arm
+            qemu-system-arm ipxe-qemu
 
       - name: Cache upstream source tarballs
         uses: actions/cache@v4
